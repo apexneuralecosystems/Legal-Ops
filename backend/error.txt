@@ -1,0 +1,298 @@
+﻿.\venv\Scripts\python.exe : DEBUG:asyncio:Using proactor: IocpProactor
+At line:1 char:1
++ .\venv\Scripts\python.exe debug_intake.py 2>&1 | Out-File -FilePath e ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (DEBUG:asyncio:U...r: IocpProactor: 
+   String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+INFO:services.commonlii_scraper:CommonLII scraper initialized
+INFO:agents.research:Research Agent initialized (USE_COMMONLII=False)
+INFO:orchestrator.controller:Starting intake workflow for matter TEST-001 with 
+1 files
+DEBUG:orchestrator.controller:Calling OCR agent for DOC-20251218-e65c80cf, 
+content_len=45
+INFO:agents.ocr_language:DEBUG: Processing doc DOC-20251218-e65c80cf, 
+mime=text/plain, size=45
+INFO:agents.ocr_language:DEBUG: Segmenting text of length 45
+INFO:agents.ocr_language:DEBUG: Found 1 sentences
+INFO:agents.ocr_language:DEBUG: Sentence 'This is a test legal document ...' 
+detected as 'en'
+DEBUG:orchestrator.controller:OCR agent result status: success
+DEBUG:orchestrator.controller:OCR agent returned 1 segments
+DEBUG:orchestrator.controller:Document has 1 pages
+ERROR:orchestrator.controller:Intake workflow FAILED for matter TEST-001: 
+Invalid state update from node ocr_and_language, expected dict with one or more 
+of ['files', 'connector_type', 'metadata', 'matter_id', 'workflow_status', 
+'document_manifest', 'total_documents', 'all_segments', 'parallel_texts', 
+'matter_snapshot', 'risk_scores', 'template_id', 'issues_selected', 
+'prayers_selected', 'planned_issues', 'template_info', 'pleading_ms', 
+'pleading_en', 'qa_report', 'query', 'filters', 'cases', 'argument_memo', 
+'data_source', 'live_data', 'documents', 'translation_cert', 'evidence_packet', 
+'hearing_bundle'], got {'files': [{'filename': 'test.txt', 'content': b'This is 
+a test legal document for processing.', 'mime_type': 'text/plain'}], 
+'connector_type': 'upload', 'metadata': {}, 'matter_id': 'TEST-001', 
+'workflow_status': 'started', 'document_manifest': [{'doc_id': 
+'DOC-20251218-e65c80cf', 'matter_id': 'TEST-001', 'source': 'upload', 
+'filename': 'test.txt', 'mime_type': 'text/plain', 'received_utc': 
+'2025-12-18T10:37:45.651575', 'size_bytes': 45, 'file_hash': 
+'e65c80cf88c71b89f33061aeeb37fc98073d7d696e84d1a0a5dbd5836fef9e15', 
+'is_duplicate': False, 'duplicate_of': None, 'ocr_needed': False, 
+'doc_lang_hint': 'unknown', 'confidence': 0.95, 'file_content': b'This is a 
+test legal document for processing.'}], 'total_documents': 1, 'all_segments': 
+[{'segment_id': 'SEG-DOC-20251218-e65c80cf-p1-s1', 'doc_id': 
+'DOC-20251218-e65c80cf', 'page': 1, 'sequence': 1, 'text': 'This is a test 
+legal document for processing.', 'lang': 'en', 'lang_confidence': 0.85, 
+'ocr_confidence': 1.0, 'human_check_required': False}], 'parallel_texts': None, 
+'matter_snapshot': None, 'risk_scores': None, 'template_id': None, 
+'issues_selected': None, 'prayers_selected': None, 'planned_issues': None, 
+'template_info': None, 'pleading_ms': None, 'pleading_en': None, 'qa_report': 
+None, 'query': None, 'filters': None, 'cases': None, 'argument_memo': None, 
+'data_source': None, 'live_data': None, 'documents': None, 'translation_cert': 
+None, 'evidence_packet': None, 'hearing_bundle': None, 'total_page_count': 1}
+Traceback (most recent call last):
+  File "C:\Users\rahul\Desktop\law agent 
+final\backend\orchestrator\controller.py", line 203, in run_intake_workflow
+    result = await self.intake_workflow.ainvoke(initial_state)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rahul\Desktop\law agent 
+final\backend\venv\Lib\site-packages\langgraph\pregel\__init__.py", line 625, 
+in ainvoke
+    async for chunk in self.astream(
+  File "C:\Users\rahul\Desktop\law agent 
+final\backend\venv\Lib\site-packages\langgraph\pregel\__init__.py", line 647, 
+in astream
+    async for chunk in self.atransform(
+  File "C:\Users\rahul\Desktop\law agent 
+final\backend\venv\Lib\site-packages\langgraph\pregel\__init__.py", line 665, 
+in atransform
+    async for chunk in self._atransform_stream_with_config(
+  File "C:\Users\rahul\Desktop\law agent 
+final\backend\venv\Lib\site-packages\langchain_core\runnables\base.py", line 
+1595, in _atransform_stream_with_config
+    chunk: Output = await asyncio.create_task(  # type: ignore[call-arg]
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rahul\Desktop\law agent 
+final\backend\venv\Lib\site-packages\langgraph\pregel\__init__.py", line 511, 
+in _atransform
+    _interrupt_or_proceed(done, inflight, step)
+  File "C:\Users\rahul\Desktop\law agent 
+final\backend\venv\Lib\site-packages\langgraph\pregel\__init__.py", line 688, 
+in _interrupt_or_proceed
+    raise exc
+  File "C:\Users\rahul\Desktop\law agent 
+final\backend\venv\Lib\site-packages\langchain_core\runnables\base.py", line 
+4076, in ainvoke
+    return await self.bound.ainvoke(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rahul\Desktop\law agent 
+final\backend\venv\Lib\site-packages\langchain_core\runnables\base.py", line 
+2087, in ainvoke
+    input = await step.ainvoke(
+            ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rahul\Desktop\law agent 
+final\backend\venv\Lib\site-packages\langchain_core\runnables\base.py", line 
+3527, in ainvoke
+    return await self._acall_with_config(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rahul\Desktop\law agent 
+final\backend\venv\Lib\site-packages\langchain_core\runnables\base.py", line 
+1295, in _acall_with_config
+    output: Output = await asyncio.create_task(coro, context=context)  # type: 
+ignore
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rahul\Desktop\law agent 
+final\backend\venv\Lib\site-packages\langchain_core\runnables\base.py", line 
+3474, in _ainvoke
+    output = await acall_func_with_variable_args(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rahul\Desktop\law agent 
+final\backend\venv\Lib\site-packages\langchain_core\runnables\base.py", line 
+3450, in f
+    return await run_in_executor(config, func, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rahul\Desktop\law agent 
+final\backend\venv\Lib\site-packages\langchain_core\runnables\config.py", line 
+493, in run_in_executor
+    return await asyncio.get_running_loop().run_in_executor(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rahul\AppData\Local\Programs\Python\Python312\Lib\concurrent\fu
+tures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rahul\Desktop\law agent 
+final\backend\venv\Lib\site-packages\langchain_core\runnables\base.py", line 
+3444, in func
+    return call_func_with_variable_args(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rahul\Desktop\law agent 
+final\backend\venv\Lib\site-packages\langchain_core\runnables\config.py", line 
+326, in call_func_with_variable_args
+    return func(input, **kwargs)  # type: ignore[call-arg]
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rahul\Desktop\law agent 
+final\backend\venv\Lib\site-packages\langgraph\graph\state.py", line 113, in 
+_update_state_dict
+    raise InvalidUpdateError(
+langgraph.channels.base.InvalidUpdateError: Invalid state update from node 
+ocr_and_language, expected dict with one or more of ['files', 'connector_type', 
+'metadata', 'matter_id', 'workflow_status', 'document_manifest', 
+'total_documents', 'all_segments', 'parallel_texts', 'matter_snapshot', 
+'risk_scores', 'template_id', 'issues_selected', 'prayers_selected', 
+'planned_issues', 'template_info', 'pleading_ms', 'pleading_en', 'qa_report', 
+'query', 'filters', 'cases', 'argument_memo', 'data_source', 'live_data', 
+'documents', 'translation_cert', 'evidence_packet', 'hearing_bundle'], got 
+{'files': [{'filename': 'test.txt', 'content': b'This is a test legal document 
+for processing.', 'mime_type': 'text/plain'}], 'connector_type': 'upload', 
+'metadata': {}, 'matter_id': 'TEST-001', 'workflow_status': 'started', 
+'document_manifest': [{'doc_id': 'DOC-20251218-e65c80cf', 'matter_id': 
+'TEST-001', 'source': 'upload', 'filename': 'test.txt', 'mime_type': 
+'text/plain', 'received_utc': '2025-12-18T10:37:45.651575', 'size_bytes': 45, 
+'file_hash': 
+'e65c80cf88c71b89f33061aeeb37fc98073d7d696e84d1a0a5dbd5836fef9e15', 
+'is_duplicate': False, 'duplicate_of': None, 'ocr_needed': False, 
+'doc_lang_hint': 'unknown', 'confidence': 0.95, 'file_content': b'This is a 
+test legal document for processing.'}], 'total_documents': 1, 'all_segments': 
+[{'segment_id': 'SEG-DOC-20251218-e65c80cf-p1-s1', 'doc_id': 
+'DOC-20251218-e65c80cf', 'page': 1, 'sequence': 1, 'text': 'This is a test 
+legal document for processing.', 'lang': 'en', 'lang_confidence': 0.85, 
+'ocr_confidence': 1.0, 'human_check_required': False}], 'parallel_texts': None, 
+'matter_snapshot': None, 'risk_scores': None, 'template_id': None, 
+'issues_selected': None, 'prayers_selected': None, 'planned_issues': None, 
+'template_info': None, 'pleading_ms': None, 'pleading_en': None, 'qa_report': 
+None, 'query': None, 'filters': None, 'cases': None, 'argument_memo': None, 
+'data_source': None, 'live_data': None, 'documents': None, 'translation_cert': 
+None, 'evidence_packet': None, 'hearing_bundle': None, 'total_page_count': 1}
+Traceback (most recent call last):
+  File "C:\Users\rahul\Desktop\law agent 
+final\backend\orchestrator\controller.py", line 203, in run_intake_workflow
+    result = await self.intake_workflow.ainvoke(initial_state)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rahul\Desktop\law agent 
+final\backend\venv\Lib\site-packages\langgraph\pregel\__init__.py", line 625, 
+in ainvoke
+    async for chunk in self.astream(
+  File "C:\Users\rahul\Desktop\law agent 
+final\backend\venv\Lib\site-packages\langgraph\pregel\__init__.py", line 647, 
+in astream
+    async for chunk in self.atransform(
+  File "C:\Users\rahul\Desktop\law agent 
+final\backend\venv\Lib\site-packages\langgraph\pregel\__init__.py", line 665, 
+in atransform
+    async for chunk in self._atransform_stream_with_config(
+  File "C:\Users\rahul\Desktop\law agent 
+final\backend\venv\Lib\site-packages\langchain_core\runnables\base.py", line 
+1595, in _atransform_stream_with_config
+    chunk: Output = await asyncio.create_task(  # type: ignore[call-arg]
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rahul\Desktop\law agent 
+final\backend\venv\Lib\site-packages\langgraph\pregel\__init__.py", line 511, 
+in _atransform
+    _interrupt_or_proceed(done, inflight, step)
+  File "C:\Users\rahul\Desktop\law agent 
+final\backend\venv\Lib\site-packages\langgraph\pregel\__init__.py", line 688, 
+in _interrupt_or_proceed
+    raise exc
+  File "C:\Users\rahul\Desktop\law agent 
+final\backend\venv\Lib\site-packages\langchain_core\runnables\base.py", line 
+4076, in ainvoke
+    return await self.bound.ainvoke(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rahul\Desktop\law agent 
+final\backend\venv\Lib\site-packages\langchain_core\runnables\base.py", line 
+2087, in ainvoke
+    input = await step.ainvoke(
+            ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rahul\Desktop\law agent 
+final\backend\venv\Lib\site-packages\langchain_core\runnables\base.py", line 
+3527, in ainvoke
+    return await self._acall_with_config(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rahul\Desktop\law agent 
+final\backend\venv\Lib\site-packages\langchain_core\runnables\base.py", line 
+1295, in _acall_with_config
+    output: Output = await asyncio.create_task(coro, context=context)  # type: 
+ignore
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rahul\Desktop\law agent 
+final\backend\venv\Lib\site-packages\langchain_core\runnables\base.py", line 
+3474, in _ainvoke
+    output = await acall_func_with_variable_args(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rahul\Desktop\law agent 
+final\backend\venv\Lib\site-packages\langchain_core\runnables\base.py", line 
+3450, in f
+    return await run_in_executor(config, func, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rahul\Desktop\law agent 
+final\backend\venv\Lib\site-packages\langchain_core\runnables\config.py", line 
+493, in run_in_executor
+    return await asyncio.get_running_loop().run_in_executor(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rahul\AppData\Local\Programs\Python\Python312\Lib\concurrent\fu
+tures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rahul\Desktop\law agent 
+final\backend\venv\Lib\site-packages\langchain_core\runnables\base.py", line 
+3444, in func
+    return call_func_with_variable_args(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rahul\Desktop\law agent 
+final\backend\venv\Lib\site-packages\langchain_core\runnables\config.py", line 
+326, in call_func_with_variable_args
+    return func(input, **kwargs)  # type: ignore[call-arg]
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rahul\Desktop\law agent 
+final\backend\venv\Lib\site-packages\langgraph\graph\state.py", line 113, in 
+_update_state_dict
+    raise InvalidUpdateError(
+langgraph.channels.base.InvalidUpdateError: Invalid state update from node 
+ocr_and_language, expected dict with one or more of ['files', 'connector_type', 
+'metadata', 'matter_id', 'workflow_status', 'document_manifest', 
+'total_documents', 'all_segments', 'parallel_texts', 'matter_snapshot', 
+'risk_scores', 'template_id', 'issues_selected', 'prayers_selected', 
+'planned_issues', 'template_info', 'pleading_ms', 'pleading_en', 'qa_report', 
+'query', 'filters', 'cases', 'argument_memo', 'data_source', 'live_data', 
+'documents', 'translation_cert', 'evidence_packet', 'hearing_bundle'], got 
+{'files': [{'filename': 'test.txt', 'content': b'This is a test legal document 
+for processing.', 'mime_type': 'text/plain'}], 'connector_type': 'upload', 
+'metadata': {}, 'matter_id': 'TEST-001', 'workflow_status': 'started', 
+'document_manifest': [{'doc_id': 'DOC-20251218-e65c80cf', 'matter_id': 
+'TEST-001', 'source': 'upload', 'filename': 'test.txt', 'mime_type': 
+'text/plain', 'received_utc': '2025-12-18T10:37:45.651575', 'size_bytes': 45, 
+'file_hash': 
+'e65c80cf88c71b89f33061aeeb37fc98073d7d696e84d1a0a5dbd5836fef9e15', 
+'is_duplicate': False, 'duplicate_of': None, 'ocr_needed': False, 
+'doc_lang_hint': 'unknown', 'confidence': 0.95, 'file_content': b'This is a 
+test legal document for processing.'}], 'total_documents': 1, 'all_segments': 
+[{'segment_id': 'SEG-DOC-20251218-e65c80cf-p1-s1', 'doc_id': 
+'DOC-20251218-e65c80cf', 'page': 1, 'sequence': 1, 'text': 'This is a test 
+legal document for processing.', 'lang': 'en', 'lang_confidence': 0.85, 
+'ocr_confidence': 1.0, 'human_check_required': False}], 'parallel_texts': None, 
+'matter_snapshot': None, 'risk_scores': None, 'template_id': None, 
+'issues_selected': None, 'prayers_selected': None, 'planned_issues': None, 
+'template_info': None, 'pleading_ms': None, 'pleading_en': None, 'qa_report': 
+None, 'query': None, 'filters': None, 'cases': None, 'argument_memo': None, 
+'data_source': None, 'live_data': None, 'documents': None, 'translation_cert': 
+None, 'evidence_packet': None, 'hearing_bundle': None, 'total_page_count': 1}
+======================================================================
+TESTING INTAKE WORKFLOW
+======================================================================
+
+[*] Starting workflow...
+
+======================================================================
+RESULT:
+======================================================================
+Status: failed
+
+[ERROR]:
+   Invalid state update from node ocr_and_language, expected dict with one or more of ['files', 'connector_type', 'metadata', 'matter_id', 'workflow_status', 'document_manifest', 'total_documents', 'all_segments', 'parallel_texts', 'matter_snapshot', 'risk_scores', 'template_id', 'issues_selected', 'prayers_selected', 'planned_issues', 'template_info', 'pleading_ms', 'pleading_en', 'qa_report', 'query', 'filters', 'cases', 'argument_memo', 'data_source', 'live_data', 'documents', 'translation_cert', 'evidence_packet', 'hearing_bundle'], got {'files': [{'filename': 'test.txt', 'content': b'This is a test legal document for processing.', 'mime_type': 'text/plain'}], 'connector_type': 'upload', 'metadata': {}, 'matter_id': 'TEST-001', 'workflow_status': 'started', 'document_manifest': [{'doc_id': 'DOC-20251218-e65c80cf', 'matter_id': 'TEST-001', 'source': 'upload', 'filename': 'test.txt', 'mime_type': 'text/plain', 'received_utc': '2025-12-18T10:37:45.651575', 'size_bytes': 45, 'file_hash': 'e65c80cf88c71b89f33061aeeb37fc98073d7d696e84d1a0a5dbd5836fef9e15', 'is_duplicate': False, 'duplicate_of': None, 'ocr_needed': False, 'doc_lang_hint': 'unknown', 'confidence': 0.95, 'file_content': b'This is a test legal document for processing.'}], 'total_documents': 1, 'all_segments': [{'segment_id': 'SEG-DOC-20251218-e65c80cf-p1-s1', 'doc_id': 'DOC-20251218-e65c80cf', 'page': 1, 'sequence': 1, 'text': 'This is a test legal document for processing.', 'lang': 'en', 'lang_confidence': 0.85, 'ocr_confidence': 1.0, 'human_check_required': False}], 'parallel_texts': None, 'matter_snapshot': None, 'risk_scores': None, 'template_id': None, 'issues_selected': None, 'prayers_selected': None, 'planned_issues': None, 'template_info': None, 'pleading_ms': None, 'pleading_en': None, 'qa_report': None, 'query': None, 'filters': None, 'cases': None, 'argument_memo': None, 'data_source': None, 'live_data': None, 'documents': None, 'translation_cert': None, 'evidence_packet': None, 'hearing_bundle': None, 'total_page_count': 1}
+
+[FULL RESULT]:
+{
+  "workflow_status": "failed",
+  "error": "Invalid state update from node ocr_and_language, expected dict with one or more of ['files', 'connector_type', 'metadata', 'matter_id', 'workflow_status', 'document_manifest', 'total_documents', 'all_segments', 'parallel_texts', 'matter_snapshot', 'risk_scores', 'template_id', 'issues_selected', 'prayers_selected', 'planned_issues', 'template_info', 'pleading_ms', 'pleading_en', 'qa_report', 'query', 'filters', 'cases', 'argument_memo', 'data_source', 'live_data', 'documents', 'translation_cert', 'evidence_packet', 'hearing_bundle'], got {'files': [{'filename': 'test.txt', 'content': b'This is a test legal document for processing.', 'mime_type': 'text/plain'}], 'connector_type': 'upload', 'metadata': {}, 'matter_id': 'TEST-001', 'workflow_status': 'started', 'document_manifest': [{'doc_id': 'DOC-20251218-e65c80cf', 'matter_id': 'TEST-001', 'source': 'upload', 'filename': 'test.txt', 'mime_type': 'text/plain', 'received_utc': '2025-12-18T10:37:45.651575', 'size_bytes': 45, 'file_hash': 'e65c80cf88c71b89f33061aeeb37fc98073d7d696e84d1a0a5dbd5836fef9e15', 'is_duplicate': False, 'duplicate_of': None, 'ocr_needed': False, 'doc_lang_hint': 'unknown', 'confidence': 0.95, 'file_content': b'This is a test legal document for processing.'}], 'total_documents': 1, 'all_segments': [{'segment_id': 'SEG-DOC-20251218-e65c80cf-p1-s1', 'doc_id': 'DOC-20251218-e65c80cf', 'page': 1, 'sequence': 1, 'text': 'This is a test legal document for processing.', 'lang': 'en', 'lang_confidence': 0.85, 'ocr_confidence': 1.0, 'human_check_required': False}], 'parallel_texts': None, 'matter_snapshot': None, 'risk_scores': None, 'template_id': None, 'issues_selected': None, 'prayers_selected': None, 'planned_issues': None, 'template_info': None, 'pleading_ms': None, 'pleading_en': None, 'qa_report': None, 'query': None, 'filters': None, 'cases': None, 'argument_memo': None, 'data_source': None, 'live_data': None, 'documents': None, 'translation_cert': None, 'evidence_packet': None, 'hearing_bundle': None, 'total_page_count': 1}",
+  "matter_id": "TEST-001"
+}

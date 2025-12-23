@@ -1,0 +1,63 @@
+EMPLOYMENT CONTRACT DISPUTE - CASE SUMMARY
+
+PARTIES:
+Plaintiff: Tech Solutions Sdn Bhd (Company Registration No. 201234567-X)
+Address: Level 12, Menara KLCC, Kuala Lumpur
+
+Defendant: Ahmad bin Abdullah
+Address: No. 45, Jalan Ampang, Kuala Lumpur
+
+CASE BACKGROUND:
+
+1. On 1 January 2023, the Plaintiff entered into an Employment Agreement with the Defendant for the position of Senior Software Engineer.
+
+2. The employment contract stipulated:
+   - Monthly salary: RM 8,000
+   - Contract duration: 2 years (until 31 December 2024)
+   - Notice period: 3 months
+   - Non-compete clause: 1 year in similar industry
+
+3. On 15 August 2024, the Defendant verbally informed the Plaintiff that he would be resigning effective immediately to join a competitor company, Innovative Tech Sdn Bhd.
+
+4. The Defendant did not serve the required 3-month notice period as stipulated in the employment contract.
+
+5. The Defendant left the company on 20 August 2024, taking with him confidential client information and proprietary source code.
+
+6. The Defendant began working for Innovative Tech Sdn Bhd on 25 August 2024, in direct violation of the non-compete clause.
+
+BREACH OF CONTRACT:
+
+The Defendant has breached the Employment Agreement in the following ways:
+a) Failed to provide the required 3-month notice period
+b) Violated the non-compete clause by joining a competitor
+c) Misappropriated confidential information and trade secrets
+
+DAMAGES CLAIMED:
+
+1. Salary for 3 months notice period not served: RM 24,000
+2. Recruitment and training costs for replacement: RM 15,000
+3. Loss of business due to breach of non-compete: RM 50,000
+4. Damages for misappropriation of confidential information: RM 100,000
+5. Legal costs and interest
+
+TOTAL CLAIM: RM 189,000 plus costs and interest
+
+PRAYERS:
+
+1. Judgment against the Defendant for the sum of RM 189,000
+2. Injunction restraining the Defendant from working for competitors
+3. Order for return of all confidential documents and data
+4. Costs of this action
+5. Interest at 8% per annum from date of breach
+6. Such further or other relief as the Court deems just
+
+EVIDENCE AVAILABLE:
+- Original Employment Agreement dated 1 January 2023
+- Email correspondence regarding resignation
+- Company records showing early termination
+- Evidence of employment with competitor
+- Client complaint letters
+- Financial statements showing loss of business
+
+Date: 1 September 2024
+Case prepared for filing in the High Court of Malaya at Kuala Lumpur

@@ -1,0 +1,101 @@
+"""
+Centralized configuration management using Pydantic Settings.
+"""
+from pydantic_settings import BaseSettings
+from typing import List
+import os
+import platform
+
+
+class Settings(BaseSettings):
+    """Application settings loaded from environment variables."""
+    
+    # Database
+    DATABASE_URL: str
+    DB_HOST: str = "localhost"
+    DB_PORT: int = 5432
+    DB_NAME: str = "law_agent_db"
+    DB_USER: str = "postgres"
+    DB_PASSWORD: str = "password"
+    
+    # Google Gemini API
+    GEMINI_API_KEY: str
+    GEMINI_MODEL: str = "gemini-1.5-flash"
+    
+    # Google Cloud
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+    GOOGLE_REDIRECT_URI: str = "http://localhost:8000/auth/google/callback"
+    
+    # Translation
+    TRANSLATION_SERVICE: str = "google"  # google, azure, or deepl
+    GOOGLE_TRANSLATE_API_KEY: str = ""
+    
+    # File Storage
+    STORAGE_TYPE: str = "local"  # local or s3
+    UPLOAD_DIR: str = "./uploads"
+    MAX_UPLOAD_SIZE: int = 52428800  # 50MB
+    
+    # Redis
+    REDIS_URL: str = "redis://localhost:6379/0"
+    
+    # Security
+    SECRET_KEY: str
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    
+    # JWT Configuration (for Apex Auth)
+    JWT_SECRET_KEY: str = ""
+    JWT_ALGORITHM: str = "HS256"
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    
+    # Feature Flags
+    ENABLE_LIVE_TRANSCRIPTION: bool = False
+    ENABLE_FULL_TEXT_LOGGING: bool = False
+    ENABLE_PII_REDACTION: bool = True
+    
+    # PayPal Configuration
+    PAYPAL_CLIENT_ID: str = ""
+    PAYPAL_CLIENT_SECRET: str = ""
+    PAYPAL_MODE: str = "sandbox"  # sandbox or live
+    
+    # SendGrid Configuration
+    SENDGRID_API_KEY: str = ""
+    FROM_EMAIL: str = "noreply@example.com"
+    
+    # OCR
+    TESSERACT_CMD: str = r"C:\Program Files\Tesseract-OCR\tesseract.exe" if platform.system() == "Windows" else "/usr/bin/tesseract"
+    OCR_LANGUAGES: str = "eng+msa"  # English + Malay
+    
+    # Legal Database
+    CASELAW_DB_TYPE: str = "mock"
+    USE_COMMONLII: bool = False
+    CASELAW_API_URL: str = ""
+    CASELAW_API_KEY: str = ""
+    
+    # CORS
+    CORS_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:8005,http://localhost:8006,http://localhost:8007,http://127.0.0.1:8006,http://127.0.0.1:8007"
+    
+    # Logging
+    LOG_LEVEL: str = "INFO"
+    LOG_FILE: str = "./logs/app.log"
+    
+    class Config:
+        env_file = ".env"
+        case_sensitive = True
+    
+    @property
+    def cors_origins_list(self) -> List[str]:
+        """Parse CORS origins from comma-separated string."""
+        return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
+    
+    def ensure_directories(self):
+        """Create necessary directories if they don't exist."""
+        os.makedirs(self.UPLOAD_DIR, exist_ok=True)
+        os.makedirs(os.path.dirname(self.LOG_FILE), exist_ok=True)
+
+
+# Global settings instance
+settings = Settings()
+settings.ensure_directories()

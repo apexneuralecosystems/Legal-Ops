@@ -1,0 +1,65 @@
+LOAN DEFAULT AND RECOVERY ACTION
+
+CREDITOR: Bank Rakyat Malaysia Berhad
+DEBTOR: Faridah binti Mahmud
+
+LOAN DETAILS:
+
+Facility Type: Personal Loan
+Loan Amount: RM 100,000
+Loan Agreement Date: 5 March 2022
+Interest Rate: 7.5% per annum
+Tenure: 5 years (60 monthly installments)
+Monthly Installment: RM 2,000
+
+DEFAULT PARTICULARS:
+
+1. Debtor has been making regular payments from March 2022 to December 2023 (22 months)
+
+2. Total paid: RM 44,000
+
+3. Outstanding principal balance as of January 2024: RM 65,000
+
+4. Debtor defaulted on payments starting January 2024
+
+5. No payments received for 8 consecutive months (January - August 2024)
+
+6. Multiple reminder letters sent on:
+   - 15 January 2024
+   - 15 March 2024
+   - 15 May 2024
+   - 15 July 2024
+
+7. Section 57 Notice (Letter of Demand) issued on 1 August 2024 - No response received
+
+AMOUNTS DUE:
+
+1. Outstanding principal: RM 65,000
+2. Unpaid installments (8 months x RM 2,000): RM 16,000
+3. Accrued interest on arrears: RM 3,500
+4. Late payment charges: RM 800
+5. Legal costs: RM 5,000
+
+TOTAL AMOUNT CLAIMED: RM 90,300
+
+PRAYERS:
+
+1. Judgment for RM 90,300 or such sum as proven
+2. Interest at 8% per annum from date of default until full settlement
+3. Costs of this action
+4. Further relief as deemed fit
+
+SECURITY:
+
+Loan secured by:
+- Legal charge over property at No. 789, Taman Damai, Kuantan, Pahang
+- Bank may exercise power of sale if judgment debt remains unsatisfied
+
+APPLICABLE LAWS:
+
+- Financial Services Act 2013
+- Contract Act 1950
+- National Land Code 1965
+
+Date of Filing: 1 September 2024
+Court: High Court of Malaya at Kuantan, Pahang
