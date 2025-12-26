@@ -3,10 +3,11 @@ import type { Metadata } from 'next'
 import { Source_Sans_3, Merriweather } from 'next/font/google'
 import { Providers } from './providers'
 import ErrorBoundary from '@/components/ErrorBoundary'
+import PaymentGateModal from '@/components/PaymentGateModal'
 
 const sourceSans = Source_Sans_3({ subsets: ['latin'], variable: '--font-sans' })
-const merriweather = Merriweather({ 
-    subsets: ['latin'], 
+const merriweather = Merriweather({
+    subsets: ['latin'],
     variable: '--font-serif',
     weight: ['400', '700', '900']
 })
@@ -38,6 +39,7 @@ export default function RootLayout({
                 <Providers>
                     <ErrorBoundary>
                         {children}
+                        <PaymentGateModal />
                     </ErrorBoundary>
                 </Providers>
             </body>

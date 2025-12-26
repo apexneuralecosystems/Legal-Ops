@@ -1,14 +1,26 @@
-# Byte-compiled / optimized / DLL files
+# =========================
+# Legal-Ops .gitignore
+# =========================
+
+# =========================
+# Backend (Python/FastAPI)
+# =========================
+
+# Virtual environments
+backend/venv/
+venv/
+.venv/
+env/
+ENV/
+
+# Python cache
 __pycache__/
 *.py[cod]
 *$py.class
-
-# C extensions
 *.so
+.Python
 
 # Distribution / packaging
-.python-version
-bin/
 build/
 develop-eggs/
 dist/
@@ -21,15 +33,11 @@ parts/
 sdist/
 var/
 wheels/
-share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-MANIFEST
 
 # PyInstaller
-#  The installer creates these to store internal cache and temporary
-#  files.
 *.manifest
 *.spec
 
@@ -37,7 +45,7 @@ MANIFEST
 pip-log.txt
 pip-delete-this-directory.txt
 
-# Unit test / coverage reports
+# Unit test / coverage
 htmlcov/
 .tox/
 .nox/
@@ -47,131 +55,150 @@ htmlcov/
 nosetests.xml
 coverage.xml
 *.cover
-*.pyo
+*.py,cover
 .hypothesis/
 .pytest_cache/
-cover/
+pytest_cache/
 
 # Translations
 *.mo
 *.pot
 
-# Django stuff:
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
-
-# Flask stuff:
-instance/
-.webassets-cache
-
-# Scrapy stuff:
-.scrapy
-
-# Sphinx documentation
-docs/_build/
-
-# PyBuilder
-.pybuilder/
-target/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# IPython
-profile_default/
-ipython_config.py
-
-# pyenv
-#   For a library or binary, you wish instead to ignore this file, to prevent users
-#   from automatically changing their Python version. This file is only
-#   intended to be used for applications that are deployed.
-# .python-version
-
-# pipenv
-#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
-#   However, in case of collaboration, if having platform-specific dependencies or dependencies
-#   having cross-platform versions, Pipfile.lock might be unstable.
-#Pipfile.lock
-
-# poetry
-#   Similar to Pipfile.lock, it is generally recommended to include poetry.lock in version control.
-#   poetry.lock
-
-# pdm
-#   Similar to Pipfile.lock, it is generally recommended to include pdm.lock in version control.
-#pdm.lock
-#   pdm build plugins may create files in .pdm-build/
-.pdm-build/
-
-# PEP 582; used by e.g. github.com/fannheyward/coc-pyright
-__pypackages__/
-
-# Celery stuff
-celerybeat-schedule
-celerybeat.pid
-
-# SageMath parsed files
-*.sage.py
-
 # Environments
 .env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-backend/venv/
+.env.local
+.env.*.local
+*.env
 
-# Spyder project settings
-.spyderproject
-.spyproject
+# Uploads and generated files
+backend/uploads/
+uploads/
+*.pdf
+*.docx
+*.doc
 
-# Rope project settings
-.ropeproject
+# Logs
+*.log
+logs/
 
-# mkdocs documentation
-/site
+# Database
+*.db
+*.sqlite
+*.sqlite3
 
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
+# Alembic
+backend/alembic/versions/*.pyc
 
-# Pyre type checker
-.pyre/
+# =========================
+# Frontend (Next.js)
+# =========================
 
-# pytype static type analyzer
-.pytype/
-
-# Cython debug symbols
-cython_debug/
-
-# Node.js
+# Dependencies
+frontend/node_modules/
 node_modules/
+
+# Next.js build
+frontend/.next/
+.next/
+frontend/out/
+out/
+
+# Production
+frontend/build/
+
+# Debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# Next.js
-.next/
-out/
+# Vercel
+.vercel
 
-# Production
-build/
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
 
-# Misc
+# =========================
+# IDE & OS
+# =========================
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# JetBrains
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Vim
+*.swp
+*.swo
+*~
+
+# macOS
 .DS_Store
-*.pem
+.AppleDouble
+.LSOverride
 
-# Project specific
-backend/uploads/
-uploads/
-backend/logs/
-backend/db.sqlite3
-frontend/.env*
-frontend/.next/
-frontend/node_modules/
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+
+# =========================
+# Secrets & Config
+# =========================
+
+# API keys and secrets
+*.pem
+*.key
+secrets/
+.secrets
+credentials.json
+
+# Local config overrides
+config.local.*
+settings.local.*
+
+# =========================
+# Miscellaneous
+# =========================
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+
+# Archives
+*.zip
+*.tar.gz
+*.rar
+
+# Large files
+*.mp4
+*.mov
+*.avi
+
+# Jupyter notebooks checkpoints
+.ipynb_checkpoints/
+
+# Coverage reports
+htmlcov/
+.coverage
+
+# Test output
+test-results/
+playwright-report/
+
+# PM2
+.pm2/
+ecosystem.config.js

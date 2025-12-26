@@ -7,14 +7,22 @@ from typing import AsyncGenerator
 from config import settings
 import logging
 
-# Import Apex Base for all models
+# Import Apex Base for all models (avoid importing apex Settings to prevent conflict)
 try:
-    from apex import Base
+    # Import only Base, not the whole apex package which loads Settings
+    from apex.domain.models.base import Base as ApexBase
+    Base = ApexBase
+    logging.info("Using Apex Base for models")
 except ImportError:
-    # Fallback if apex not installed yet
-    from sqlalchemy.orm import declarative_base
-    Base = declarative_base()
-    logging.warning("Apex not installed, using standard SQLAlchemy Base")
+    try:
+        # Fallback: try getting Base from apex directly
+        from apex import Base
+        logging.info("Using Apex Base (direct import)")
+    except (ImportError, Exception):
+        # Final fallback if apex not installed or has issues
+        from sqlalchemy.orm import declarative_base
+        Base = declarative_base()
+        logging.warning("Apex not available, using standard SQLAlchemy Base")
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +82,7 @@ async def init_db():
         # Import all models to register them with Base
         from models import matter, document, segment, pleading, research, audit
         try:
-            from models import auth
+            from models import auth, usage
         except ImportError:
             pass
         
@@ -109,3 +117,51 @@ def get_sync_db():
         yield db
     finally:
         db.close()
+
+
+
+# Global Apex client instance
+_apex_client = None
+
+
+def set_apex_client(client):
+    """Set the global Apex client instance."""
+    global _apex_client
+    _apex_client = client
+    logger.info("Global Apex client set")
+
+
+def get_apex_client():
+    """
+    Get Apex client - try global instance first, fallback to creating new one.
+    Centralized helper for use in routers and dependencies.
+    """
+    global _apex_client
+    if _apex_client:
+        return _apex_client
+        
+    try:
+        from apex import Client as ApexClient
+            
+        # Fallback: create client inline
+        # This is expensive so we should rely on set_apex_client being called in main.py
+        from models.auth import User
+        from config import settings
+        
+        # Check if settings has DATABASE_URL
+        db_url = getattr(settings, "DATABASE_URL", None)
+        if not db_url:
+            return None
+            
+        # Convert to async URL
+        async_db_url = get_async_db_url(db_url)
+            
+        client = ApexClient(
+            database_url=async_db_url,
+            user_model=User,
+            async_mode=True
+        )
+        return client
+    except Exception as e:
+        logger.warning(f"Could not get/create Apex client: {e}")
+        return None

@@ -34,8 +34,8 @@ export default function ParallelViewer({ matterId }: ParallelViewerProps) {
     const { data, isLoading } = useQuery({
         queryKey: ['parallel-view', matterId],
         queryFn: async () => {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/matters/${matterId}/parallel-view`)
-            return response.json()
+            const { api } = await import('@/lib/api')
+            return api.getParallelView(matterId)
         },
     })
 
@@ -48,7 +48,7 @@ export default function ParallelViewer({ matterId }: ParallelViewerProps) {
     }
 
     const parallelSegments = data?.parallel_segments || {}
-    const allSegments: Segment[] = Object.values(parallelSegments).flat()
+    const allSegments: Segment[] = (Object.values(parallelSegments) as Segment[][]).flat()
 
     // Filter by confidence
     const filteredSegments = allSegments.filter(

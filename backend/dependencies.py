@@ -4,7 +4,7 @@ Authentication dependencies for protected routes.
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
-from database import get_db
+from database import get_db, get_apex_client
 from typing import Dict, Any
 
 security = HTTPBearer()
@@ -31,10 +31,18 @@ async def get_current_user(
         from apex.auth import verify_token
         
         token = credentials.credentials
-        payload = verify_token(token=token, db=db)
+        
+        # Get Apex client
+        apex_client = get_apex_client()
+        
+        # Apex verify_token requires client if not default
+        if apex_client:
+            payload = await verify_token(token=token, client=apex_client)
+        else:
+            payload = await verify_token(token=token)
         
         return {
-            "user_id": payload.get('sub'),  # UUID as string
+            "user_id": payload.get('user_id') or payload.get('sub'),  # apex returns user_id, fallback to sub
             "email": payload.get('email')
         }
     except ImportError:

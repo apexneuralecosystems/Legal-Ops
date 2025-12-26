@@ -63,10 +63,13 @@ class Settings(BaseSettings):
     # SendGrid Configuration
     SENDGRID_API_KEY: str = ""
     FROM_EMAIL: str = "noreply@example.com"
+    FRONTEND_RESET_URL: str = "http://localhost:3000/reset-password"
     
-    # OCR
-    TESSERACT_CMD: str = r"C:\Program Files\Tesseract-OCR\tesseract.exe" if platform.system() == "Windows" else "/usr/bin/tesseract"
+    # OCR Configuration
+    OCR_ENGINE: str = "auto"  # auto, tesseract, pymupdf, or google_vision
+    TESSERACT_CMD: str = ""  # Auto-detect if empty
     OCR_LANGUAGES: str = "eng+msa"  # English + Malay
+    GOOGLE_VISION_API_KEY: str = ""  # For cloud OCR fallback
     
     # Legal Database
     CASELAW_DB_TYPE: str = "mock"
@@ -74,8 +77,9 @@ class Settings(BaseSettings):
     CASELAW_API_URL: str = ""
     CASELAW_API_KEY: str = ""
     
-    # CORS
-    CORS_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:8005,http://localhost:8006,http://localhost:8007,http://127.0.0.1:8006,http://127.0.0.1:8007"
+    # CORS - Supports both JSON array and comma-separated string
+    CORS_ORIGINS: str | List[str] = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:8005,http://localhost:8006,http://localhost:8007,http://127.0.0.1:8006,http://127.0.0.1:8007"
+    CORS_ALLOW_ALL: bool = False  # Set True for development only, False for production
     
     # Logging
     LOG_LEVEL: str = "INFO"
@@ -87,7 +91,9 @@ class Settings(BaseSettings):
     
     @property
     def cors_origins_list(self) -> List[str]:
-        """Parse CORS origins from comma-separated string."""
+        """Parse CORS origins - handles both JSON array and comma-separated string."""
+        if isinstance(self.CORS_ORIGINS, list):
+            return self.CORS_ORIGINS
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
     
     def ensure_directories(self):

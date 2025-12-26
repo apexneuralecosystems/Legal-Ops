@@ -8,6 +8,7 @@ from models.pleading import Pleading
 from models.research import ResearchCase
 from models.audit import AuditLog
 from models.auth import User
+from models.usage import UserUsage
 
 __all__ = [
     "Matter",
@@ -16,6 +17,7 @@ __all__ = [
     "Pleading",
     "ResearchCase",
     "AuditLog",
-    "User"
+    "User",
+    "UserUsage"
 ]
 

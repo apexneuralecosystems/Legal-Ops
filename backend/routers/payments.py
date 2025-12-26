@@ -1,5 +1,5 @@
 """
-Payment router - PayPal integration for orders and subscriptions.
+Payment router - PayPal integration using Apex SaaS Framework.
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -8,12 +8,29 @@ from dependencies import get_current_user
 from database import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from config import settings
-import httpx
-import base64
 import logging
+
+# Import from local apex module
+from apex.payments import PayPalClient, init_payments, get_paypal_client
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/payments", tags=["Payments"])
+
+# Initialize PayPal client on module load
+_client: Optional[PayPalClient] = None
+
+
+def get_client() -> PayPalClient:
+    """Get or initialize PayPal client."""
+    global _client
+    if _client is None:
+        _client = PayPalClient(
+            client_id=getattr(settings, 'PAYPAL_CLIENT_ID', ''),
+            client_secret=getattr(settings, 'PAYPAL_CLIENT_SECRET', ''),
+            mode=getattr(settings, 'PAYPAL_MODE', 'sandbox')
+        )
+        logger.info(f"PayPal client initialized (mode={_client.mode})")
+    return _client
 
 
 # Pydantic schemas
@@ -30,131 +47,13 @@ class CaptureOrderRequest(BaseModel):
 class CreateSubscriptionRequest(BaseModel):
     plan_id: str
     subscriber_email: str
+    return_url: Optional[str] = None
+    cancel_url: Optional[str] = None
 
 
 class CancelSubscriptionRequest(BaseModel):
     subscription_id: str
     reason: Optional[str] = None
-
-
-# PayPal API helpers
-class PayPalClient:
-    """PayPal API client wrapper."""
-    
-    def __init__(self):
-        self.client_id = getattr(settings, 'PAYPAL_CLIENT_ID', '')
-        self.client_secret = getattr(settings, 'PAYPAL_CLIENT_SECRET', '')
-        self.mode = getattr(settings, 'PAYPAL_MODE', 'sandbox')
-        
-        if self.mode == 'sandbox':
-            self.base_url = "https://api-m.sandbox.paypal.com"
-        else:
-            self.base_url = "https://api-m.paypal.com"
-        
-        self._access_token = None
-    
-    async def get_access_token(self) -> str:
-        """Get OAuth access token from PayPal."""
-        if not self.client_id or not self.client_secret:
-            raise ValueError("PayPal credentials not configured")
-        
-        auth = base64.b64encode(
-            f"{self.client_id}:{self.client_secret}".encode()
-        ).decode()
-        
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{self.base_url}/v1/oauth2/token",
-                headers={
-                    "Authorization": f"Basic {auth}",
-                    "Content-Type": "application/x-www-form-urlencoded"
-                },
-                data={"grant_type": "client_credentials"}
-            )
-            
-            if response.status_code != 200:
-                raise ValueError(f"Failed to get PayPal token: {response.text}")
-            
-            data = response.json()
-            self._access_token = data["access_token"]
-            return self._access_token
-    
-    async def create_order(self, amount: float, currency: str, description: str = None) -> Dict:
-        """Create a PayPal order."""
-        token = await self.get_access_token()
-        
-        order_data = {
-            "intent": "CAPTURE",
-            "purchase_units": [{
-                "amount": {
-                    "currency_code": currency,
-                    "value": str(amount)
-                }
-            }]
-        }
-        
-        if description:
-            order_data["purchase_units"][0]["description"] = description
-        
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{self.base_url}/v2/checkout/orders",
-                headers={
-                    "Authorization": f"Bearer {token}",
-                    "Content-Type": "application/json"
-                },
-                json=order_data
-            )
-            
-            if response.status_code not in [200, 201]:
-                raise ValueError(f"Failed to create order: {response.text}")
-            
-            return response.json()
-    
-    async def capture_order(self, order_id: str) -> Dict:
-        """Capture a PayPal order."""
-        token = await self.get_access_token()
-        
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{self.base_url}/v2/checkout/orders/{order_id}/capture",
-                headers={
-                    "Authorization": f"Bearer {token}",
-                    "Content-Type": "application/json"
-                }
-            )
-            
-            if response.status_code not in [200, 201]:
-                raise ValueError(f"Failed to capture order: {response.text}")
-            
-            return response.json()
-    
-    async def get_order(self, order_id: str) -> Dict:
-        """Get order details."""
-        token = await self.get_access_token()
-        
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"{self.base_url}/v2/checkout/orders/{order_id}",
-                headers={"Authorization": f"Bearer {token}"}
-            )
-            
-            if response.status_code != 200:
-                raise ValueError(f"Failed to get order: {response.text}")
-            
-            return response.json()
-
-
-# Singleton client
-_paypal_client: Optional[PayPalClient] = None
-
-
-def get_paypal_client() -> PayPalClient:
-    """Get PayPal client singleton."""
-    global _paypal_client
-    if _paypal_client is None:
-        _paypal_client = PayPalClient()
-    return _paypal_client
 
 
 # Endpoints
@@ -170,25 +69,18 @@ async def create_order(
     Returns order ID and approval URL.
     """
     try:
-        client = get_paypal_client()
-        order = await client.create_order(
+        client = get_client()
+        result = await client.create_order(
             amount=request.amount,
             currency=request.currency,
             description=request.description
         )
         
-        # Extract approval URL
-        approval_url = None
-        for link in order.get("links", []):
-            if link.get("rel") == "approve":
-                approval_url = link.get("href")
-                break
-        
         return {
             "status": "success",
-            "order_id": order.get("id"),
-            "approval_url": approval_url,
-            "order_status": order.get("status")
+            "order_id": result.get("order_id"),
+            "approval_url": result.get("approval_url"),
+            "order_status": result.get("status")
         }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -207,12 +99,12 @@ async def capture_order(
     Capture a PayPal order after customer approval.
     """
     try:
-        client = get_paypal_client()
+        client = get_client()
         result = await client.capture_order(request.order_id)
         
         return {
             "status": "success",
-            "order_id": result.get("id"),
+            "order_id": result.get("order_id"),
             "order_status": result.get("status"),
             "payer": result.get("payer", {})
         }
@@ -233,7 +125,7 @@ async def get_order(
     Get PayPal order details.
     """
     try:
-        client = get_paypal_client()
+        client = get_client()
         order = await client.get_order(order_id)
         
         return {
@@ -258,13 +150,26 @@ async def create_subscription(
     
     Note: Requires pre-configured subscription plans in PayPal.
     """
-    # Placeholder - full subscription implementation requires PayPal plan setup
-    return {
-        "status": "info",
-        "message": "Subscription creation requires PayPal plan configuration",
-        "plan_id": request.plan_id,
-        "subscriber_email": request.subscriber_email
-    }
+    try:
+        client = get_client()
+        result = await client.create_subscription(
+            plan_id=request.plan_id,
+            subscriber_email=request.subscriber_email,
+            return_url=request.return_url,
+            cancel_url=request.cancel_url
+        )
+        
+        return {
+            "status": "success",
+            "subscription_id": result.get("subscription_id"),
+            "approval_url": result.get("approval_url"),
+            "subscription_status": result.get("status")
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Create subscription failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create subscription")
 
 
 @router.get("/subscriptions/{subscription_id}", response_model=dict)
@@ -274,13 +179,37 @@ async def get_subscription(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Get subscription details.
+    Get subscription details from PayPal.
     """
-    return {
-        "status": "info",
-        "message": "Subscription lookup requires PayPal integration",
-        "subscription_id": subscription_id
-    }
+    try:
+        client = get_client()
+        # Get subscription from PayPal
+        token = await client._get_access_token()
+        
+        import httpx
+        async with httpx.AsyncClient() as http_client:
+            response = await http_client.get(
+                f"{client.base_url}/v1/billing/subscriptions/{subscription_id}",
+                headers={"Authorization": f"Bearer {token}"}
+            )
+            
+            if response.status_code != 200:
+                raise ValueError(f"Subscription not found: {subscription_id}")
+            
+            data = response.json()
+            return {
+                "status": "success",
+                "subscription_id": data.get("id"),
+                "subscription_status": data.get("status"),
+                "plan_id": data.get("plan_id"),
+                "start_time": data.get("start_time"),
+                "billing_info": data.get("billing_info", {})
+            }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Get subscription failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve subscription")
 
 
 @router.post("/subscriptions/cancel", response_model=dict)
@@ -292,8 +221,20 @@ async def cancel_subscription(
     """
     Cancel a subscription.
     """
-    return {
-        "status": "info",
-        "message": "Subscription cancellation requires PayPal integration",
-        "subscription_id": request.subscription_id
-    }
+    try:
+        client = get_client()
+        result = await client.cancel_subscription(
+            subscription_id=request.subscription_id,
+            reason=request.reason
+        )
+        
+        return {
+            "status": "success",
+            "message": "Subscription cancelled",
+            "subscription_id": request.subscription_id
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Cancel subscription failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to cancel subscription")

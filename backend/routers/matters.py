@@ -13,6 +13,7 @@ from models.segment import Segment
 from orchestrator import OrchestrationController
 from config import settings
 from jose import JWTError, jwt
+from utils.sync_usage_tracker import SyncUsageTracker
 import json
 import logging
 
@@ -82,22 +83,33 @@ class DraftingRequest(BaseModel):
 
 @router.post("/intake", response_model=dict)
 async def start_intake_workflow(
-    files: List[UploadFile] = File(...),
+    files: List[UploadFile] = File(None),
     connector_type: str = Form("upload"),
     metadata: str = Form("{}"),
-    db: Session = Depends(get_db)
-    # Temporarily removed auth requirement for testing
-    # current_user: Dict[str, Any] = Depends(get_current_user_sync)
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_user_sync)
 ):
-    print(f"DEBUG: Received intake request. Files: {len(files)}, Connector: {connector_type}")
+    print(f"DEBUG: Received intake request. Files: {len(files) if files else 0}, Connector: {connector_type}")
     """
     Start the intake workflow to process uploaded documents.
     
     Workflow: Document Collection → OCR → Translation → Case Structuring → Risk Scoring
     
+    Args:
+        files: Optional list of files to upload (can be empty for manual matter creation)
+        connector_type: Type of connector (upload, email, etc.)
+        metadata: JSON string with additional metadata
+    
     Returns:
         Matter snapshot with risk scores
+        
+    Raises:
+        402 Payment Required: If user has exhausted free uses and needs to subscribe
     """
+    
+    # Check usage limits - will raise 402 if payment required
+    user_id = current_user["user_id"]
+    usage_result = SyncUsageTracker.require_usage_or_payment(user_id, "intake", db)
     
     # Parse metadata
     try:
@@ -110,21 +122,22 @@ async def start_intake_workflow(
         title="New Matter - Processing",
         matter_type="general",
         status="intake",
-        created_by="system"
+        created_by=user_id  # Use authenticated user ID
     )
     db.add(matter)
     db.commit()
     db.refresh(matter)
     
-    # Prepare file data
+    # Prepare file data (handle empty/None files list)
     file_data = []
-    for file in files:
-        content = await file.read()
-        file_data.append({
-            "filename": file.filename,
-            "content": content,
-            "mime_type": file.content_type or "application/octet-stream"
-        })
+    if files:
+        for file in files:
+            content = await file.read()
+            file_data.append({
+                "filename": file.filename,
+                "content": content,
+                "mime_type": file.content_type or "application/octet-stream"
+            })
     
     # Run intake workflow
     logger = logging.getLogger(__name__)

@@ -2,14 +2,34 @@
 Research API router - Endpoints for legal research and argument building.
 """
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import List, Optional, Union, Dict, Any
 from pydantic import BaseModel
 from database import get_sync_db as get_db
 from orchestrator import OrchestrationController
+from utils.sync_usage_tracker import SyncUsageTracker
+from config import settings
+from jose import JWTError, jwt
 
 router = APIRouter()
 controller = OrchestrationController()
+security = HTTPBearer()
+
+
+def get_current_user_sync(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+) -> Dict[str, Any]:
+    """Sync auth dependency for research endpoints."""
+    token = credentials.credentials
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user_id = payload.get("sub")
+        if user_id is None:
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        return {"user_id": user_id, "email": payload.get("email")}
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
 
 
 # Pydantic schemas
@@ -19,7 +39,7 @@ class SearchRequest(BaseModel):
 
 
 class ArgumentRequest(BaseModel):
-    matter_id: Optional[str] = None
+    matter_id: Optional[Union[int, str]] = None
     issues: List[dict] = []
     cases: List[dict] = []
 
@@ -81,20 +101,34 @@ async def search_cases(request: SearchRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/build-argument", response_model=dict)
-async def build_argument(request: ArgumentRequest, db: Session = Depends(get_db)):
+async def build_argument(
+    request: ArgumentRequest,
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_user_sync)
+):
     """
     Build legal argument memo from selected cases and issues.
     
     Workflow: Argument Builder Agent creates structured memo
     
     Args:
-        request: Matter ID, selected issues, and relevant cases
+        request: Matter ID (accepts both int and string), selected issues, and relevant cases
         
     Returns:
         Structured argument memo with case citations and analysis
+        
+    Raises:
+        402 Payment Required: If user has exhausted free research uses
     """
     
+    # Check usage limits - will raise 402 if payment required
+    user_id = current_user["user_id"]
+    SyncUsageTracker.require_usage_or_payment(user_id, "research", db)
+    
     try:
+        # Convert matter_id to string if provided
+        matter_id_str = str(request.matter_id) if request.matter_id is not None else None
+        
         # Run research workflow (just the argument builder part)
         # Use public method instead of private node access
         updated_state = await controller.build_argument_only(
@@ -105,7 +139,7 @@ async def build_argument(request: ArgumentRequest, db: Session = Depends(get_db)
         return {
             "status": "success",
             "argument_memo": updated_state.get("argument_memo", {}),
-            "matter_id": request.matter_id,
+            "matter_id": matter_id_str,
             "cases_used": len(request.cases),
             "issues_addressed": len(request.issues)
         }
