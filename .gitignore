@@ -97,6 +97,10 @@ backend/alembic/versions/*.pyc
 frontend/node_modules/
 node_modules/
 
+# Whitelist frontend/lib
+!frontend/lib/
+
+
 # Next.js build
 frontend/.next/
 .next/

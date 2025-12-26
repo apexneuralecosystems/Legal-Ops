@@ -6,9 +6,6 @@ const nextConfig = {
     experimental: {
         forceSwcTransforms: true,
     },
-    env: {
-        NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8005',
-    },
     webpack: (config, { isServer }) => {
         // Fix for "Unexpected end of JSON input" error
         config.optimization = {
