@@ -69,10 +69,13 @@ class Settings(BaseSettings):
     
     # Frontend Configuration
     FRONTEND_URL: str = "http://localhost:3000"  # Set via env: FRONTEND_URL=https://yourdomain.com
+    FRONTEND_RESET_URL: str = ""  # Optional: Set via env, falls back to FRONTEND_URL/reset-password
     
     @property
     def frontend_reset_url(self) -> str:
-        """Build password reset URL from FRONTEND_URL."""
+        """Return explicit FRONTEND_RESET_URL if set, otherwise build from FRONTEND_URL."""
+        if self.FRONTEND_RESET_URL:
+            return self.FRONTEND_RESET_URL
         return f"{self.FRONTEND_URL.rstrip('/')}/reset-password"
     
     # OCR Configuration
@@ -99,6 +102,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = True
+        extra = "ignore"  # Ignore unknown env vars to prevent deployment failures
     
     @property
     def cors_origins_list(self) -> List[str]:
