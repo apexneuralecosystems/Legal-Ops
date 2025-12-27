@@ -3,8 +3,9 @@ Test Apex Authentication after initialization
 """
 import requests
 import json
+import os
 
-BASE_URL = "http://localhost:8005"
+BASE_URL = os.getenv("BACKEND_URL", "http://localhost:8005")
 
 def test_signup():
     """Test user signup"""

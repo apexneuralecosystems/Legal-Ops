@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     # Google Cloud
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
-    GOOGLE_REDIRECT_URI: str = "http://localhost:8000/auth/google/callback"
+    GOOGLE_REDIRECT_URI: str = ""  # Set via env: GOOGLE_REDIRECT_URI=https://api.yourdomain.com/auth/google/callback
     
     # Translation
     TRANSLATION_SERVICE: str = "google"  # google, azure, or deepl
@@ -37,7 +37,10 @@ class Settings(BaseSettings):
     MAX_UPLOAD_SIZE: int = 52428800  # 50MB
     
     # Redis
-    REDIS_URL: str = "redis://localhost:6379/0"
+    REDIS_URL: str = "redis://localhost:6379/0"  # Set via env for production
+    
+    # Backend Server Configuration
+    BACKEND_PORT: int = 8005  # Set via env: BACKEND_PORT=8005
     
     # Security
     SECRET_KEY: str
@@ -63,7 +66,14 @@ class Settings(BaseSettings):
     # SendGrid Configuration
     SENDGRID_API_KEY: str = ""
     FROM_EMAIL: str = "noreply@example.com"
-    FRONTEND_RESET_URL: str = "http://localhost:3000/reset-password"
+    
+    # Frontend Configuration
+    FRONTEND_URL: str = "http://localhost:3000"  # Set via env: FRONTEND_URL=https://yourdomain.com
+    
+    @property
+    def frontend_reset_url(self) -> str:
+        """Build password reset URL from FRONTEND_URL."""
+        return f"{self.FRONTEND_URL.rstrip('/')}/reset-password"
     
     # OCR Configuration
     OCR_ENGINE: str = "auto"  # auto, tesseract, pymupdf, or google_vision
@@ -77,8 +87,9 @@ class Settings(BaseSettings):
     CASELAW_API_URL: str = ""
     CASELAW_API_KEY: str = ""
     
-    # CORS - Supports both JSON array and comma-separated string
-    CORS_ORIGINS: str | List[str] = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:8005,http://localhost:8006,http://localhost:8007,http://127.0.0.1:8006,http://127.0.0.1:8007"
+    # CORS - Set via env variable for your deployment
+    # Example: CORS_ORIGINS=https://yourdomain.com,https://api.yourdomain.com
+    CORS_ORIGINS: str | List[str] = "http://localhost:3000,http://127.0.0.1:3000"
     CORS_ALLOW_ALL: bool = False  # Set True for development only, False for production
     
     # Logging

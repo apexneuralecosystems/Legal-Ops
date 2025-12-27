@@ -1,4 +1,5 @@
 import asyncio
+import os
 from orchestrator import OrchestrationController
 
 async def seed_document():
@@ -33,7 +34,8 @@ async def seed_document():
     # Let's check if we can hit the API to upload a document.
     import requests
     
-    url = "http://localhost:8005/upload" # Guessing endpoint
+    base_url = os.getenv("BACKEND_URL", "http://localhost:8005")
+    url = f"{base_url}/upload"  # Upload endpoint
     # Actually, let's just use the matter ID that already has documents from the previous run if persistence is enabled.
     # If not, we might need to use the `test_all_agents.py` logic to populate it.
 

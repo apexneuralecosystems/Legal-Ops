@@ -4,9 +4,10 @@ Tests the newly configured credentials for email and payment services
 """
 import requests
 import json
+import os
 from datetime import datetime
 
-BASE_URL = "http://localhost:8005"
+BASE_URL = os.getenv("BACKEND_URL", "http://localhost:8005")
 
 class Colors:
     GREEN = '\033[92m'

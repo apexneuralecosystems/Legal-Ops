@@ -13,7 +13,7 @@ const merriweather = Merriweather({
 })
 
 export const metadata: Metadata = {
-    metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:8006'),
+    metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
     title: 'Malaysian Legal AI Agent',
     description: 'Multi-agent system for legal document processing with bilingual support',
     openGraph: {

@@ -168,6 +168,7 @@ If you did not request this, please ignore this email.
     
     async def send_welcome(self, to: str, name: str) -> dict:
         """Send welcome email to new user."""
+        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
         subject = "Welcome to Malaysian Legal AI"
         body = f"""
 Dear {name},
@@ -180,7 +181,7 @@ You can now access all features including:
 - Legal research and case analysis
 - Evidence workflow management
 
-Get started by logging in at: http://localhost:8006
+Get started by logging in at: {frontend_url}
 
 Best regards,
 The Malaysian Legal AI Team
@@ -198,7 +199,7 @@ The Malaysian Legal AI Team
         <li>Evidence workflow management</li>
     </ul>
     <p>
-        <a href="http://localhost:8006" 
+        <a href="{frontend_url}" 
            style="background-color: #28a745; color: white; padding: 10px 20px; 
                   text-decoration: none; border-radius: 5px; display: inline-block;">
             Get Started

@@ -205,7 +205,7 @@ async def forgot_password(request: ForgotPasswordRequest, background_tasks: Back
             from config import settings
             
             email_client = get_email_client()
-            reset_url = getattr(settings, 'FRONTEND_RESET_URL', 'http://localhost:8006/reset-password')
+            reset_url = settings.frontend_reset_url
             
             if email_client:
                 # Send email in background

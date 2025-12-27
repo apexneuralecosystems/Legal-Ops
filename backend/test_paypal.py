@@ -4,8 +4,9 @@ Now that Apex auth works, test PayPal endpoints with valid tokens
 """
 import requests
 import json
+import os
 
-BASE_URL = "http://localhost:8005"
+BASE_URL = os.getenv("BACKEND_URL", "http://localhost:8005")
 
 def get_auth_token():
     """Login and get authentication token"""

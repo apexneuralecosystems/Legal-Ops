@@ -10,7 +10,7 @@ from datetime import datetime
 import os
 
 # Base configuration
-BASE_URL = "http://localhost:8005"
+BASE_URL = os.getenv("BACKEND_URL", "http://localhost:8005")
 API_URL = f"{BASE_URL}/api"
 
 # Test results storage

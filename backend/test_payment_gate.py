@@ -4,8 +4,9 @@ Verifies that workflow endpoints return 402 after free uses are exhausted.
 """
 import requests
 import json
+import os
 
-BASE_URL = "http://localhost:8005"
+BASE_URL = os.getenv("BACKEND_URL", "http://localhost:8005")
 
 
 def get_auth_token():

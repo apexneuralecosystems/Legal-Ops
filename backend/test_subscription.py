@@ -3,8 +3,9 @@ Test Subscription and Usage Tracking Endpoints
 """
 import requests
 import json
+import os
 
-BASE_URL = "http://localhost:8005"
+BASE_URL = os.getenv("BACKEND_URL", "http://localhost:8005")
 
 def get_auth_token():
     """Login and get authentication token"""

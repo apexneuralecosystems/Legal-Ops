@@ -3,8 +3,9 @@ Quick test script to verify the API endpoint fixes
 """
 import requests
 import json
+import os
 
-BASE_URL = "http://localhost:8005"
+BASE_URL = os.getenv("BACKEND_URL", "http://localhost:8005")
 
 def test_matters_intake_without_files():
     """Test that matters intake works without files"""
