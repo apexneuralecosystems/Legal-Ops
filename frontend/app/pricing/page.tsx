@@ -51,12 +51,12 @@ export default function PricingPage() {
     const isPro = usageStatus?.has_paid && usageStatus?.subscription_status === 'active'
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+        <div className="min-h-screen bg-[var(--bg-primary)]">
             <div className="container mx-auto px-4 py-16">
                 {/* Header */}
                 <div className="text-center mb-16">
-                    <h1 className="text-5xl font-bold text-white mb-4">
-                        Unlock <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">Unlimited</span> Access
+                    <h1 className="text-5xl font-bold text-[var(--text-primary)] mb-4">
+                        Unlock <span className="gradient-text">Unlimited</span> Access
                     </h1>
                     <p className="text-xl text-gray-300 max-w-2xl mx-auto">
                         Get unlimited access to all Legal-Ops AI workflows and supercharge your legal practice
@@ -66,7 +66,7 @@ export default function PricingPage() {
                 {/* Pricing Cards */}
                 <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
                     {/* Free Tier */}
-                    <div className="bg-slate-800/50 backdrop-blur-xl rounded-2xl p-8 border border-slate-700">
+                    <div className="card p-8">
                         <div className="mb-6">
                             <h3 className="text-2xl font-semibold text-white">Free Trial</h3>
                             <p className="text-gray-400 mt-2">Get started with limited access</p>
@@ -113,8 +113,8 @@ export default function PricingPage() {
                     </div>
 
                     {/* Pro Tier */}
-                    <div className="bg-gradient-to-br from-purple-600/20 to-pink-600/20 backdrop-blur-xl rounded-2xl p-8 border-2 border-purple-500 relative overflow-hidden">
-                        <div className="absolute top-0 right-0 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-sm font-semibold px-4 py-1 rounded-bl-xl">
+                    <div className="glass-card p-8 relative overflow-hidden ring-1 ring-[var(--gold-primary)]">
+                        <div className="absolute top-0 right-0 bg-[var(--gradient-gold)] text-[#0d1117] text-sm font-bold px-4 py-1 rounded-bl-xl">
                             RECOMMENDED
                         </div>
 
@@ -124,37 +124,37 @@ export default function PricingPage() {
                         </div>
 
                         <div className="mb-6">
-                            <span className="text-4xl font-bold text-white">$29.99</span>
+                            <span className="text-4xl font-bold text-[var(--gold-primary)]">$29.99</span>
                             <span className="text-gray-300">/month</span>
                         </div>
 
                         <ul className="space-y-3 mb-8">
                             <li className="flex items-center text-white">
-                                <svg className="w-5 h-5 text-purple-400 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                                <svg className="w-5 h-5 text-[var(--gold-primary)] mr-3" fill="currentColor" viewBox="0 0 20 20">
                                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                 </svg>
                                 <strong>Unlimited</strong>&nbsp;Intake workflows
                             </li>
                             <li className="flex items-center text-white">
-                                <svg className="w-5 h-5 text-purple-400 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                                <svg className="w-5 h-5 text-[var(--gold-primary)] mr-3" fill="currentColor" viewBox="0 0 20 20">
                                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                 </svg>
                                 <strong>Unlimited</strong>&nbsp;Drafting workflows
                             </li>
                             <li className="flex items-center text-white">
-                                <svg className="w-5 h-5 text-purple-400 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                                <svg className="w-5 h-5 text-[var(--gold-primary)] mr-3" fill="currentColor" viewBox="0 0 20 20">
                                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                 </svg>
                                 <strong>Unlimited</strong>&nbsp;Evidence workflows
                             </li>
                             <li className="flex items-center text-white">
-                                <svg className="w-5 h-5 text-purple-400 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                                <svg className="w-5 h-5 text-[var(--gold-primary)] mr-3" fill="currentColor" viewBox="0 0 20 20">
                                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                 </svg>
                                 <strong>Unlimited</strong>&nbsp;Research workflows
                             </li>
                             <li className="flex items-center text-white">
-                                <svg className="w-5 h-5 text-purple-400 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                                <svg className="w-5 h-5 text-[var(--gold-primary)] mr-3" fill="currentColor" viewBox="0 0 20 20">
                                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                 </svg>
                                 Priority support
@@ -171,10 +171,10 @@ export default function PricingPage() {
                             onClick={handleSubscribe}
                             disabled={isProcessing || isPro}
                             className={`w-full py-3 px-6 rounded-xl font-semibold transition-all duration-300 ${isPro
-                                    ? 'bg-green-600 text-white cursor-not-allowed'
-                                    : isProcessing
-                                        ? 'bg-purple-600/50 text-white cursor-wait'
-                                        : 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-500 hover:to-pink-500 transform hover:scale-105'
+                                ? 'bg-green-600 text-white cursor-not-allowed'
+                                : isProcessing
+                                    ? 'bg-[var(--gold-primary)]/50 text-white cursor-wait'
+                                    : 'btn-primary text-[#0d1117] hover:scale-105'
                                 }`}
                         >
                             {isPro ? '✓ Already Subscribed' : isProcessing ? 'Processing...' : 'Subscribe Now'}
