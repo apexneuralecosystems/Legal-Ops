@@ -131,11 +131,10 @@ function EvidenceContent() {
                                     {documents.map((doc: any) => (
                                         <label
                                             key={doc.id}
-                                            className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
-                                                selectedDocs.includes(doc.id)
-                                                    ? 'border-[var(--neon-cyan)] bg-[var(--neon-cyan)]/5'
-                                                    : 'border-[var(--border-primary)] hover:border-[var(--border-secondary)] bg-[var(--bg-tertiary)]'
-                                            }`}
+                                            className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${selectedDocs.includes(doc.id)
+                                                ? 'border-[var(--neon-cyan)] bg-[var(--neon-cyan)]/5'
+                                                : 'border-[var(--border-primary)] hover:border-[var(--border-secondary)] bg-[var(--bg-tertiary)]'
+                                                }`}
                                         >
                                             <input
                                                 type="checkbox"
@@ -192,6 +191,17 @@ function EvidenceContent() {
                                 )}
                             </button>
                         </div>
+
+                        {/* Error Messages */}
+                        {(evidenceMutation.isError || hearingMutation.isError) && (
+                            <div className="mt-4 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                                <div className="font-bold flex items-center gap-2 mb-1">
+                                    <AlertCircle className="w-4 h-4" />
+                                    Error
+                                </div>
+                                {evidenceMutation.error?.message || hearingMutation.error?.message || 'An error occurred'}
+                            </div>
+                        )}
                     </div>
 
                     <div className="lg:col-span-2">
@@ -258,7 +268,24 @@ function EvidenceContent() {
                                                     Stop
                                                 </button>
                                             ) : (
-                                                <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[var(--neon-purple)] to-[var(--neon-pink)] text-white rounded-xl text-sm font-medium">
+                                                <button
+                                                    onClick={() => {
+                                                        const script = hearingMutation.data?.hearing_bundle?.oral_script_ms
+                                                            ? `Bahasa Malaysia Script. ${hearingMutation.data.hearing_bundle.oral_script_ms}. English Notes. ${hearingMutation.data.hearing_bundle.oral_script_en_notes || ''}`
+                                                            : 'No script available to read.'
+
+                                                        const utterance = new SpeechSynthesisUtterance(script)
+                                                        utterance.onend = () => {
+                                                            setIsSpeaking(false)
+                                                            setCurrentSection('')
+                                                        }
+
+                                                        setIsSpeaking(true)
+                                                        setCurrentSection('Oral Submission Script')
+                                                        window.speechSynthesis.speak(utterance)
+                                                    }}
+                                                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[var(--neon-purple)] to-[var(--neon-pink)] text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity"
+                                                >
                                                     <Volume2 className="w-4 h-4" />
                                                     Listen
                                                 </button>
