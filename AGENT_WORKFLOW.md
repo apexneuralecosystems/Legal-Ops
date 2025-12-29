@@ -567,7 +567,7 @@ graph TB
 ## 🔄 Integration Points
 
 ### Backend → Frontend
-- **API**: REST endpoints on port 8005
+- **API**: REST endpoints on port 8091
 - **Data Format**: JSON responses
 - **Real-time**: WebSocket (planned)
 

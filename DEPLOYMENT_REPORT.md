@@ -164,7 +164,7 @@ server {
 
     # Backend API
     location /api {
-        proxy_pass http://127.0.0.1:8005;
+        proxy_pass http://127.0.0.1:8091;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -174,7 +174,7 @@ server {
 
     # PayPal Webhooks
     location /api/webhooks {
-        proxy_pass http://127.0.0.1:8005;
+        proxy_pass http://127.0.0.1:8091;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;

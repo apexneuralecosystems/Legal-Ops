@@ -22,7 +22,7 @@ python test_commonlii_simple.py
 
 ```bash
 cd backend
-uvicorn app:app --reload --port 8005
+uvicorn app:app --reload --port 8091
 ```
 
 ---
@@ -31,7 +31,7 @@ uvicorn app:app --reload --port 8005
 
 **Windows PowerShell**:
 ```powershell
-Invoke-WebRequest -Uri "http://localhost:8005/research/search" `
+Invoke-WebRequest -Uri "http://localhost:8091/research/search" `
   -Method POST `
   -Headers @{"Content-Type"="application/json"} `
   -Body '{"query":"breach of contract","filters":{}}'
@@ -39,7 +39,7 @@ Invoke-WebRequest -Uri "http://localhost:8005/research/search" `
 
 **cURL**:
 ```bash
-curl -X POST http://localhost:8005/research/search \
+curl -X POST http://localhost:8091/research/search \
   -H "Content-Type: application/json" \
   -d '{"query":"breach of contract","filters":{}}'
 ```

@@ -32,7 +32,7 @@ cp .env.example .env
 alembic upgrade head
 
 # 4. Start backend
-python main.py               # Runs on http://localhost:8005
+python main.py               # Runs on http://localhost:8091
 
 # 5. Start frontend (new terminal)
 cd frontend
@@ -41,7 +41,7 @@ npm run dev                  # Runs on http://localhost:8006
 ```
 
 **Access the app**: http://localhost:8006  
-**API Docs**: http://localhost:8005/docs
+**API Docs**: http://localhost:8091/docs
 
 ---
 
@@ -106,7 +106,7 @@ alembic current
 python main.py
 
 # Start production server (with gunicorn)
-gunicorn main:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8005
+gunicorn main:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8091
 ```
 
 ### Frontend Commands
@@ -159,7 +159,7 @@ alembic upgrade head
 # Backend
 cd backend
 source venv/bin/activate
-pm2 start "gunicorn main:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8005" --name legal-ops-backend
+pm2 start "gunicorn main:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8091" --name legal-ops-backend
 
 # Frontend
 cd frontend
@@ -180,7 +180,7 @@ After=network.target
 User=www-data
 WorkingDirectory=/path/to/Legal-Ops/backend
 Environment="PATH=/path/to/Legal-Ops/backend/venv/bin"
-ExecStart=/path/to/Legal-Ops/backend/venv/bin/gunicorn main:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8005
+ExecStart=/path/to/Legal-Ops/backend/venv/bin/gunicorn main:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8091
 Restart=always
 
 [Install]
@@ -277,7 +277,7 @@ Legal-Ops/
 
 ## 📖 Documentation
 
-- **API Docs**: http://localhost:8005/docs
+- **API Docs**: http://localhost:8091/docs
 - **Deployment Guide**: [DEPLOYMENT_REPORT.md](./DEPLOYMENT_REPORT.md)
 
 ---

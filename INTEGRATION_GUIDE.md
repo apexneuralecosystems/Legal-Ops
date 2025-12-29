@@ -11,7 +11,7 @@
                        │
 ┌──────────────────────▼──────────────────────────────────────┐
 │                  FASTAPI BACKEND                             │
-│                   (Port 8005)                                │
+│                   (Port 8091)                                │
 │  ┌────────────────────────────────────────────────────────┐ │
 │  │              API Layer (Routers)                       │ │
 │  │  - /api/matters/*    - /api/documents/*               │ │
@@ -47,7 +47,7 @@
 ### Backend (.env)
 ```bash
 # Server
-PORT=8005
+PORT=8091
 HOST=0.0.0.0
 
 # Database
@@ -68,7 +68,7 @@ TESSERACT_CMD=C:\\Program Files\\Tesseract-OCR\\tesseract.exe
 ### Frontend (.env.local)
 ```bash
 # Backend API URL
-NEXT_PUBLIC_API_URL=http://localhost:8005
+NEXT_PUBLIC_API_URL=http://localhost:8091
 ```
 
 ## API Endpoints
@@ -333,7 +333,7 @@ npm run dev
 ### Backend connection refused
 ```bash
 # Check if running
-netstat -ano | findstr :8005
+netstat -ano | findstr :8091
 
 # Restart backend
 cd backend
@@ -356,6 +356,6 @@ python main.py
 ---
 
 **Integration Status**: Backend ✅ | Frontend ⚠️ (dependency issues)
-**API Documentation**: http://localhost:8005/docs
+**API Documentation**: http://localhost:8091/docs
 **Test Results**: See API_TEST_RESULTS.md
 **Workflow Details**: See AGENT_WORKFLOW.md

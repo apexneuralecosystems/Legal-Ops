@@ -5,7 +5,7 @@ import requests
 import json
 import os
 
-BASE_URL = os.getenv("BACKEND_URL", "http://localhost:8005")
+BASE_URL = os.getenv("BACKEND_URL", "http://localhost:8091")
 
 def test_matters_intake_without_files():
     """Test that matters intake works without files"""

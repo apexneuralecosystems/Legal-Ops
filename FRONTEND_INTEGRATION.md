@@ -102,7 +102,7 @@
 1. **Start Backend**:
 ```bash
 cd backend
-uvicorn app:app --reload --port 8005
+uvicorn app:app --reload --port 8091
 ```
 
 2. **Start Frontend**:

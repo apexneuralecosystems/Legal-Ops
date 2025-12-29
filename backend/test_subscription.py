@@ -5,7 +5,7 @@ import requests
 import json
 import os
 
-BASE_URL = os.getenv("BACKEND_URL", "http://localhost:8005")
+BASE_URL = os.getenv("BACKEND_URL", "http://localhost:8091")
 
 def get_auth_token():
     """Login and get authentication token"""

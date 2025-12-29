@@ -34,7 +34,7 @@ async def seed_document():
     # Let's check if we can hit the API to upload a document.
     import requests
     
-    base_url = os.getenv("BACKEND_URL", "http://localhost:8005")
+    base_url = os.getenv("BACKEND_URL", "http://localhost:8091")
     url = f"{base_url}/upload"  # Upload endpoint
     # Actually, let's just use the matter ID that already has documents from the previous run if persistence is enabled.
     # If not, we might need to use the `test_all_agents.py` logic to populate it.
