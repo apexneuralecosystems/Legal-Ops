@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379/0"  # Set via env for production
     
     # Backend Server Configuration
-    BACKEND_PORT: int = 8005  # Set via env: BACKEND_PORT=8005
+    BACKEND_PORT: int = 8091  # Set via env: BACKEND_PORT=8091
     
     # Security
     SECRET_KEY: str
@@ -57,6 +57,7 @@ class Settings(BaseSettings):
     ENABLE_LIVE_TRANSCRIPTION: bool = False
     ENABLE_FULL_TEXT_LOGGING: bool = False
     ENABLE_PII_REDACTION: bool = True
+    SKIP_PAYMENT_CHECK: bool = False  # Set True for dev/testing to bypass unlimited usage checks
     
     # PayPal Configuration
     PAYPAL_CLIENT_ID: str = ""
@@ -92,7 +93,7 @@ class Settings(BaseSettings):
     
     # CORS - Set via env variable for your deployment
     # Example: CORS_ORIGINS=https://yourdomain.com,https://api.yourdomain.com
-    CORS_ORIGINS: str | List[str] = "http://localhost:3000,http://127.0.0.1:3000"
+    CORS_ORIGINS: str | List[str] = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:8006,http://127.0.0.1:8006"
     CORS_ALLOW_ALL: bool = False  # Set True for development only, False for production
     
     # Logging

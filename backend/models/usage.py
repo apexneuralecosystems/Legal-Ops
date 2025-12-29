@@ -7,6 +7,7 @@ from sqlalchemy.orm import relationship
 from database import Base
 from datetime import datetime
 import uuid
+from config import settings
 
 
 class UserUsage(Base):
@@ -47,10 +48,10 @@ class UserUsage(Base):
     
     # Free usage limits (class constants)
     FREE_LIMITS = {
-        "intake": 1,
-        "drafting": 1,
-        "evidence": 1,
-        "research": 1
+        "intake": 10,
+        "drafting": 10,
+        "evidence": 10,
+        "research": 10
     }
     
     def get_usage_count(self, workflow_type: str) -> int:
@@ -66,6 +67,9 @@ class UserUsage(Base):
     
     def can_use_workflow(self, workflow_type: str) -> bool:
         """Check if user can use a workflow (has free uses left or has paid)."""
+        if settings.SKIP_PAYMENT_CHECK:
+            return True
+
         if self.has_paid and self.subscription_status == "active":
             return True
         

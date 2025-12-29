@@ -42,8 +42,8 @@ export default function Home() {
                     </h1>
 
                     <p className="text-xl md:text-2xl text-[var(--text-secondary)] max-w-3xl mx-auto font-light leading-relaxed animate-slide-up stagger-1">
-                        A sophisticated multi-agent system for legal document processing, 
-                        <span className="text-[var(--teal-primary)]"> bilingual drafting</span>, and 
+                        A sophisticated multi-agent system for legal document processing,
+                        <span className="text-[var(--teal-primary)]"> bilingual drafting</span>, and
                         <span className="text-[var(--gold-primary)]"> comprehensive research</span>.
                     </p>
 
@@ -151,11 +151,18 @@ export default function Home() {
             </div>
 
             <footer className="relative z-10 py-12 text-center border-t border-[var(--border-light)]">
-                <div className="flex items-center justify-center gap-3 text-[var(--text-tertiary)] text-sm">
-                    <div className="w-2 h-2 rounded-full bg-[var(--emerald)] animate-pulse"></div>
-                    <span>All systems operational</span>
-                    <span className="mx-2">•</span>
-                    <span>&copy; 2025 Malaysian Legal AI Agent</span>
+                <div className="flex flex-col items-center justify-center gap-4 text-[var(--text-tertiary)] text-sm">
+                    <div className="flex items-center gap-3">
+                        <div className="w-2 h-2 rounded-full bg-[var(--emerald)] animate-pulse"></div>
+                        <span>All systems operational</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-2">
+                        <p>&copy; 2025 ApexNeural. All rights reserved.</p>
+                        <div className="flex items-center gap-4 text-xs font-medium">
+                            <Link href="/legal/terms" className="hover:text-[var(--text-primary)] transition-colors">Terms of Use</Link>
+                            <Link href="/legal/privacy" className="hover:text-[var(--text-primary)] transition-colors">Privacy Policy</Link>
+                        </div>
+                    </div>
                 </div>
             </footer>
         </main>

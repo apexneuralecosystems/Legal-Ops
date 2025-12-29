@@ -13,18 +13,18 @@ const merriweather = Merriweather({
 })
 
 export const metadata: Metadata = {
-    metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
-    title: 'Malaysian Legal AI Agent',
-    description: 'Multi-agent system for legal document processing with bilingual support',
+    metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:8006'),
+    title: 'ApexNeural Legal Ops',
+    description: 'AI-powered legal operations platform for automated intake, drafting, and research',
     openGraph: {
-        title: 'Malaysian Legal AI Agent',
-        description: 'Multi-agent system for legal document processing with bilingual support',
+        title: 'ApexNeural Legal Ops',
+        description: 'AI-powered legal operations platform for automated intake, drafting, and research',
         type: 'website',
     },
     twitter: {
         card: 'summary_large_image',
-        title: 'Malaysian Legal AI Agent',
-        description: 'Multi-agent system for legal document processing with bilingual support',
+        title: 'ApexNeural Legal Ops',
+        description: 'AI-powered legal operations platform for automated intake, drafting, and research',
     },
 }
 

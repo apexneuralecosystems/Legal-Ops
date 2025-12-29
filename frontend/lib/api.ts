@@ -1,7 +1,9 @@
 import axios, { AxiosInstance, AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 
 // API Configuration
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8005'
+// Configured to use Next.js Proxy (see next.config.js)
+const API_URL = ''
+// const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8005'
 
 // Token storage keys
 const ACCESS_TOKEN_KEY = 'access_token'
@@ -163,7 +165,11 @@ const createApiClient = (): AxiosInstance => {
 const extractErrorMessage = (error: AxiosError): string => {
     if (error.response?.data) {
         const data = error.response.data as any
-        if (data.detail) return data.detail
+        if (data.detail) {
+            if (typeof data.detail === 'string') return data.detail
+            if (Array.isArray(data.detail)) return data.detail.map((e: any) => e.msg).join(', ')
+            return JSON.stringify(data.detail)
+        }
         if (data.message) return data.message
     }
 

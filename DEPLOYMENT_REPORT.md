@@ -109,21 +109,11 @@ REDIS_URL=redis://localhost:6379/0
 
 ```bash
 # Navigate to backend
+# Navigate to backend directory first
 cd backend
 
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# venv\Scripts\activate  # Windows
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run migrations
-alembic upgrade head
-
 # Start server (production)
-gunicorn main:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8005
+gunicorn main:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8091
 ```
 
 ### Frontend

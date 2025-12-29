@@ -28,7 +28,8 @@ const navigation = [
             { name: 'Matter Intake', href: '/upload', icon: Briefcase, gradient: 'teal' },
             { name: 'Pleadings', href: '/drafting', icon: FileText, gradient: 'gold' },
             { name: 'Research', href: '/research', icon: Search, gradient: 'teal' },
-            { name: 'Hearings', href: '/evidence', icon: Calendar, gradient: 'emerald' }
+            { name: 'Hearings', href: '/evidence', icon: Calendar, gradient: 'emerald' },
+            { name: 'Paralegal', href: '/paralegal', icon: Sparkles, gradient: 'gold' }
         ]
     },
     {
@@ -84,8 +85,8 @@ export default function Sidebar() {
                                         <Link
                                             href={item.href}
                                             className={`group flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 relative overflow-hidden ${isActive
-                                                    ? 'text-[#0d1117]'
-                                                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                                                ? 'text-[#0d1117]'
+                                                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                                                 }`}
                                         >
                                             {isActive && (
@@ -96,8 +97,8 @@ export default function Sidebar() {
                                             )}
 
                                             <div className={`relative z-10 w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200 ${isActive
-                                                    ? 'bg-[#0d1117]/20'
-                                                    : 'bg-[var(--bg-tertiary)] group-hover:bg-[var(--bg-card)]'
+                                                ? 'bg-[#0d1117]/20'
+                                                : 'bg-[var(--bg-tertiary)] group-hover:bg-[var(--bg-card)]'
                                                 }`}>
                                                 <item.icon className={`w-4 h-4 ${isActive ? 'text-[#0d1117]' : 'text-[var(--text-secondary)]'}`} />
                                             </div>
@@ -105,8 +106,8 @@ export default function Sidebar() {
                                             <span className="relative z-10 flex-1">{item.name}</span>
 
                                             <ChevronRight className={`relative z-10 w-4 h-4 transition-all duration-200 ${isActive
-                                                    ? 'opacity-100 translate-x-0'
-                                                    : 'opacity-0 -translate-x-2 group-hover:opacity-50 group-hover:translate-x-0'
+                                                ? 'opacity-100 translate-x-0'
+                                                : 'opacity-0 -translate-x-2 group-hover:opacity-50 group-hover:translate-x-0'
                                                 }`} />
                                         </Link>
                                     </li>
