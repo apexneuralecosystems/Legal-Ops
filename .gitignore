@@ -1,26 +1,9 @@
-# =========================
-# Legal-Ops .gitignore
-# =========================
-
-# =========================
-# Backend (Python/FastAPI)
-# =========================
-
-# Virtual environments
-backend/venv/
-venv/
-.venv/
-env/
-ENV/
-
-# Python cache
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-
-# Distribution / packaging
 build/
 develop-eggs/
 dist/
@@ -33,176 +16,66 @@ parts/
 sdist/
 var/
 wheels/
+share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
 
-# PyInstaller
-*.manifest
-*.spec
+# Virtual Environment
+venv/
+.venv/
+env/
+.env/
+venv.bak/
 
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
-pytest_cache/
-
-# Translations
-*.mo
-*.pot
-
-# Environments
+# Environment Variables
 .env
 .env.local
-.env.*.local
-*.env
+.env.development.local
+.env.test.local
+.env.production.local
+.flaskenv
+.env.backup
 
-# Uploads and generated files
-backend/uploads/
-uploads/
-*.pdf
-*.docx
-*.doc
-
-# Logs
-*.log
-logs/
-
-# Database
-*.db
-*.sqlite
-*.sqlite3
-
-# Alembic
-backend/alembic/versions/*.pyc
-
-# =========================
-# Frontend (Next.js)
-# =========================
-
-# Dependencies
+# Node.js / Next.js
 frontend/node_modules/
 node_modules/
-
-# Whitelist frontend/lib
-!frontend/lib/
-
-
-# Next.js build
-frontend/.next/
-.next/
-frontend/out/
-out/
-
-# Production
-frontend/build/
-
-# Debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+frontend/.next/
+.next/
+out/
+build/
+dist/
 
-# Vercel
-.vercel
+# Logs
+logs/
+*.log
 
-# TypeScript
-*.tsbuildinfo
-next-env.d.ts
-
-# =========================
-# IDE & OS
-# =========================
-
-# VSCode
+# IDEs
 .vscode/
-*.code-workspace
-
-# JetBrains
 .idea/
-*.iml
-*.ipr
-*.iws
-
-# Vim
 *.swp
 *.swo
-*~
-
-# macOS
 .DS_Store
-.AppleDouble
-.LSOverride
-
-# Windows
 Thumbs.db
-ehthumbs.db
-Desktop.ini
-$RECYCLE.BIN/
 
-# Linux
-*~
+# Project Specific
+backend/uploads/
+uploads/
+*.db
+*.sqlite3
+backend/app.db
+debug_draft.py
+draft_test.json
+test_draft.json
+draft_payload.json
+law-agent-final.case-study.json
 
-# =========================
-# Secrets & Config
-# =========================
-
-# API keys and secrets
-*.pem
-*.key
-secrets/
-.secrets
-credentials.json
-
-# Local config overrides
-config.local.*
-settings.local.*
-
-# =========================
-# Miscellaneous
-# =========================
-
-# Temporary files
-tmp/
-temp/
-*.tmp
-*.temp
-*.bak
-
-# Archives
-*.zip
-*.tar.gz
-*.rar
-
-# Large files
-*.mp4
-*.mov
-*.avi
-
-# Jupyter notebooks checkpoints
-.ipynb_checkpoints/
-
-# Coverage reports
-htmlcov/
+# Testing
+.pytest_cache/
 .coverage
-
-# Test output
-test-results/
-playwright-report/
-
-# PM2
-.pm2/
-
+htmlcov/

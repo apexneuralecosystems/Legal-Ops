@@ -1,7 +1,7 @@
 """
 Centralized configuration management using Pydantic Settings.
 """
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
 import os
 import platform
@@ -19,8 +19,15 @@ class Settings(BaseSettings):
     DB_PASSWORD: str = "password"
     
     # Google Gemini API
-    GEMINI_API_KEY: str
+    GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-1.5-flash"
+    
+    # OpenRouter API (Alternative LLM provider)
+    OPENROUTER_API_KEY: str = ""
+    OPENROUTER_MODEL: str = "google/gemini-2.0-flash-exp:free"
+    
+    # LLM Provider Selection: "gemini" or "openrouter"
+    LLM_PROVIDER: str = "gemini"
     
     # Google Cloud
     GOOGLE_CLIENT_ID: str = ""
@@ -100,10 +107,11 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     LOG_FILE: str = "./logs/app.log"
     
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
-        extra = "ignore"  # Ignore unknown env vars to prevent deployment failures
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=True,
+        extra="ignore"  # Ignore unknown env vars to prevent deployment failures
+    )
     
     @property
     def cors_origins_list(self) -> List[str]:

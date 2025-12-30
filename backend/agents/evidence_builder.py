@@ -98,15 +98,15 @@ class EvidenceBuilderAgent(BaseAgent):
         
         # Add documents
         for i, doc in enumerate(documents, 1):
-            # Find related translation
+            # Find related translation (safe matching)
             translation = next(
-                (t for t in translations if t.get("source_doc_id") == doc.get("id")),
+                (t for t in translations if isinstance(t, dict) and t.get("source_doc_id") == doc.get("id")),
                 None
             )
             
-            # Find related affidavit
+            # Find related affidavit (safe matching)
             affidavit = next(
-                (a for a in affidavits if a.get("doc_id") == doc.get("id")),
+                (a for a in affidavits if isinstance(a, dict) and a.get("doc_id") == doc.get("id")),
                 None
             )
             

@@ -113,10 +113,15 @@ def get_sync_db():
         Session: SQLAlchemy database session
     """
     db = SessionLocal()
+    print("DEBUG: get_sync_db session created")
     try:
         yield db
+    except Exception as e:
+        print(f"DEBUG: get_sync_db error: {e}")
+        raise
     finally:
         db.close()
+        print("DEBUG: get_sync_db session closed")
 
 
 

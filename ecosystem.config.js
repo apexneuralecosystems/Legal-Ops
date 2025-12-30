@@ -1,16 +1,27 @@
+const os = require('os');
+const isWindows = os.platform() === 'win32';
+
 module.exports = {
     apps: [
         {
-            name: "legalops-api",
-            script: "./venv/bin/gunicorn",
-            cwd: "/home/apexneural-legalops-api/htdocs/Legal-Ops/backend",
-            args: "main:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8091 --timeout 900 --log-level info",
-            interpreter: "none",
-            autorestart: true,
-            max_memory_restart: "1G",
+            name: "legal-ops-backend",
+            cwd: "backend",
+            script: "main.py",
+            interpreter: isWindows ? "venv/Scripts/python" : "venv/bin/python",
+            interpreter_args: "", // Optional: add python args here if needed
             env: {
-                PYTHONPATH: "/home/apexneural-legalops-api/htdocs/Legal-Ops/backend"
-            }
-        }
-    ]
+                NODE_ENV: "production",
+            },
+        },
+        {
+            name: "legal-ops-frontend",
+            cwd: "frontend",
+            script: "npm",
+            args: "start -- -p 8006",
+            interpreter: "none",
+            env: {
+                NODE_ENV: "production",
+            },
+        },
+    ],
 };

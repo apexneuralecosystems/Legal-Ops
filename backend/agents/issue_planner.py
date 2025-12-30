@@ -3,8 +3,7 @@ Issue & Prayer Planner Agent - Proposes causes of action and prayers.
 """
 from agents.base_agent import BaseAgent
 from typing import Dict, Any, List
-import google.generativeai as genai
-from config import settings
+from services.llm_service import get_llm_service
 import json
 import re
 import asyncio
@@ -26,8 +25,7 @@ class IssuePlannerAgent(BaseAgent):
     
     def __init__(self):
         super().__init__(agent_id="IssuePlanner")
-        genai.configure(api_key=settings.GEMINI_API_KEY)
-        self.model = genai.GenerativeModel(settings.GEMINI_MODEL)
+        self.llm = get_llm_service()
     
     async def process(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -56,8 +54,8 @@ class IssuePlannerAgent(BaseAgent):
         prompt = self._create_issue_prompt(matter, jurisdiction)
         
         try:
-            response = await self.model.generate_content_async(prompt)
-            result = self._parse_llm_response(response.text)
+            response_text = await self.llm.generate(prompt)
+            result = self._parse_llm_response(response_text)
             
             issues = result.get("issues", [])
             prayers = result.get("prayers", [])
@@ -183,8 +181,8 @@ Return ONLY valid JSON array, no explanation. Example:
 [{{"citation": "[2019] 2 MLJ 345", "court": "Court of Appeal", "relevance": 0.92, "summary": "Contract interpretation using objective approach"}}]"""
 
         try:
-            response = await self.model.generate_content_async(prompt)
-            result_text = response.text.strip()
+            result_text = await self.llm.generate(prompt)
+            result_text = result_text.strip()
             
             # Parse JSON
             import re
@@ -220,8 +218,8 @@ Return ONLY valid JSON array, no explanation. Example:
 [{{"citation": "[2019] 2 MLJ 345", "court": "Court of Appeal", "relevance": 0.92, "summary": "Contract interpretation using objective approach"}}]"""
 
         try:
-            response = self.model.generate_content(prompt)
-            result_text = response.text.strip()
+            result_text = self.llm.generate_sync(prompt)
+            result_text = result_text.strip()
             
             # Parse JSON
             import re

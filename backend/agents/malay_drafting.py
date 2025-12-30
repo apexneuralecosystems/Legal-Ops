@@ -3,8 +3,7 @@ Malay Drafting Agent - Generates formal legal Malay pleadings.
 """
 from agents.base_agent import BaseAgent
 from typing import Dict, Any, List
-import google.generativeai as genai
-from config import settings
+from services.llm_service import get_llm_service
 import re
 
 
@@ -25,8 +24,7 @@ class MalayDraftingAgent(BaseAgent):
     
     def __init__(self):
         super().__init__(agent_id="MalayDrafting")
-        genai.configure(api_key=settings.GEMINI_API_KEY)
-        self.model = genai.GenerativeModel(settings.GEMINI_MODEL)
+        self.llm = get_llm_service()
     
     async def process(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -53,27 +51,40 @@ class MalayDraftingAgent(BaseAgent):
         template_id = inputs.get("template_id", "TPL-HighCourt-MS-v2")
         issues = inputs.get("issues_selected", [])
         prayers = inputs.get("prayers_selected", [])
+        language = inputs.get("language", "ms")  # Default to Malay
         
-        # Create drafting prompt
-        prompt = self._create_drafting_prompt(matter, template_id, issues, prayers)
+        # Create drafting prompt based on language
+        if language == "en" or "EN" in template_id:
+            # Generate English pleading directly
+            prompt = self._create_drafting_prompt(matter, template_id, issues, prayers, language="en")
+        else:
+            # Generate Malay pleading
+            prompt = self._create_drafting_prompt(matter, template_id, issues, prayers, language="ms")
         
+        # Call LLM directly - with error handling
         try:
-            response = await self.model.generate_content_async(prompt)
-            pleading_text = response.text
-            
-            # Post-process to ensure formal legal register
-            pleading_text = self._apply_legal_formatting(pleading_text, matter)
-            
-            # Create paragraph map
-            paragraph_map = self._create_paragraph_map(pleading_text, matter)
-            
-            confidence = 0.92
-            
+            pleading_text = await self.llm.generate(prompt)
         except Exception as e:
-            print(f"Drafting error: {e}")
-            pleading_text = self._generate_fallback_pleading(matter, issues, prayers)
-            paragraph_map = []
-            confidence = 0.5
+            print(f"Error in Malay drafting LLM generation: {e}")
+            # Return partial error result instead of 500
+            return {
+                "status": "partial_error",
+                "data": {
+                    "pleading_ms_text": f"Error generating draft: {str(e)}. Please retry or edit manually.",
+                    "paragraph_map": [],
+                    "confidence": 0.0
+                },
+                "metadata": self.create_metadata(),
+                "human_review_required": True
+            }
+        
+        # Post-process to ensure formal legal register
+        pleading_text = self._apply_legal_formatting(pleading_text, matter)
+        
+        # Create paragraph map
+        paragraph_map = self._create_paragraph_map(pleading_text, matter)
+        
+        confidence = 0.92
         
         return self.format_output(
             data={
@@ -90,9 +101,10 @@ class MalayDraftingAgent(BaseAgent):
         matter: Dict[str, Any],
         template_id: str,
         issues: List[Dict],
-        prayers: List[Dict]
+        prayers: List[Dict],
+        language: str = "ms"
     ) -> str:
-        """Create prompt for LLM drafting."""
+        """Create prompt for LLM drafting in specified language."""
         
         parties_str = "\n".join([
             f"- {p['role'].upper()}: {p['name']}"
@@ -182,76 +194,4 @@ PERNYATAAN TUNTUTAN
         
         return paragraph_map
     
-    def _generate_fallback_pleading(
-        self,
-        matter: Dict[str, Any],
-        issues: List[Dict],
-        prayers: List[Dict]
-    ) -> str:
-        """Generate basic fallback pleading with clear placeholders for human input."""
-        
-        parties = matter.get("parties", [])
-        plaintiff = next((p for p in parties if p["role"] == "plaintiff"), {"name": "[NAMA PLAINTIF]"})
-        defendant = next((p for p in parties if p["role"] == "defendant"), {"name": "[NAMA DEFENDAN]"})
-        
-        # Get plaintiff and defendant names, clean up placeholder brackets if present
-        plaintiff_name = plaintiff.get("name", "[NAMA PLAINTIF]")
-        defendant_name = defendant.get("name", "[NAMA DEFENDAN]")
-        
-        # Build issues section
-        issues_text = ""
-        for i, issue in enumerate(issues, 3):
-            issue_title = issue.get("title", issue.get("text_ms", "[Isu undang-undang]"))
-            issues_text += f"""
-{i}. **Isu: {issue_title}**
-   [Butiran fakta-fakta kes akan dimasukkan di sini. Berdasarkan maklumat yang diberikan, fakta-fakta adalah tidak lengkap. Oleh itu, perenggan ini dibiarkan kosong dan perlu diisi dengan fakta-fakta yang relevan dengan kes.]
-"""
-        
-        # Build prayers section
-        prayers_text = ""
-        for i, prayer in enumerate(prayers, 1):
-            prayer_ms = prayer.get("text_ms", prayer.get("text", "[Relief yang dipohon]"))
-            prayers_text += f"   ({chr(96+i)}) {prayer_ms}\n"
-        
-        if not prayers_text:
-            prayers_text = """   (a) [Penghakiman untuk jumlah RM ______ ]
-   (b) [Faedah pada kadar ____% setahun]
-   (c) Kos dan apa-apa relief lain yang Mahkamah fikirkan sesuai"""
 
-        return f"""**DALAM MAHKAMAH {matter.get('court', 'TINGGI MALAYA').upper()}**
-
-**PERMOHONAN NO: [Ruang untuk diisi oleh Pendaftar Mahkamah]**
-
-**ANTARA**
-
-**PLAINTIF**
-
-**DAN**
-
-**DEFENDAN**
-
-**PERNYATAAN TUNTUTAN**
-
-1.  **Pengenalan**
-
-    PLAINTIF dengan hormatnya menyatakan perkara-perkara berikut kepada Mahkamah Yang Mulia ini:
-
-    1.1 PLAINTIF ialah pihak yang memulakan prosiding.
-    
-    1.2 DEFENDAN ialah pihak yang didakwa telah melakukan atau tidak melakukan penyerahan kepada pemegang serah hak.
-
-2.  **Fakta-Fakta**
-
-    2.1 [Butiran fakta-fakta kes akan dimasukkan di sini. Berdasarkan maklumat yang diberikan, fakta-fakta adalah tidak lengkap. Oleh itu, perenggan ini dibiarkan kosong dan perlu diisi dengan fakta-fakta yang relevan dengan kes.]
-{issues_text}
-**DOA**
-
-Dengan yang demikian, PLAINTIF memohon Mahkamah Yang Mulia ini memberikan:
-
-{prayers_text}
-
-Bertarikh pada [TARIKH] ini.
-
-______________________
-Peguam Cara bagi PLAINTIF
-"""

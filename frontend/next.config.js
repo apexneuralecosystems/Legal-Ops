@@ -5,6 +5,8 @@ const nextConfig = {
     productionBrowserSourceMaps: false,
     experimental: {
         forceSwcTransforms: true,
+        // Increase proxy timeout for long-running AI workflows
+        proxyTimeout: 300000, // 5 minutes
     },
     webpack: (config, { isServer }) => {
         // Fix for "Unexpected end of JSON input" error
@@ -18,7 +20,24 @@ const nextConfig = {
         return [
             {
                 source: '/api/:path*',
-                destination: 'http://localhost:8091/api/:path*',
+                destination: 'http://127.0.0.1:8091/api/:path*',
+            },
+        ]
+    },
+    async headers() {
+        return [
+            {
+                source: '/api/:path*',
+                headers: [
+                    {
+                        key: 'Connection',
+                        value: 'keep-alive',
+                    },
+                    {
+                        key: 'Keep-Alive',
+                        value: 'timeout=300',
+                    },
+                ],
             },
         ]
     },

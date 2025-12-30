@@ -3,9 +3,9 @@ Case Structuring Agent - Extracts legal entities and creates matter snapshot.
 """
 from agents.base_agent import BaseAgent
 from typing import Dict, Any, List, Optional
-import google.generativeai as genai
-from config import settings
 import json
+import re
+from services.llm_service import get_llm_service
 import re
 
 
@@ -23,9 +23,7 @@ class CaseStructuringAgent(BaseAgent):
     
     def __init__(self):
         super().__init__(agent_id="CaseStructuring")
-        # Configure Gemini
-        genai.configure(api_key=settings.GEMINI_API_KEY)
-        self.model = genai.GenerativeModel(settings.GEMINI_MODEL)
+        self.llm = get_llm_service()
     
     async def process(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -67,12 +65,8 @@ class CaseStructuringAgent(BaseAgent):
         # Use LLM to extract structured information
         extraction_prompt = self._create_extraction_prompt(full_text_en, full_text_ms)
         
-        try:
-            response = self.model.generate_content(extraction_prompt)
-            extracted_data = self._parse_llm_response(response.text)
-        except Exception as e:
-            print(f"LLM extraction error: {e}")
-            extracted_data = self._fallback_extraction(full_text_en)
+        response_text = await self.llm.generate(extraction_prompt)
+        extracted_data = self._parse_llm_response(response_text)
         
         # Build matter snapshot
         # Use actual page count if provided, otherwise estimate from text
@@ -163,71 +157,7 @@ Return ONLY the JSON object, no additional text."""
             print("Failed to parse LLM response as JSON")
             return {}
     
-    def _fallback_extraction(self, text: str) -> Dict[str, Any]:
-        """Fallback extraction using regex patterns with cleaner placeholders."""
-        data = {
-            "title": "[SILA ISI TAJUK KES / Please Enter Case Title]",
-            "parties": [],
-            "court": "High Court",
-            "jurisdiction": "Peninsular Malaysia",
-            "case_type": "general",
-            "key_dates": [],
-            "issues": [],
-            "requested_remedies": []
-        }
-        
-        # Try to extract title from case header patterns
-        title_patterns = [
-            r'(?:ANTARA|BETWEEN)[:\s]+(.+?)\s+(?:DAN|AND|V\.?|vs\.?)\s+(.+?)(?:\n|$)',
-            r'([A-Z][A-Za-z\s&.]+?)\s+(?:v\.|vs\.?|lwn\.?)\s+([A-Z][A-Za-z\s&.]+)',
-        ]
-        for pattern in title_patterns:
-            match = re.search(pattern, text, re.IGNORECASE | re.MULTILINE)
-            if match:
-                plaintiff_name = match.group(1).strip()[:50]
-                defendant_name = match.group(2).strip()[:50]
-                data["title"] = f"{plaintiff_name} lwn {defendant_name}"
-                data["parties"] = [
-                    {"role": "plaintiff", "name": plaintiff_name, "address": "[Alamat Plaintif]"},
-                    {"role": "defendant", "name": defendant_name, "address": "[Alamat Defendan]"}
-                ]
-                break
-        
-        # If no title found, use cleaner placeholders
-        if not data["parties"]:
-            data["parties"] = [
-                {"role": "plaintiff", "name": "[NAMA PLAINTIF / Plaintiff Name]", "address": "[Alamat]"},
-                {"role": "defendant", "name": "[NAMA DEFENDAN / Defendant Name]", "address": "[Alamat]"}
-            ]
-        
-        # Extract court - more patterns
-        court_patterns = [
-            (r'(?:MAHKAMAH|COURT)\s+(PERSEKUTUAN|FEDERAL)', 'Federal Court'),
-            (r'(?:MAHKAMAH|COURT)\s+(?:TINGGI|HIGH)', 'High Court'),
-            (r'(?:MAHKAMAH|COURT)\s+(?:RAYUAN|APPEAL)', 'Court of Appeal'),
-            (r'(?:MAHKAMAH|COURT)\s+(?:SEKSYEN|SESSION)', 'Sessions Court'),
-            (r'(?:MAHKAMAH|COURT)\s+(?:MAJISTRET|MAGISTRATE)', 'Magistrate Court'),
-        ]
-        for pattern, court_name in court_patterns:
-            if re.search(pattern, text, re.IGNORECASE):
-                data["court"] = court_name
-                break
-        
-        # Extract dates (YYYY-MM-DD or DD/MM/YYYY)
-        date_patterns = [
-            r'\d{4}-\d{2}-\d{2}',
-            r'\d{1,2}/\d{1,2}/\d{4}'
-        ]
-        for pattern in date_patterns:
-            dates = re.findall(pattern, text)
-            for date in dates[:3]:  # Limit to 3 dates
-                data["key_dates"].append({
-                    "type": "extracted_date",
-                    "date": date,
-                    "description": "[Tarikh yang dikesan / Detected date]"
-                })
-        
-        return data
+
     
     def _calculate_confidence(self, snapshot: Dict[str, Any]) -> float:
         """Calculate confidence score based on completeness."""

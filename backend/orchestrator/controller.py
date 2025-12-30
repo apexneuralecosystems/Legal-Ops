@@ -147,11 +147,35 @@ class OrchestrationController:
         workflow.add_node("draft_english", self._draft_english_node)
         workflow.add_node("qa_check", self._qa_check_node)
         
-        # Define edges (workflow sequence)
+        # Conditional routing based on template language
+        def route_after_template(state: WorkflowState) -> str:
+            """Route to appropriate drafting node based on template."""
+            template_id = state.get("template_id", "TPL-HighCourt-MS-v2")
+            
+            # Check if English template
+            if "EN" in template_id or "English" in template_id:
+                return "draft_english"  # Skip Malay, go straight to English
+            else:
+                return "draft_malay"  # Malaysian template, draft in Malay first
+        
+        # Define edges (workflow sequence with conditional routing)
         workflow.set_entry_point("plan_issues")
         workflow.add_edge("plan_issues", "select_template")
-        workflow.add_edge("select_template", "draft_malay")
+        
+        # Conditional routing after template selection
+        workflow.add_conditional_edges(
+            "select_template",
+            route_after_template,
+            {
+                "draft_malay": "draft_malay",
+                "draft_english": "draft_english"
+            }
+        )
+        
+        # If Malay drafting was done, create English companion
         workflow.add_edge("draft_malay", "draft_english")
+        
+        # Both paths lead to QA check
         workflow.add_edge("draft_english", "qa_check")
         workflow.set_finish_point("qa_check")
         
@@ -507,13 +531,37 @@ class OrchestrationController:
     
     async def _draft_english_node(self, state: WorkflowState) -> WorkflowState:
         """English companion draft node."""
-        pleading_ms_data = state["pleading_ms"]
-        result = await self.english_companion_agent.process({
-            "pleading_ms_text": pleading_ms_data["pleading_ms_text"],
-            "paragraph_map": pleading_ms_data.get("paragraph_map", []),
-            "matter_snapshot": state["matter_snapshot"]
-        })
-        state["pleading_en"] = result["data"]
+        
+        # Check if we have Malay pleading (came from Malay-first workflow)
+        if "pleading_ms" in state and state["pleading_ms"]:
+            # Translate from Malay to English
+            pleading_ms_data = state["pleading_ms"]
+            result = await self.english_companion_agent.process({
+                "pleading_ms_text": pleading_ms_data["pleading_ms_text"],
+                "paragraph_map": pleading_ms_data.get("paragraph_map", []),
+                "matter_snapshot": state["matter_snapshot"]
+            })
+            state["pleading_en"] = result["data"]
+        else:
+            # No Malay text - draft directly in English
+            # Use the Malay drafting agent's logic but with English prompt
+            result = await self.malay_drafting_agent.process({
+                "matter_snapshot": state["matter_snapshot"],
+                "template_id": state.get("template_id", "TPL-HighCourt-EN-v2"),
+                "issues_selected": state.get("issues_selected", []),
+                "prayers_selected": state.get("prayers_selected", []),
+                "language": "en"  # Override to English
+            })
+            
+            # Store in both pleading_ms AND pleading_en for consistency
+            # (Frontend expects pleading_ms for now)
+            state["pleading_ms"] = result["data"]
+            state["pleading_en"] = {
+                "pleading_en_text": result["data"]["pleading_ms_text"],
+                "aligned_pairs": [],
+                "divergence_flags": []
+            }
+        
         return state
     
     async def _qa_check_node(self, state: WorkflowState) -> WorkflowState:

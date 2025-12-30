@@ -3,8 +3,7 @@ Argument Builder Agent - Draft bilingual issue memos.
 """
 from agents.base_agent import BaseAgent
 from typing import Dict, Any, List
-import google.generativeai as genai
-from config import settings
+from services.llm_service import get_llm_service
 
 
 class ArgumentBuilderAgent(BaseAgent):
@@ -24,8 +23,7 @@ class ArgumentBuilderAgent(BaseAgent):
     
     def __init__(self):
         super().__init__(agent_id="ArgumentBuilder")
-        genai.configure(api_key=settings.GEMINI_API_KEY)
-        self.model = genai.GenerativeModel(settings.GEMINI_MODEL)
+        self.llm = get_llm_service()
     
     async def process(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -107,8 +105,7 @@ RELEVANT CASES:
 Write a concise legal argument (2-3 paragraphs) with inline citations."""
         
         try:
-            response = self.model.generate_content(prompt)
-            analysis = response.text
+            analysis = await self.llm.generate(prompt)
         except:
             analysis = f"Analysis for {issue.get('title', 'issue')} pending."
         

@@ -129,8 +129,8 @@ def get_rate_limit_key(request):
     return get_remote_address(request)
 
 limiter = Limiter(key_func=get_rate_limit_key)
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+# app.state.limiter = limiter
+# app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Global exception handler
 @app.exception_handler(Exception)

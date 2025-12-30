@@ -3,8 +3,7 @@ Translation Agent - Provides high-quality NMT Malay ↔ English translation usin
 """
 from agents.base_agent import BaseAgent
 from typing import Dict, Any, List
-import google.generativeai as genai
-from config import settings
+from services.llm_service import get_llm_service
 import re
 
 
@@ -24,8 +23,7 @@ class TranslationAgent(BaseAgent):
     
     def __init__(self):
         super().__init__(agent_id="Translation")
-        genai.configure(api_key=settings.GEMINI_API_KEY)
-        self.model = genai.GenerativeModel(settings.GEMINI_MODEL)
+        self.llm = get_llm_service()
         
         # Legal terms to preserve
         self.legal_terms = {
@@ -160,8 +158,8 @@ Text to translate:
 Provide ONLY the translation, no explanations:"""
         
         try:
-            response = self.model.generate_content(prompt)
-            translation = response.text.strip()
+            translation = await self.llm.generate(prompt)
+            translation = translation.strip()
             
             # Clean up any explanatory text
             translation = re.sub(r'^(Translation:|Literal:|Idiomatic:)\s*', '', translation, flags=re.IGNORECASE)

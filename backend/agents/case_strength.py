@@ -2,12 +2,11 @@
 Case Strength Predictor Agent - Analyzes case strength using AI.
 Provides win probability, risks, strengths, and improvement suggestions.
 """
-import google.generativeai as genai
-from typing import Dict, Any
-from config import settings
+from typing import Dict, Any, List, Optional
 from agents.base_agent import BaseAgent
 import json
 import logging
+from services.llm_service import get_llm_service
 
 logger = logging.getLogger(__name__)
 
@@ -20,8 +19,7 @@ class CaseStrengthAgent(BaseAgent):
     
     def __init__(self):
         super().__init__(agent_id="CaseStrength")
-        genai.configure(api_key=settings.GEMINI_API_KEY)
-        self.model = genai.GenerativeModel(settings.GEMINI_MODEL)
+        self.llm = get_llm_service()
     
     async def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -157,8 +155,8 @@ Consider Malaysian legal standards, evidence strength, procedural compliance, an
 If information is limited, make reasonable assessments based on available data.
 """
 
-        response = self.model.generate_content(prompt)
-        response_text = response.text.strip()
+        response_text = await self.llm.generate(prompt)
+        response_text = response_text.strip()
         
         # Clean up response if it has markdown code blocks
         if response_text.startswith("```"):

@@ -3,8 +3,7 @@ English Companion Draft Agent - Produces English mirror of Malay pleading.
 """
 from agents.base_agent import BaseAgent
 from typing import Dict, Any, List
-import google.generativeai as genai
-from config import settings
+from services.llm_service import get_llm_service
 import re
 
 
@@ -25,8 +24,7 @@ class EnglishCompanionAgent(BaseAgent):
     
     def __init__(self):
         super().__init__(agent_id="EnglishCompanion")
-        genai.configure(api_key=settings.GEMINI_API_KEY)
-        self.model = genai.GenerativeModel(settings.GEMINI_MODEL)
+        self.llm = get_llm_service()
     
     async def process(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -55,27 +53,23 @@ class EnglishCompanionAgent(BaseAgent):
         # Create translation prompt
         prompt = self._create_translation_prompt(pleading_ms, matter)
         
+        # Call LLM with error handling
         try:
-            response = await self.model.generate_content_async(prompt)
-            pleading_en = response.text
-            
-            # Post-process to ensure legal formatting
-            pleading_en = self._apply_legal_formatting(pleading_en, matter)
-            
-            # Create aligned pairs
-            aligned_pairs = self._create_aligned_pairs(pleading_ms, pleading_en)
-            
-            # Detect divergences
-            divergence_flags = self._detect_divergences(aligned_pairs)
-            
-            confidence = 0.88
-            
+            pleading_en = await self.llm.generate(prompt)
         except Exception as e:
-            print(f"English companion error: {e}")
-            pleading_en = self._fallback_translation(pleading_ms)
-            aligned_pairs = []
-            divergence_flags = []
-            confidence = 0.5
+            print(f"Error in English companion LLM generation: {e}")
+            pleading_en = f"[Drafting Error: {str(e)}]"
+        
+        # Post-process to ensure legal formatting
+        pleading_en = self._apply_legal_formatting(pleading_en, matter)
+        
+        # Create aligned pairs
+        aligned_pairs = self._create_aligned_pairs(pleading_ms, pleading_en)
+        
+        # Detect divergences
+        divergence_flags = self._detect_divergences(aligned_pairs)
+        
+        confidence = 0.88
         
         return self.format_output(
             data={
@@ -205,15 +199,4 @@ STATEMENT OF CLAIM
         
         return divergences
     
-    def _fallback_translation(self, pleading_ms: str) -> str:
-        """Basic fallback if LLM translation fails."""
-        
-        return f"""IN THE HIGH COURT
 
-[ENGLISH TRANSLATION OF MALAY PLEADING]
-
-Note: Automatic translation failed. Manual translation required.
-
-Original Malay text:
-{pleading_ms[:500]}...
-"""

@@ -3,8 +3,7 @@ Hearing Prep & Live Assistance Agent - Prepare hearing bundles and scripts.
 """
 from agents.base_agent import BaseAgent
 from typing import Dict, Any, List
-import google.generativeai as genai
-from config import settings
+from services.llm_service import get_llm_service
 
 
 class HearingPrepAgent(BaseAgent):
@@ -26,9 +25,7 @@ class HearingPrepAgent(BaseAgent):
     
     def __init__(self):
         super().__init__(agent_id="HearingPrep")
-        # Configure Gemini
-        genai.configure(api_key=settings.GEMINI_API_KEY)
-        self.model = genai.GenerativeModel(settings.GEMINI_MODEL)
+        self.llm = get_llm_service()
     
     async def process(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -69,6 +66,7 @@ class HearingPrepAgent(BaseAgent):
         bundle = self._create_hearing_bundle(matter, pleadings, cases)
         
         # Run LLM generations in parallel
+        # import asyncio  <-- moved to top level or assumed available, but good to keep if local import needed
         import asyncio
         oral_script_task = self._create_oral_script(matter, issues, cases)
         faqs_task = self._create_judge_faqs(matter, issues, cases)
@@ -222,30 +220,11 @@ Generate a professional oral submission script in formal Bahasa Malaysia that:
 
 Use formal legal Malay terminology. Output ONLY the script text, no explanations."""
 
-        try:
-            ms_response = await self.model.generate_content_async(ms_prompt)
-            script_ms = ms_response.text
-        except Exception as e:
-            # Fallback to template if LLM fails
-            script_ms = f"""SKRIP HUJAHAN LISAN
-
-Perkara: {case_title}
-
-Yang Arif,
-
-Saya mewakili {plaintiff} dalam kes ini.
-
-Kami memohon penghakiman terhadap {defendant}.
-
-Terima kasih, Yang Arif."""
-
-        # Generate English script with LLM
-        en_prompt = f"""Generate a formal oral submission script in English for a Malaysian court hearing.
-
+        # Generate English companion notes
+        en_prompt = f"""Generate English companion notes for a Malay oral submission.
+        
 Case Title: {case_title}
 Case Type: {case_type}
-Plaintiff: {plaintiff}
-Defendant: {defendant}
 
 Legal Issues:
 {issues_text if issues_text else 'General contract dispute'}
@@ -253,33 +232,37 @@ Legal Issues:
 Relevant Authorities:
 {cases_text if cases_text else 'No specific authorities cited'}
 
-Generate a professional oral submission script in formal English that:
-1. Opens with "Your Honour" or "My Lord/Lady"
-2. States the case briefly
-3. Addresses each legal issue
-4. Cites relevant authorities
-5. Ends with prayer for relief
+Generate professional English speaking notes that allow a lawyer to follow the Malay submission.
+Focus on:
+1. Key legal points in English
+2. Summaries of the arguments
+3. Translation of key Malay legal terms used
 
-Use formal legal English. Output ONLY the script text, no explanations."""
+Output ONLY the notes text."""
 
+        # Run generations in parallel
         try:
-            en_response = await self.model.generate_content_async(en_prompt)
-            script_en = en_response.text
+            import asyncio
+            results = await asyncio.gather(
+                self.llm.generate(ms_prompt),
+                self.llm.generate(en_prompt),
+                return_exceptions=True
+            )
+            
+            script_ms = results[0] if isinstance(results[0], str) else ""
+            script_en = results[1] if isinstance(results[1], str) else ""
+            
+            if isinstance(results[0], Exception):
+                print(f"Error generating MS script: {results[0]}")
+                
+            if isinstance(results[1], Exception):
+                print(f"Error generating EN script: {results[1]}")
+
+            return script_ms, script_en
+            
         except Exception as e:
-            # Fallback to template if LLM fails
-            script_en = f"""ORAL SUBMISSION SCRIPT
-
-Matter: {case_title}
-
-Your Honour,
-
-I appear for the {plaintiff} in this matter.
-
-We seek judgment against the {defendant}.
-
-Thank you, Your Honour."""
-        
-        return script_ms, script_en
+            print(f"Error in oral script generation: {e}")
+            return "", ""
     
     async def _create_judge_faqs(
         self,
@@ -297,7 +280,35 @@ Thank you, Your Honour."""
         plaintiff = next((p.get('name', 'Plaintiff') for p in parties if p.get('role') == 'plaintiff'), 'Plaintif')
         
         issues_text = "\n".join([f"- {issue.get('title', '')}" for issue in issues])
-        cases_text = "\n".join([f"- {case.get('citation', '')}" for case in cases[:3]])
+        
+        # Get real case citations from matter's research/arguments
+        real_cases = []
+        
+        # Check if matter has research results or arguments with cases
+        if 'research_results' in matter and matter['research_results']:
+            research_cases = matter['research_results'].get('cases', [])
+            real_cases.extend(research_cases[:5])  # Top 5 most relevant
+        
+        # Also check arguments field
+        if 'arguments' in matter and matter['arguments']:
+            for arg in matter.get('arguments', []):
+                if 'supporting_cases' in arg:
+                    real_cases.extend(arg['supporting_cases'][:2])
+        
+        # Use provided cases if available, otherwise fall back to  matter cases
+        if cases and len(cases) > 0:
+            cases_text = "\n".join([
+                f"- {case.get('citation', case.get('case_name', 'Unknown'))} - {case.get('summary', ''  )[:100]}"
+                for case in cases[:5]
+            ])
+        elif real_cases:
+            cases_text = "\n".join([
+                f"- {case.get('citation', case.get('case_name', 'Unknown'))} - {case.get('summary', '')[:100]}"
+                for case in real_cases[:5]
+            ])
+        else:
+            # Get cases from database for this jurisdiction/matter type
+            cases_text = f"Malaysian {matter.get('case_type', 'civil')} case law (general principles)"
         
         prompt = f"""You are a Malaysian legal expert preparing for a court hearing. Generate 5 potential questions a judge might ask and prepare bilingual answers.
 
@@ -308,41 +319,36 @@ Plaintiff: {plaintiff}
 Legal Issues:
 {issues_text if issues_text else 'General civil dispute'}
 
-Relevant Authorities:
-{cases_text if cases_text else 'None cited'}
+Relevant Case Authorities:
+{cases_text}
 
 Generate a JSON array with 5 FAQs. Each FAQ must have:
 - question: The judge's question in English
-- answer_ms: Professional answer in formal Bahasa Malaysia
-- answer_en: Professional answer in formal English
-- authority: Relevant case or statute citation
+- answer_ms: Professional answer in formal Bahasa Malaysia (start with "Yang Arif, ...")
+- answer_en: Professional answer in formal English (start with "Your Honour, ...")
+- authority: Cite a SPECIFIC Malaysian case from the authorities above, or a relevant statute
 - confidence: 0.75-0.95
 
-Return ONLY valid JSON array. Example format:
-[{{"question": "Why is this court the appropriate forum?", "answer_ms": "Yang Arif, ...", "answer_en": "Your Honour, ...", "authority": "Case citation", "confidence": 0.85}}]"""
+IMPORTANT: Use the actual case citations provided above in your authorities. Format: "[Case Name] [Year] [Court]"
 
+Return ONLY valid JSON array. Example format:
+[{{"question": "Why is this court the appropriate forum?", "answer_ms": "Yang Arif, ...", "answer_en": "Your Honour, ...", "authority": "Actual case citation from above", "confidence": 0.85}}]"""
+
+        result_text = await self.llm.generate(prompt)
+        result_text = result_text.strip()
+        
+        # Parse JSON
+        import re
+        import json
         try:
-            response = await self.model.generate_content_async(prompt)
-            result_text = response.text.strip()
-            
-            # Parse JSON
-            import re
-            import json
             json_match = re.search(r'\[.*\]', result_text, re.DOTALL)
             if json_match:
                 faqs = json.loads(json_match.group())
                 return faqs[:5]
         except Exception as e:
+            # Fallback for parsing error
+            print(f"Error parsing FAQs JSON: {e}")
             pass
         
-        # Fallback to basic structure
-        return [
-            {
-                "question": "What is the basis of your claim?",
-                "answer_ms": f"Yang Arif, tuntutan kami adalah berdasarkan {case_type}.",
-                "answer_en": f"Your Honour, our claim is based on {case_type}.",
-                "authority": cases[0].get("citation", "N/A") if cases else "N/A",
-                "confidence": 0.75
-            }
-        ]
+        return []
 

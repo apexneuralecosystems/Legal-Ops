@@ -47,6 +47,7 @@ google-auth-oauthlib>=1.2.0
 google-auth-httplib2>=0.2.0
 google-api-python-client>=2.116.0
 sendgrid>=6.11.0
+email-validator>=2.0.0
 
 # Utilities
 python-dotenv>=1.0.0
@@ -64,6 +65,7 @@ celery>=5.3.6,<6.0.0
 pytest>=7.4.4
 pytest-asyncio>=0.23.3
 pytest-cov>=4.1.0
+requests>=2.31.0
 
 # Development (optional)
 black>=24.1.1
@@ -81,3 +83,6 @@ greenlet>=3.0.0
 
 # Apex SaaS Framework
 apex-saas-framework>=0.3.24
+
+# OpenRouter Integration
+openai>=1.0.0
