@@ -33,7 +33,8 @@ class ArgumentBuilderAgent(BaseAgent):
             inputs: {
                 "issues": List[Dict],
                 "cases": List[Dict],
-                "matter_snapshot": Dict
+                "matter_snapshot": Dict,
+                "query": str (optional)
             }
             
         Returns:
@@ -43,17 +44,22 @@ class ArgumentBuilderAgent(BaseAgent):
                 "suggested_wording": List[Dict]
             }
         """
-        await self.validate_input(inputs, ["issues", "cases"])
+        await self.validate_input(inputs, ["cases"])
         
-        issues = inputs["issues"]
-        cases = inputs["cases"]
+        issues = inputs.get("issues")
+        cases = inputs.get("cases")
         matter = inputs.get("matter_snapshot", {})
+        query = inputs.get("query")
         
-        # Ensure issues and cases are lists, not None
-        if issues is None:
-            issues = []
+        # Ensure issues and cases are lists
         if cases is None:
             cases = []
+            
+        # If no issues provided but we have a query, auto-generate them
+        if not issues and query:
+            issues = await self._generate_issues_from_query(query, cases)
+        elif issues is None:
+            issues = []
         
         # Build argument for each issue
         arguments = []
@@ -78,7 +84,38 @@ class ArgumentBuilderAgent(BaseAgent):
             },
             confidence=0.82
         )
-    
+
+    async def _generate_issues_from_query(self, query: str, cases: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Generate legal issues from search query and cases."""
+        prompt = f"""Identify 3 distinct legal issues based on this search query and relevant cases.
+
+QUERY: {query}
+
+CASES:
+{self._format_cases_for_prompt(cases[:3])}
+
+Return ONLY a JSON list of objects with 'title' and 'legal_basis' fields.
+Example:
+[
+  {{"title": "Issue description", "legal_basis": ["Contract Law", "Section 56"]}}
+]"""
+        try:
+            response = await self.llm.generate(prompt)
+            # Simple parsing - in production, use a more robust parser or structured output
+            import json
+            import re
+            
+            # extract json block if present
+            match = re.search(r'\[.*\]', response, re.DOTALL)
+            if match:
+                json_str = match.group(0)
+                return json.loads(json_str)
+            else:
+                # Fallback if no valid JSON found
+                return [{"title": f"Legal implications of {query}", "legal_basis": ["General Principles"]}]
+        except Exception as e:
+            return [{"title": f"Legal issue regarding {query}", "legal_basis": ["General Principles"]}]
+
     async def _build_argument_for_issue(
         self,
         issue: Dict[str, Any],
@@ -92,6 +129,10 @@ class ArgumentBuilderAgent(BaseAgent):
             c for c in cases
             if any(area in c.get("subject_areas", []) for area in issue.get("legal_basis", []))
         ][:3]
+        
+        # If no specific matches, use top cases
+        if not relevant_cases:
+            relevant_cases = cases[:3]
         
         # Create prompt for argument
         prompt = f"""Draft a legal argument for this issue:
@@ -109,14 +150,18 @@ Write a concise legal argument (2-3 paragraphs) with inline citations."""
         except:
             analysis = f"Analysis for {issue.get('title', 'issue')} pending."
         
+        # Get Malay translation of analysis (mock for now or use translation service)
+        # In a real system, we'd call the TranslationAgent here
+        analysis_ms = f"[Terjemahan Bahasa Melayu]: {analysis[:100]}... (Sila rujuk teks Bahasa Inggeris)"
+        
         return {
-            "issue_id": issue.get("id"),
+            "issue_id": issue.get("id", "auto-gen"),
             "issue_title": issue.get("title"),
             "analysis_en": analysis,
-            "analysis_ms": f"[Analisis dalam Bahasa Melayu untuk {issue.get('title')}]",
+            "analysis_ms": analysis_ms,
             "cases_cited": [c["citation"] for c in relevant_cases],
-            "suggested_wording_en": f"The {issue.get('title', 'claim')} is well-founded in law.",
-            "suggested_wording_ms": f"Tuntutan {issue.get('title', '')} adalah berasas dalam undang-undang."
+            "suggested_wording_en": f"It is submitted that {issue.get('title', 'the claim')} is supported by the authorities.",
+            "suggested_wording_ms": f"Adalah dihujahkan bahawa {issue.get('title', '')} disokong oleh autoriti-autoriti tersebut."
         }
     
     def _format_cases_for_prompt(self, cases: List[Dict[str, Any]]) -> str:
@@ -185,7 +230,7 @@ Tarikh: {matter.get('created_at', 'T/A')}
         
         for arg in arguments:
             wording.append({
-                "issue_id": arg["issue_id"],
+                "issue_id": arg.get("issue_id"),
                 "wording_en": arg["suggested_wording_en"],
                 "wording_ms": arg["suggested_wording_ms"],
                 "binding_authorities": [
@@ -197,3 +242,4 @@ Tarikh: {matter.get('created_at', 'T/A')}
             })
         
         return wording
+

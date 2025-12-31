@@ -82,7 +82,7 @@ def validate_file_extension(filename: str) -> bool:
 
 
 @router.get("/", response_model=list)
-async def list_documents(
+def list_documents(
     skip: int = 0,
     limit: int = 50,
     matter_id: Optional[str] = None,
@@ -188,7 +188,7 @@ async def upload_document(
 
 
 @router.get("/{doc_id}", response_model=dict)
-async def get_document(doc_id: str, db: Session = Depends(get_db)):
+def get_document(doc_id: str, db: Session = Depends(get_db)):
     # Auth temporarily removed
     """
     Get document metadata.
@@ -202,7 +202,7 @@ async def get_document(doc_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/{doc_id}/download")
-async def download_document(doc_id: str, db: Session = Depends(get_db), current_user: Dict[str, Any] = Depends(get_current_user_sync)):
+def download_document(doc_id: str, db: Session = Depends(get_db), current_user: Dict[str, Any] = Depends(get_current_user_sync)):
     """
     Download original document file.
     """
@@ -222,7 +222,7 @@ async def download_document(doc_id: str, db: Session = Depends(get_db), current_
 
 
 @router.get("/{doc_id}/preview", response_model=dict)
-async def get_document_preview(doc_id: str, db: Session = Depends(get_db)):
+def get_document_preview(doc_id: str, db: Session = Depends(get_db)):
     """
     Get OCR preview of document (first 1000 characters).
     """
@@ -241,7 +241,7 @@ async def get_document_preview(doc_id: str, db: Session = Depends(get_db)):
     return {
         "doc_id": doc_id,
         "filename": document.filename,
-        "preview": preview_text[:1000],
+        "preview": preview_text[:10000],
         "ocr_completed": document.ocr_completed,
         "ocr_confidence": document.ocr_confidence,
         "total_segments": len(segments)

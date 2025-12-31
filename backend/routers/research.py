@@ -2,34 +2,18 @@
 Research API router - Endpoints for legal research and argument building.
 """
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional, Union, Dict, Any
 from pydantic import BaseModel
-from database import get_sync_db as get_db
+from database import get_db
+from dependencies import get_current_user
 from orchestrator import OrchestrationController
-from utils.sync_usage_tracker import SyncUsageTracker
+from utils.usage_tracker import UsageTracker
 from config import settings
-from jose import JWTError, jwt
+import logging
 
 router = APIRouter()
 controller = OrchestrationController()
-security = HTTPBearer()
-
-
-def get_current_user_sync(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-) -> Dict[str, Any]:
-    """Sync auth dependency for research endpoints."""
-    token = credentials.credentials
-    try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        user_id = payload.get("sub")
-        if user_id is None:
-            raise HTTPException(status_code=401, detail="Invalid credentials")
-        return {"user_id": user_id, "email": payload.get("email")}
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
 
 
 # Pydantic schemas
@@ -42,10 +26,11 @@ class ArgumentRequest(BaseModel):
     matter_id: Optional[Union[int, str]] = None
     issues: List[dict] = []
     cases: List[dict] = []
+    query: Optional[str] = None
 
 
 @router.post("/search", response_model=dict)
-async def search_cases(request: SearchRequest, db: Session = Depends(get_db)):
+async def search_cases(request: SearchRequest, db: AsyncSession = Depends(get_db)):
     """
     Search for legal cases based on query and filters.
     
@@ -62,7 +47,6 @@ async def search_cases(request: SearchRequest, db: Session = Depends(get_db)):
         # For search-only requests, bypass the full workflow (which includes argument building)
         # and call the research agent directly
         from agents import ResearchAgent
-        import logging
         
         logger = logging.getLogger(__name__)
         logger.info(f"Research search request: query='{request.query}'")
@@ -91,7 +75,6 @@ async def search_cases(request: SearchRequest, db: Session = Depends(get_db)):
         }
             
     except Exception as e:
-        import logging
         logger = logging.getLogger(__name__)
         logger.error(f"Research search failed: {e}", exc_info=True)
         raise HTTPException(
@@ -103,8 +86,8 @@ async def search_cases(request: SearchRequest, db: Session = Depends(get_db)):
 @router.post("/build-argument", response_model=dict)
 async def build_argument(
     request: ArgumentRequest,
-    db: Session = Depends(get_db),
-    current_user: Dict[str, Any] = Depends(get_current_user_sync)
+    db: AsyncSession = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """
     Build legal argument memo from selected cases and issues.
@@ -123,17 +106,17 @@ async def build_argument(
     
     # Check usage limits - will raise 402 if payment required
     user_id = current_user["user_id"]
-    SyncUsageTracker.require_usage_or_payment(user_id, "research", db)
+    await UsageTracker.require_usage_or_payment(user_id, "research", db)
     
     try:
         # Convert matter_id to string if provided
         matter_id_str = str(request.matter_id) if request.matter_id is not None else None
         
         # Run research workflow (just the argument builder part)
-        # Use public method instead of private node access
         updated_state = await controller.build_argument_only(
             cases=request.cases,
-            issues=request.issues
+            issues=request.issues,
+            query=request.query
         )
         
         return {

@@ -13,12 +13,14 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
+
 @router.get("/tasks", response_model=Dict[str, Any])
-async def get_ai_tasks(
+def get_ai_tasks(
     request: Request,
     limit: int = 10,
     db: Session = Depends(get_db)
 ):
+
     """
     Get real-time AI task status based on active matters.
     
@@ -127,7 +129,8 @@ async def get_ai_tasks(
 
 
 @router.get("/tasks/{task_id}", response_model=Dict[str, Any])
-async def get_task_detail(task_id: str, db: Session = Depends(get_db)):
+def get_task_detail(task_id: str, db: Session = Depends(get_db)):
+
     """
     Get detailed status of a specific AI task.
     """

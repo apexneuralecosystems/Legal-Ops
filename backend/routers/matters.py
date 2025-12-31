@@ -262,7 +262,7 @@ async def start_intake_workflow(
 
 
 @router.get("/", response_model=List[MatterResponse])
-async def list_matters(
+def list_matters(
     skip: int = 0,
     limit: int = 50,
     status: Optional[str] = None,
@@ -289,7 +289,7 @@ async def list_matters(
 
 
 @router.get("/{matter_id}", response_model=dict)
-async def get_matter(matter_id: str, db: Session = Depends(get_db)):
+def get_matter(matter_id: str, db: Session = Depends(get_db)):
     # Auth temporarily removed for testing
     """
     Get detailed matter information including snapshot and risk scores.
@@ -303,7 +303,7 @@ async def get_matter(matter_id: str, db: Session = Depends(get_db)):
 
 
 @router.delete("/{matter_id}", response_model=dict)
-async def delete_matter(matter_id: str, db: Session = Depends(get_db)):
+def delete_matter(matter_id: str, db: Session = Depends(get_db)):
     # Auth temporarily removed for testing
     """
     Delete a matter and all associated documents, segments, and pleadings.
@@ -397,7 +397,7 @@ async def start_drafting_workflow(
 
 
 @router.get("/{matter_id}/documents", response_model=List[dict])
-async def get_matter_documents(matter_id: str, db: Session = Depends(get_db)):
+def get_matter_documents(matter_id: str, db: Session = Depends(get_db)):
     """
     Get all documents for a matter.
     """
@@ -407,7 +407,7 @@ async def get_matter_documents(matter_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/{matter_id}/parallel-view", response_model=dict)
-async def get_parallel_view(matter_id: str, db: Session = Depends(get_db)):
+def get_parallel_view(matter_id: str, db: Session = Depends(get_db)):
     """
     Get parallel text view (Malay ↔ English segments) for a matter.
     """
@@ -592,7 +592,7 @@ async def prepare_hearing(matter_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/{matter_id}/hearing-bundle", response_model=dict)
-async def get_hearing_bundle(matter_id: str, db: Session = Depends(get_db)):
+def get_hearing_bundle(matter_id: str, db: Session = Depends(get_db)):
     """
     Retrieve prepared hearing bundle for a matter.
     

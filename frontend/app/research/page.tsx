@@ -27,8 +27,7 @@ function ResearchContent() {
 
     const argumentMutation = useMutation({
         mutationFn: async () => {
-            if (!matterId) throw new Error('No matter selected')
-            return api.buildArgument(matterId, [], selectedCases)
+            return api.buildArgument(matterId || null, [], selectedCases, query)
         },
     })
 
@@ -165,7 +164,7 @@ function ResearchContent() {
                                 </h2>
                                 <button
                                     onClick={() => argumentMutation.mutate()}
-                                    disabled={!matterId || argumentMutation.isPending}
+                                    disabled={argumentMutation.isPending}
                                     className="w-full px-6 py-3 bg-gradient-to-r from-[var(--neon-purple)] to-[var(--neon-pink)] text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-[var(--neon-purple)]/25 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                                 >
                                     {argumentMutation.isPending ? (
@@ -185,6 +184,79 @@ function ResearchContent() {
                     </div>
 
                     <div className="lg:col-span-2">
+                        {argumentMutation.isSuccess && argumentMutation.data?.argument_memo ? (
+                            <div className="card p-6 animate-slide-up mb-6 border-[var(--neon-purple)]/30 bg-[var(--neon-purple)]/5">
+                                <div className="flex items-center justify-between mb-6">
+                                    <h2 className="text-xl font-bold gradient-text flex items-center gap-2">
+                                        <Scale className="w-6 h-6 text-[var(--neon-purple)]" />
+                                        Legal Argument Memo
+                                    </h2>
+                                    <button
+                                        onClick={() => argumentMutation.reset()}
+                                        className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                                    >
+                                        Clear Result
+                                    </button>
+                                </div>
+
+                                <div className="space-y-6">
+                                    <div className="grid md:grid-cols-2 gap-6">
+                                        <div className="space-y-2">
+                                            <h3 className="font-semibold text-[var(--neon-cyan)] border-b border-[var(--border-primary)] pb-2 flex items-center gap-2">
+                                                <Globe className="w-4 h-4" /> English Analysis
+                                            </h3>
+                                            <div className="prose prose-invert prose-sm max-w-none text-[var(--text-secondary)] whitespace-pre-wrap font-mono text-xs p-4 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-primary)]">
+                                                {argumentMutation.data.argument_memo.issue_memo_en}
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <h3 className="font-semibold text-[var(--neon-orange)] border-b border-[var(--border-primary)] pb-2 flex items-center gap-2">
+                                                <Globe className="w-4 h-4" /> Bahasa Melayu
+                                            </h3>
+                                            <div className="prose prose-invert prose-sm max-w-none text-[var(--text-secondary)] whitespace-pre-wrap font-mono text-xs p-4 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-primary)]">
+                                                {argumentMutation.data.argument_memo.issue_memo_ms}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {argumentMutation.data.argument_memo.suggested_wording && (
+                                        <div className="mt-6 pt-6 border-t border-[var(--border-primary)]">
+                                            <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-4 flex items-center gap-2">
+                                                <Zap className="w-5 h-5 text-[var(--neon-green)]" />
+                                                Suggested Submission Wording
+                                            </h3>
+                                            <div className="grid gap-4">
+                                                {argumentMutation.data.argument_memo.suggested_wording.map((item: any, idx: number) => (
+                                                    <div key={idx} className="p-4 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-primary)] hover:border-[var(--neon-green)]/30 transition-all">
+                                                        <div className="mb-2 text-sm text-[var(--text-tertiary)] uppercase tracking-wider font-bold">Issue {idx + 1}</div>
+                                                        <div className="space-y-3">
+                                                            <div>
+                                                                <span className="text-xs text-[var(--neon-cyan)] block mb-1">English</span>
+                                                                <p className="text-sm text-[var(--text-primary)] italic">"{item.wording_en}"</p>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-xs text-[var(--neon-orange)] block mb-1">Bahasa Melayu</span>
+                                                                <p className="text-sm text-[var(--text-primary)] italic">"{item.wording_ms}"</p>
+                                                            </div>
+                                                        </div>
+                                                        {item.binding_authorities?.length > 0 && (
+                                                            <div className="mt-3 flex flex-wrap gap-2">
+                                                                {item.binding_authorities.map((auth: string, i: number) => (
+                                                                    <span key={i} className="px-2 py-0.5 rounded text-[10px] bg-[var(--neon-blue)]/10 text-[var(--neon-blue)] border border-[var(--neon-blue)]/20">
+                                                                        {auth}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ) : null}
+
                         <div className="card p-6 animate-slide-up stagger-2">
                             <div className="flex items-center justify-between mb-6">
                                 <h2 className="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">

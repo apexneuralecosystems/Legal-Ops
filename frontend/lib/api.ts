@@ -418,12 +418,13 @@ export const api = {
         }
     },
 
-    buildArgument: async (matterId: string, issues: any[], cases: any[]) => {
+    buildArgument: async (matterId: string | null, issues: any[], cases: any[], query?: string) => {
         try {
             const response = await apiClient.post('/research/build-argument', {
                 matter_id: matterId,
                 issues,
                 cases,
+                query,
             })
             return response.data
         } catch (error) {

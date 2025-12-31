@@ -297,7 +297,8 @@ class OrchestrationController:
     async def build_argument_only(
         self,
         cases: List[Dict],
-        issues: List[Dict]
+        issues: List[Dict],
+        query: Optional[str] = None
     ) -> Dict[str, Any]:
         """Run only the argument builder step."""
         
@@ -305,6 +306,7 @@ class OrchestrationController:
         state = {
             "cases": cases,
             "issues_selected": issues,
+            "query": query,
             "workflow_status": "started"
         }
         
@@ -601,6 +603,7 @@ class OrchestrationController:
         # Safely get cases and issues, ensuring they're lists
         cases = state.get("cases", [])
         issues = state.get("issues_selected", [])
+        query = state.get("query")
         
         # Ensure they're actually lists, not None
         if cases is None:
@@ -610,7 +613,8 @@ class OrchestrationController:
             
         result = await self.argument_builder_agent.process({
             "cases": cases,
-            "issues": issues
+            "issues": issues,
+            "query": query
         })
         state["argument_memo"] = result["data"]
         return state
