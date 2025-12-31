@@ -9,7 +9,8 @@ module.exports = {
             autorestart: true,
             max_memory_restart: "1G",
             env: {
-                PYTHONPATH: "/home/apexneural-legalops-api/htdocs/Legal-Ops/backend"
+                PYTHONPATH: "/home/apexneural-legalops-api/htdocs/Legal-Ops/backend",
+                LLM_PROVIDER: "openrouter"
             }
         }
     ]
