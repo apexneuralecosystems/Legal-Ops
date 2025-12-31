@@ -11,6 +11,7 @@ module.exports = {
             interpreter_args: "", // Optional: add python args here if needed
             env: {
                 NODE_ENV: "production",
+                LLM_PROVIDER: "openrouter",
             },
         },
         {
