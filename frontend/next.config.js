@@ -1,4 +1,8 @@
 /** @type {import('next').NextConfig} */
+
+// Get backend URL from environment variable, fallback to localhost for local dev
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8091';
+
 const nextConfig = {
     reactStrictMode: true,
     swcMinify: true,
@@ -20,7 +24,7 @@ const nextConfig = {
         return [
             {
                 source: '/api/:path*',
-                destination: 'http://127.0.0.1:8091/api/:path*',
+                destination: `${BACKEND_URL}/api/:path*`,
             },
         ]
     },

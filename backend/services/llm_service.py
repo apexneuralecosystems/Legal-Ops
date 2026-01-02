@@ -138,7 +138,7 @@ class LLMService:
                 ],
                 max_tokens=max_tokens,
                 extra_headers={
-                    "HTTP-Referer": "https://legalops.app",
+                    "HTTP-Referer": settings.FRONTEND_URL or "https://legalops.apexneural.cloud",
                     "X-Title": "Legal-Ops AI"
                 }
             )
