@@ -51,7 +51,7 @@ EXPOSE 8091
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8091/health || exit 1
+    CMD curl -f http://127.0.0.1:8091/health || exit 1
 
 # Run with uvicorn directly (simpler than gunicorn for debugging)
 CMD ["python", "-m", "uvicorn", "main:app", \
