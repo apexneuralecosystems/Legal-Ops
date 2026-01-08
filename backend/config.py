@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     
     # OpenRouter API (Alternative LLM provider)
     OPENROUTER_API_KEY: str = ""
-    OPENROUTER_MODEL: str = "google/gemini-2.0-flash-exp:free"
+    OPENROUTER_MODEL: str = "openai/gpt-4o-mini"
     
     # OpenAI API (For embeddings in RAG service)
     OPENAI_API_KEY: str = ""
@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     FIRECRAWL_API_KEY: str = ""
     
     # LLM Provider Selection: "gemini" or "openrouter"
-    LLM_PROVIDER: str = "gemini"
+    LLM_PROVIDER: str = "openrouter"
     
     # Google Cloud
     GOOGLE_CLIENT_ID: str = ""

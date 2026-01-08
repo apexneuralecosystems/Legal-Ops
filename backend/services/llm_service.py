@@ -212,7 +212,7 @@ class LLMService:
                 # Use safe wrapper
                 response = self._safe_api_call(
                     self._openrouter_client.chat.completions.create,
-                    model="google/gemini-2.0-flash-exp:free",  # Vision-capable model
+                    model=settings.OPENROUTER_MODEL,  # Use configured model (default: gpt-4o-mini)
                     messages=[
                         {
                             "role": "user", 
