@@ -129,6 +129,26 @@ class LLMService:
             logger.error(f"Gemini generation error: {e}")
             raise
     
+    def _safe_api_call(self, func, *args, **kwargs):
+        """Execute API call with exponential backoff for 429 errors."""
+        import time
+        import random
+        retries = 3
+        base_delay = 2
+        
+        for i in range(retries):
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                error_str = str(e)
+                # Check for 429 in error
+                if ("429" in error_str or "rate limit" in error_str.lower()) and i < retries - 1:
+                    delay = (base_delay * (2 ** i)) + random.uniform(0, 1)
+                    logger.warning(f"Rate limited (429). Retrying in {delay:.2f}s... (Attempt {i+1}/{retries})")
+                    time.sleep(delay)
+                else:
+                    raise e
+
     def _generate_openrouter(self, prompt: str, max_tokens: int = 4096) -> str:
         """Generate using OpenRouter API."""
         import time
@@ -137,7 +157,8 @@ class LLMService:
         try:
             logger.info(f"OpenRouter: Starting generation with model {settings.OPENROUTER_MODEL}, prompt_len={len(prompt)}")
             
-            response = self._openrouter_client.chat.completions.create(
+            response = self._safe_api_call(
+                self._openrouter_client.chat.completions.create,
                 model=settings.OPENROUTER_MODEL,
                 messages=[
                     {"role": "user", "content": prompt}
@@ -188,7 +209,9 @@ class LLMService:
             if self._openrouter_client:
                 logger.info(f"Extracting PDF via OpenRouter Vision API: {os.path.basename(file_path)}")
                 
-                response = self._openrouter_client.chat.completions.create(
+                # Use safe wrapper
+                response = self._safe_api_call(
+                    self._openrouter_client.chat.completions.create,
                     model="google/gemini-2.0-flash-exp:free",  # Vision-capable model
                     messages=[
                         {
