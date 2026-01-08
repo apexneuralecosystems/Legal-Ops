@@ -811,6 +811,8 @@ class OrchestrationController:
             "cases": state.get("cases", []),
             "issues": state.get("issues", [])
         })
-        # Safely access data
-        state["hearing_bundle"] = result.get("data", {}) if result else {}
+        # Extract the actual bundle (agent returns {"hearing_bundle": {...}})
+        # We unwrap it to avoid double nesting in final response
+        agent_data = result.get("data", {}) if result else {}
+        state["hearing_bundle"] = agent_data.get("hearing_bundle", agent_data)
         return state
