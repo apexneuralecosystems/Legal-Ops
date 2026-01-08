@@ -79,7 +79,7 @@ class Settings(BaseSettings):
     FROM_EMAIL: str = "noreply@example.com"
     
     # Frontend Configuration
-    FRONTEND_URL: str = "http://localhost:3000"  # Set via env: FRONTEND_URL=https://yourdomain.com
+    FRONTEND_URL: str = "https://legalops.apexneural.cloud"  # Set via env: FRONTEND_URL=https://yourdomain.com
     FRONTEND_RESET_URL: str = ""  # Optional: Set via env, falls back to FRONTEND_URL/reset-password
     
     @property
@@ -103,7 +103,7 @@ class Settings(BaseSettings):
     
     # CORS - Set via env variable for your deployment
     # Example: CORS_ORIGINS=https://yourdomain.com,https://api.yourdomain.com
-    CORS_ORIGINS: str | List[str] = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:8006,http://127.0.0.1:8006"
+    CORS_ORIGINS: str | List[str] = "https://legalops.apexneural.cloud,http://localhost:3001,http://localhost:3000"
     CORS_ALLOW_ALL: bool = False  # Set True for development only, False for production
     
     # Logging

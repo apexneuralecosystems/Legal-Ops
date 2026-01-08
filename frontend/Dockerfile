@@ -1,7 +1,7 @@
 # ============================================
 # Legal-Ops Frontend Dockerfile
 # ============================================
-# Multi-stage build for Next.js with Nginx
+# Multi-stage build for Next.js standalone
 
 # Stage 1: Dependencies
 FROM node:20-alpine AS deps
@@ -35,25 +35,34 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # Build the application
 RUN npm run build
 
-# Stage 3: Production with Nginx
-FROM nginx:alpine AS runner
-
-# Install Node.js for Next.js server
-RUN apk add --no-cache nodejs npm
+# Stage 3: Production runner
+FROM node:20-alpine AS runner
 
 WORKDIR /app
 
-# Copy nginx configuration
-COPY nginx.conf /etc/nginx/nginx.conf
+# Set production environment
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3001
+ENV HOSTNAME=0.0.0.0
 
-# Copy built application from builder
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
+# Create non-root user for security
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+# Copy public folder
 COPY --from=builder /app/public ./public
 
-# Copy entrypoint script
-COPY docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
+# Set correct permissions for prerender cache
+RUN mkdir .next
+RUN chown nextjs:nodejs .next
+
+# Copy built application (standalone)
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Switch to non-root user
+USER nextjs
 
 # Expose port 3001
 EXPOSE 3001
@@ -62,5 +71,5 @@ EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:3001/ || exit 1
 
-# Start with entrypoint script
-ENTRYPOINT ["/docker-entrypoint.sh"]
+# Start the application directly on port 3001
+CMD ["node", "server.js"]
