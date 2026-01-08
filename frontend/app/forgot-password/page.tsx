@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Mail, Loader2, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Mail, Loader2, CheckCircle, Scale } from 'lucide-react';
 
 export default function ForgotPasswordPage() {
     const [email, setEmail] = useState('');
@@ -39,15 +39,15 @@ export default function ForgotPasswordPage() {
 
     if (success) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
+            <div className="min-h-screen bg-white flex items-center justify-center p-4">
                 <div className="w-full max-w-md">
-                    <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-8 border border-white/20 text-center">
-                        <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                            <CheckCircle className="w-8 h-8 text-green-400" />
+                    <div className="bg-white border-2 border-black rounded-2xl p-8 text-center">
+                        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <CheckCircle className="w-8 h-8 text-green-600" />
                         </div>
-                        <h1 className="text-2xl font-bold text-white mb-4">Check Your Email</h1>
-                        <p className="text-gray-300 mb-6">
-                            If an account exists for <span className="text-purple-400">{email}</span>,
+                        <h1 className="text-2xl font-bold text-black mb-4">Check Your Email</h1>
+                        <p className="text-gray-600 mb-6">
+                            If an account exists for <span className="text-black font-medium">{email}</span>,
                             we've sent a password reset link.
                         </p>
                         <p className="text-gray-400 text-sm mb-8">
@@ -55,7 +55,7 @@ export default function ForgotPasswordPage() {
                         </p>
                         <Link
                             href="/login"
-                            className="inline-flex items-center gap-2 text-purple-400 hover:text-purple-300 transition-colors"
+                            className="inline-flex items-center gap-2 text-black hover:text-gray-600 font-medium transition-colors"
                         >
                             <ArrowLeft className="w-4 h-4" />
                             Back to Login
@@ -67,33 +67,36 @@ export default function ForgotPasswordPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-white flex items-center justify-center p-4">
             <div className="w-full max-w-md">
-                <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-8 border border-white/20">
+                <div className="bg-white border-2 border-black rounded-2xl p-8">
                     <Link
                         href="/login"
-                        className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-6"
+                        className="inline-flex items-center gap-2 text-gray-500 hover:text-black transition-colors mb-6"
                     >
                         <ArrowLeft className="w-4 h-4" />
                         Back to Login
                     </Link>
 
                     <div className="text-center mb-8">
-                        <h1 className="text-3xl font-bold text-white mb-2">Forgot Password?</h1>
-                        <p className="text-gray-400">
+                        <div className="inline-flex items-center justify-center w-16 h-16 bg-black rounded-2xl mb-4">
+                            <Scale className="w-8 h-8 text-white" />
+                        </div>
+                        <h1 className="text-2xl font-bold text-black mb-2">Forgot Password?</h1>
+                        <p className="text-gray-500">
                             Enter your email and we'll send you a reset link
                         </p>
                     </div>
 
                     {error && (
-                        <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-4 mb-6">
-                            <p className="text-red-400 text-sm">{error}</p>
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                            <p className="text-red-600 text-sm">{error}</p>
                         </div>
                     )}
 
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-2">
+                            <label className="block text-sm font-medium text-black mb-2">
                                 Email Address
                             </label>
                             <div className="relative">
@@ -102,7 +105,7 @@ export default function ForgotPasswordPage() {
                                     type="email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
                                     placeholder="you@example.com"
                                     required
                                 />
@@ -112,7 +115,7 @@ export default function ForgotPasswordPage() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full py-3 px-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-medium rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            className="w-full py-3 px-4 bg-black hover:bg-gray-900 text-white font-medium rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
                             {loading ? (
                                 <>
@@ -125,6 +128,10 @@ export default function ForgotPasswordPage() {
                         </button>
                     </form>
                 </div>
+
+                <p className="text-center text-gray-400 text-sm mt-8">
+                    © 2026 LegalOps AI. All rights reserved.
+                </p>
             </div>
         </div>
     );

@@ -89,19 +89,19 @@ export default function UploadPage() {
     ]
 
     return (
-        <div className="flex min-h-screen bg-[var(--bg-primary)]">
+        <div className="flex min-h-screen bg-white">
             <Sidebar />
             <main className="flex-1 p-8 relative">
                 <div className="absolute top-0 right-0 w-96 h-96 bg-[var(--neon-cyan)] opacity-5 blur-[120px] rounded-full pointer-events-none"></div>
                 <div className="absolute bottom-0 left-1/4 w-64 h-64 bg-[var(--neon-purple)] opacity-5 blur-[100px] rounded-full pointer-events-none"></div>
-                
+
                 <div className="mb-10 animate-fade-in">
                     <div className="flex items-center gap-3 mb-3">
-                        <div className="icon-box w-12 h-12">
-                            <Upload className="w-6 h-6" />
+                        <div className="w-12 h-12 rounded-lg bg-[var(--gold-primary)] flex items-center justify-center">
+                            <Upload className="w-6 h-6 text-white" />
                         </div>
                         <div>
-                            <h1 className="text-4xl font-bold gradient-text">Matter Intake</h1>
+                            <h1 className="text-4xl font-bold text-black">Matter Intake</h1>
                             <p className="text-[var(--text-secondary)] mt-1">Upload documents to initiate AI-powered case analysis</p>
                         </div>
                     </div>
@@ -119,11 +119,10 @@ export default function UploadPage() {
                                 <button
                                     key={option.value}
                                     onClick={() => setConnectorType(option.value)}
-                                    className={`group relative p-5 rounded-xl border-2 transition-all duration-300 ${
-                                        connectorType === option.value
-                                            ? 'border-[var(--neon-purple)] bg-[var(--bg-secondary)]'
-                                            : 'border-[var(--border-primary)] hover:border-[var(--border-secondary)] bg-[var(--bg-tertiary)]'
-                                    }`}
+                                    className={`group relative p-5 rounded-xl border-2 transition-all duration-300 ${connectorType === option.value
+                                        ? 'border-[var(--neon-purple)] bg-[var(--bg-secondary)]'
+                                        : 'border-[var(--border-primary)] hover:border-[var(--border-secondary)] bg-[var(--bg-tertiary)]'
+                                        }`}
                                 >
                                     {connectorType === option.value && (
                                         <div className="absolute inset-0 bg-gradient-to-br from-[var(--neon-purple)] to-[var(--neon-cyan)] opacity-10 rounded-xl"></div>
@@ -155,11 +154,10 @@ export default function UploadPage() {
                             onDragLeave={handleDrag}
                             onDragOver={handleDrag}
                             onDrop={handleDrop}
-                            className={`relative border-2 border-dashed rounded-2xl p-12 text-center transition-all duration-300 ${
-                                dragActive
-                                    ? 'border-[var(--neon-cyan)] bg-[var(--neon-cyan)]/5'
-                                    : 'border-[var(--border-secondary)] hover:border-[var(--neon-purple)]/50 bg-[var(--bg-tertiary)]'
-                            }`}
+                            className={`relative border-2 border-dashed rounded-2xl p-12 text-center transition-all duration-300 ${dragActive
+                                ? 'border-[var(--neon-cyan)] bg-[var(--neon-cyan)]/5'
+                                : 'border-[var(--border-secondary)] hover:border-[var(--neon-purple)]/50 bg-[var(--bg-tertiary)]'
+                                }`}
                         >
                             {dragActive && (
                                 <div className="absolute inset-0 bg-gradient-to-br from-[var(--neon-cyan)]/10 to-[var(--neon-purple)]/10 rounded-2xl"></div>
@@ -184,9 +182,9 @@ export default function UploadPage() {
                                 />
                                 <label
                                     htmlFor="file-upload"
-                                    className="btn-primary inline-flex items-center gap-2 px-8 py-3 cursor-pointer"
+                                    className="cursor-pointer inline-flex items-center gap-2 px-6 py-3 bg-black hover:bg-gray-900 text-[var(--gold-primary)] font-bold rounded-lg transition-colors shadow-lg border-2 border-[var(--gold-primary)]"
                                 >
-                                    <Sparkles className="w-5 h-5" />
+                                    <Upload className="w-5 h-5" />
                                     Browse Files
                                 </label>
                             </div>
@@ -234,15 +232,17 @@ export default function UploadPage() {
 
                     <div className="flex justify-end gap-4 animate-slide-up stagger-2">
                         <button
-                            onClick={() => router.push('/dashboard')}
-                            className="px-6 py-3 rounded-xl font-semibold text-[var(--text-secondary)] bg-[var(--bg-tertiary)] border border-[var(--border-primary)] hover:border-[var(--border-secondary)] transition-all duration-300"
+                            onClick={() => {
+                                setFiles([])
+                            }}
+                            className="px-6 py-3 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors"
                         >
                             Cancel
                         </button>
                         <button
                             onClick={() => uploadMutation.mutate()}
                             disabled={files.length === 0 || uploadMutation.isPending}
-                            className="btn-primary px-8 py-3 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="px-8 py-3 flex items-center gap-2 bg-black hover:bg-gray-900 text-[var(--gold-primary)] font-bold rounded-lg transition-colors shadow-lg border-2 border-[var(--gold-primary)] disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {uploadMutation.isPending ? (
                                 <>

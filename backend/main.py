@@ -167,7 +167,8 @@ async def root():
     }
 
 # Import and include routers
-from routers import matters, documents, research, ai_tasks, auth, admin, payments, evidence, subscription, webhooks
+# Import and include routers
+from routers import matters, documents, research, ai_tasks, auth, admin, payments, evidence, subscription, webhooks, paralegal
 
 # Auth router (Apex SaaS Framework)
 app.include_router(auth.router, prefix="/api", tags=["Authentication"])
@@ -187,6 +188,7 @@ app.include_router(documents.router, prefix="/api/documents", tags=["Documents"]
 app.include_router(research.router, prefix="/api/research", tags=["Research"])
 app.include_router(ai_tasks.router, prefix="/api/ai-tasks", tags=["AI Tasks"])
 app.include_router(evidence.router, prefix="/api/evidence", tags=["Evidence"])
+app.include_router(paralegal.router, prefix="/api/paralegal", tags=["Paralegal"])
 
 # Webhooks router (PayPal events)
 app.include_router(webhooks.router, prefix="/api", tags=["Webhooks"])

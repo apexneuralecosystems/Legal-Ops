@@ -147,6 +147,92 @@ class LLMService:
             logger.error(f"OpenRouter generation error: {e}")
             raise
 
+    async def extract_pdf_content(self, file_path: str) -> str:
+        """
+        Extract text from PDF using Vision API (OpenRouter).
+        Works with both text-based and scanned/image PDFs.
+        
+        Args:
+            file_path: Path to the PDF file
+            
+        Returns:
+            Extracted text content
+        """
+        import base64
+        import os
+        
+        if not os.path.exists(file_path):
+            return "[File not found]"
+        
+        try:
+            # Read PDF as binary
+            with open(file_path, 'rb') as f:
+                pdf_data = f.read()
+            
+            # Base64 encode the PDF
+            pdf_b64 = base64.b64encode(pdf_data).decode('utf-8')
+            
+            # Use OpenRouter with vision-capable model
+            if self._openrouter_client:
+                logger.info(f"Extracting PDF via OpenRouter Vision API: {os.path.basename(file_path)}")
+                
+                response = self._openrouter_client.chat.completions.create(
+                    model="google/gemini-2.0-flash-exp:free",  # Vision-capable model
+                    messages=[
+                        {
+                            "role": "user", 
+                            "content": [
+                                {
+                                    "type": "text",
+                                    "text": """Extract ALL text content from this PDF document.
+Include headings, paragraphs, lists, tables, and any other text.
+If it's a scanned document, use OCR to read the text.
+Return ONLY the extracted text, no explanations or formatting notes.
+If you cannot read the document, explain why."""
+                                },
+                                {
+                                    "type": "file",
+                                    "file": {
+                                        "filename": os.path.basename(file_path),
+                                        "file_data": f"data:application/pdf;base64,{pdf_b64}"
+                                    }
+                                }
+                            ]
+                        }
+                    ],
+                    max_tokens=8000,
+                    extra_headers={
+                        "HTTP-Referer": settings.FRONTEND_URL or "https://legalops.apexneural.cloud",
+                        "X-Title": "Legal-Ops PDF Extractor"
+                    }
+                )
+                return response.choices[0].message.content
+            
+            # Fallback to Gemini if OpenRouter not available
+            elif self._gemini_model:
+                import google.generativeai as genai
+                
+                uploaded_file = genai.upload_file(file_path, mime_type="application/pdf")
+                
+                prompt = """Extract ALL text content from this PDF document. 
+Include headings, paragraphs, lists, tables, and any other text.
+Return ONLY the extracted text, no explanations."""
+
+                response = self._gemini_model.generate_content([prompt, uploaded_file])
+                
+                try:
+                    genai.delete_file(uploaded_file.name)
+                except:
+                    pass
+                
+                return response.text
+            
+            return "[No vision-capable model available]"
+            
+        except Exception as e:
+            logger.error(f"PDF vision extraction error: {e}")
+            return f"[PDF extraction failed: {str(e)}]"
+
 
 def get_llm_service() -> LLMService:
     """

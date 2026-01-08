@@ -150,9 +150,16 @@ Write a concise legal argument (2-3 paragraphs) with inline citations."""
         except:
             analysis = f"Analysis for {issue.get('title', 'issue')} pending."
         
-        # Get Malay translation of analysis (mock for now or use translation service)
-        # In a real system, we'd call the TranslationAgent here
-        analysis_ms = f"[Terjemahan Bahasa Melayu]: {analysis[:100]}... (Sila rujuk teks Bahasa Inggeris)"
+        # Get Malay translation of analysis using LLM
+        translation_prompt = f"""Translate the following legal analysis to formal Bahasa Melayu (Malaysian legal language):
+
+{analysis}
+
+Return ONLY the Malay translation, no English or explanation."""
+        try:
+            analysis_ms = await self.llm.generate(translation_prompt)
+        except Exception:
+            analysis_ms = f"[Terjemahan diperlukan / Translation required]"
         
         return {
             "issue_id": issue.get("id", "auto-gen"),

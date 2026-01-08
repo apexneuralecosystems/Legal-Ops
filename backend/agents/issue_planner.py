@@ -60,7 +60,7 @@ class IssuePlannerAgent(BaseAgent):
             issues = result.get("issues", [])
             prayers = result.get("prayers", [])
             
-            # Enhance with precedents (mock for now)
+            # Enhance with precedents using LLM
             precedent_tasks = [
                 self._find_precedents_async(
                     issue.get("legal_basis", ""),

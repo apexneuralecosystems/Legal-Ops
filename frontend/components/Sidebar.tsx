@@ -19,96 +19,68 @@ const navigation = [
     {
         section: 'COMMAND',
         items: [
-            { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, gradient: 'gold' }
+            { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard }
         ]
     },
     {
         section: 'OPERATIONS',
         items: [
-            { name: 'Matter Intake', href: '/upload', icon: Briefcase, gradient: 'teal' },
-            { name: 'Pleadings', href: '/drafting', icon: FileText, gradient: 'gold' },
-            { name: 'Research', href: '/research', icon: Search, gradient: 'teal' },
-            { name: 'Hearings', href: '/evidence', icon: Calendar, gradient: 'emerald' },
-            { name: 'Paralegal', href: '/paralegal', icon: Sparkles, gradient: 'gold' }
+            { name: 'Matter Intake', href: '/upload', icon: Briefcase },
+            { name: 'Pleadings', href: '/drafting', icon: FileText },
+            { name: 'Research', href: '/research', icon: Search },
+            { name: 'Hearings', href: '/evidence', icon: Calendar },
+            { name: 'Paralegal', href: '/paralegal', icon: Sparkles }
         ]
     },
     {
         section: 'MANAGEMENT',
         items: [
-            { name: 'All Matters', href: '/matters', icon: Folder, gradient: 'gold' },
-            { name: 'Pricing', href: '/pricing', icon: CreditCard, gradient: 'emerald' }
+            { name: 'All Matters', href: '/matters', icon: Folder },
+            { name: 'Pricing', href: '/pricing', icon: CreditCard }
         ]
     }
 ]
-
-const gradientClasses: Record<string, string> = {
-    gold: 'from-[var(--gold-primary)] to-[var(--gold-dark)]',
-    teal: 'from-[var(--teal-primary)] to-[var(--teal-dark)]',
-    emerald: 'from-[var(--emerald)] to-[#059669]'
-}
 
 export default function Sidebar() {
     const pathname = usePathname()
 
     return (
-        <aside className="w-72 bg-[var(--bg-card)] backdrop-blur-xl border-r border-[var(--border-light)] h-screen sticky top-0 flex flex-col">
-            <div className="p-6 border-b border-[var(--border-light)]">
-                <Link href="/dashboard" className="flex items-center gap-3 group">
-                    <div className="relative">
-                        <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[var(--gold-primary)] to-[var(--gold-dark)] flex items-center justify-center shadow-lg group-hover:shadow-[var(--shadow-gold)] transition-shadow duration-300">
-                            <Scale className="w-6 h-6 text-[#0d1117]" />
-                        </div>
-                        <div className="absolute -top-1 -right-1 w-3 h-3">
-                            <span className="absolute inline-flex h-full w-full rounded-full bg-[var(--emerald)] opacity-75 animate-ping"></span>
-                            <span className="relative inline-flex rounded-full h-3 w-3 bg-[var(--emerald)]"></span>
-                        </div>
+        <aside className="w-64 bg-black border-r border-[#D4A853]/20 h-screen sticky top-0 flex flex-col">
+            {/* Logo */}
+            <div className="p-5 border-b border-[#D4A853]/20">
+                <Link href="/" className="flex items-center gap-2 group">
+                    <div className="w-10 h-10 rounded-lg bg-[#D4A853] flex items-center justify-center text-white font-black text-xl">
+                        L
                     </div>
                     <div>
-                        <span className="text-xl font-bold gradient-text">LegalOps</span>
-                        <p className="text-xs text-[var(--text-tertiary)] tracking-wider font-medium">MALAYSIAN LAW AI</p>
+                        <h2 className="text-base font-black text-white tracking-tight">LegalOps</h2>
+                        <p className="text-[10px] text-white/50 tracking-widest font-bold">AI PLATFORM</p>
                     </div>
                 </Link>
             </div>
 
-            <nav className="flex-1 p-4 space-y-8 overflow-y-auto scrollbar-thin">
+            {/* Navigation */}
+            <nav className="flex-1 py-4 overflow-y-auto">
                 {navigation.map((section) => (
-                    <div key={section.section}>
-                        <h3 className="text-[10px] font-bold text-[var(--text-tertiary)] tracking-[0.2em] mb-3 px-4 flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-gradient-to-r from-[var(--gold-primary)] to-[var(--teal-primary)]"></span>
+                    <div key={section.section} className="mb-6">
+                        <h3 className="px-4 py-2 text-[10px] font-bold text-[#D4A853] tracking-widest">
                             {section.section}
                         </h3>
-                        <ul className="space-y-1">
+                        <ul className="space-y-0.5 px-3">
                             {section.items.map((item) => {
                                 const isActive = pathname === item.href
                                 return (
                                     <li key={item.name}>
                                         <Link
                                             href={item.href}
-                                            className={`group flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 relative overflow-hidden ${isActive
-                                                ? 'text-[#0d1117]'
-                                                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                                            className={`flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-all group ${isActive
+                                                ? 'bg-[#D4A853] text-white'
+                                                : 'text-gray-300 hover:bg-[#D4A853]/20 hover:text-[#E8C775]' /* Brightened from white/60 */
                                                 }`}
                                         >
-                                            {isActive && (
-                                                <div className={`absolute inset-0 bg-gradient-to-r ${gradientClasses[item.gradient]} opacity-90`}></div>
-                                            )}
-                                            {isActive && (
-                                                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 rounded-r-full bg-[#0d1117]/20"></div>
-                                            )}
-
-                                            <div className={`relative z-10 w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200 ${isActive
-                                                ? 'bg-[#0d1117]/20'
-                                                : 'bg-[var(--bg-tertiary)] group-hover:bg-[var(--bg-card)]'
-                                                }`}>
-                                                <item.icon className={`w-4 h-4 ${isActive ? 'text-[#0d1117]' : 'text-[var(--text-secondary)]'}`} />
-                                            </div>
-
-                                            <span className="relative z-10 flex-1">{item.name}</span>
-
-                                            <ChevronRight className={`relative z-10 w-4 h-4 transition-all duration-200 ${isActive
-                                                ? 'opacity-100 translate-x-0'
-                                                : 'opacity-0 -translate-x-2 group-hover:opacity-50 group-hover:translate-x-0'
-                                                }`} />
+                                            <item.icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-[#E8C775]'}`} />
+                                            <span>{item.name}</span>
+                                            {isActive && <ChevronRight className="w-5 h-5 ml-auto text-white" />}
                                         </Link>
                                     </li>
                                 )
@@ -118,22 +90,15 @@ export default function Sidebar() {
                 ))}
             </nav>
 
-            <div className="p-4 border-t border-[var(--border-light)]">
-                <div className="glass-card p-4 rounded-xl">
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--gold-primary)] to-[var(--teal-primary)] flex items-center justify-center">
-                            <Sparkles className="w-4 h-4 text-[#0d1117]" />
-                        </div>
-                        <div>
-                            <p className="text-sm font-semibold text-[var(--text-primary)]">AI Status</p>
-                            <p className="text-xs text-[var(--text-tertiary)]">Multi-agent system</p>
-                        </div>
+            {/* AI Status */}
+            <div className="p-4 border-t border-[#D4A853]/20">
+                <div className="bg-gradient-to-br from-[#D4A853]/10 to-[#D4A853]/5 border border-[#D4A853]/20 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                        <div className="w-2 h-2 rounded-full bg-[#D4A853] animate-pulse"></div>
+                        <span className="text-xs font-bold text-[#D4A853] tracking-wide">AI Systems Online</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <div className="flex-1 h-1.5 rounded-full bg-[var(--bg-tertiary)] overflow-hidden">
-                            <div className="h-full w-3/4 rounded-full bg-gradient-to-r from-[var(--emerald)] to-[var(--teal-primary)]"></div>
-                        </div>
-                        <span className="text-xs font-bold text-[var(--emerald)]">LIVE</span>
+                    <div className="h-1 bg-black/30 rounded-full overflow-hidden">
+                        <div className="h-full w-4/5 bg-gradient-to-r from-[#D4A853] to-[#E8C775] rounded-full"></div>
                     </div>
                 </div>
             </div>

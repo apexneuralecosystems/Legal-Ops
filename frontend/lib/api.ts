@@ -2,8 +2,7 @@ import axios, { AxiosInstance, AxiosError, AxiosResponse, InternalAxiosRequestCo
 
 // API Configuration
 // Configured to use Next.js Proxy (see next.config.js)
-const API_URL = ''
-// const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8005'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8091'
 
 // Token storage keys
 const ACCESS_TOKEN_KEY = 'access_token'

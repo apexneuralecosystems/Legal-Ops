@@ -3,7 +3,10 @@
 import { useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useMutation } from '@tanstack/react-query'
-import { Search, Loader2, BookOpen, Scale, Sparkles, Filter, Globe, Zap } from 'lucide-react'
+import {
+    Search, Loader2, Scale, BookOpen, FileText, AlertCircle,
+    Globe, ChevronDown, Sparkles, CheckCircle2, ExternalLink, Package, Filter, Zap
+} from 'lucide-react'
 import { api } from '@/lib/api'
 import Sidebar from '@/components/Sidebar'
 
@@ -46,7 +49,7 @@ function ResearchContent() {
     }
 
     return (
-        <div className="flex min-h-screen bg-[var(--bg-primary)]">
+        <div className="flex min-h-screen bg-[var(--bg-primary)] selection:bg-[var(--gold-primary)] selection:text-white">
             <Sidebar />
             <main className="flex-1 p-8 relative">
                 <div className="absolute top-0 right-0 w-96 h-96 bg-[var(--neon-green)] opacity-5 blur-[120px] rounded-full pointer-events-none"></div>
@@ -54,11 +57,11 @@ function ResearchContent() {
 
                 <div className="mb-10 animate-fade-in">
                     <div className="flex items-center gap-3 mb-3">
-                        <div className="icon-box w-12 h-12">
-                            <Search className="w-6 h-6" />
+                        <div className="w-12 h-12 rounded-lg bg-[var(--gold-primary)] flex items-center justify-center">
+                            <Search className="w-6 h-6 text-white" />
                         </div>
                         <div>
-                            <h1 className="text-4xl font-bold gradient-text">Legal Research</h1>
+                            <h1 className="text-4xl font-bold text-black">Legal Research</h1>
                             <p className="text-[var(--text-secondary)] mt-1 flex items-center gap-2">
                                 Search Malaysian caselaw with bilingual headnotes
                                 <span className="px-2 py-0.5 bg-[var(--neon-green)]/10 text-[var(--neon-green)] text-xs rounded-full flex items-center gap-1">
@@ -139,7 +142,7 @@ function ResearchContent() {
                                 <button
                                     onClick={handleSearch}
                                     disabled={!query.trim() || searchMutation.isPending}
-                                    className="w-full btn-primary py-3 flex items-center justify-center gap-2"
+                                    className="w-full py-3 flex items-center justify-center gap-2 px-6 bg-black hover:bg-gray-900 text-[var(--gold-primary)] font-bold rounded-lg transition-colors shadow-lg border-2 border-[var(--gold-primary)] disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {searchMutation.isPending ? (
                                         <>
@@ -158,9 +161,9 @@ function ResearchContent() {
 
                         {selectedCases.length > 0 && (
                             <div className="card p-6 animate-slide-up stagger-1">
-                                <h2 className="text-lg font-bold text-[var(--text-primary)] mb-4 flex items-center gap-2">
-                                    <BookOpen className="w-5 h-5 text-[var(--neon-purple)]" />
-                                    Selected ({selectedCases.length})
+                                <h2 className="text-xl font-bold text-black flex items-center gap-2">
+                                    <Package className="w-5 h-5 text-[var(--gold-primary)]" />
+                                    Selected Cases ({selectedCases.length})
                                 </h2>
                                 <button
                                     onClick={() => argumentMutation.mutate()}
@@ -205,7 +208,7 @@ function ResearchContent() {
                                             <h3 className="font-semibold text-[var(--neon-cyan)] border-b border-[var(--border-primary)] pb-2 flex items-center gap-2">
                                                 <Globe className="w-4 h-4" /> English Analysis
                                             </h3>
-                                            <div className="prose prose-invert prose-sm max-w-none text-[var(--text-secondary)] whitespace-pre-wrap font-mono text-xs p-4 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-primary)]">
+                                            <div className="prose prose-sm max-w-none text-gray-800 whitespace-pre-wrap text-sm leading-relaxed p-4 bg-white rounded-xl border border-gray-200 shadow-sm max-h-[400px] overflow-y-auto">
                                                 {argumentMutation.data.argument_memo.issue_memo_en}
                                             </div>
                                         </div>
@@ -213,7 +216,7 @@ function ResearchContent() {
                                             <h3 className="font-semibold text-[var(--neon-orange)] border-b border-[var(--border-primary)] pb-2 flex items-center gap-2">
                                                 <Globe className="w-4 h-4" /> Bahasa Melayu
                                             </h3>
-                                            <div className="prose prose-invert prose-sm max-w-none text-[var(--text-secondary)] whitespace-pre-wrap font-mono text-xs p-4 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-primary)]">
+                                            <div className="prose prose-sm max-w-none text-gray-800 whitespace-pre-wrap text-sm leading-relaxed p-4 bg-white rounded-xl border border-gray-200 shadow-sm max-h-[400px] overflow-y-auto">
                                                 {argumentMutation.data.argument_memo.issue_memo_ms}
                                             </div>
                                         </div>

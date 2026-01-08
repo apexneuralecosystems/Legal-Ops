@@ -10,6 +10,9 @@ import platform
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
     
+    # Base directory (backend folder)
+    BASE_DIR: str = os.path.dirname(os.path.abspath(__file__))
+    
     # Database
     DATABASE_URL: str
     DB_HOST: str = "localhost"
@@ -93,7 +96,7 @@ class Settings(BaseSettings):
     GOOGLE_VISION_API_KEY: str = ""  # For cloud OCR fallback
     
     # Legal Database
-    CASELAW_DB_TYPE: str = "mock"
+    CASELAW_DB_TYPE: str = "commonlii"
     USE_COMMONLII: bool = False
     CASELAW_API_URL: str = ""
     CASELAW_API_KEY: str = ""

@@ -2,12 +2,36 @@
 AI Tasks API router - Endpoints for real-time AI task status.
 """
 from fastapi import APIRouter, Depends, Request
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from database import get_sync_db as get_db
 from models import Matter
 from typing import List, Dict, Any
 from datetime import datetime, timedelta
 import logging
+from jose import JWTError, jwt
+from config import settings
+
+# Auth dependency (duplicated for now to avoid circular imports, usually similar to other routers)
+security = HTTPBearer()
+
+def get_current_user_sync(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+) -> Dict[str, Any]:
+    token = credentials.credentials
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user_id = payload.get("sub")
+        return {"user_id": user_id, "email": payload.get("email")}
+    except Exception:
+         # For tasks API, failed auth should likely 401
+         pass # Let the main router handle it or raise here
+    
+    # Simple strict implementation
+    return {"user_id": payload.get("sub")} 
+
+# Better to reuse from another module or redefine properly
+
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -18,7 +42,8 @@ logger = logging.getLogger(__name__)
 def get_ai_tasks(
     request: Request,
     limit: int = 10,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_user_sync)
 ):
 
     """
@@ -31,7 +56,8 @@ def get_ai_tasks(
     recent_cutoff = datetime.utcnow() - timedelta(hours=24)
     
     matters = db.query(Matter).filter(
-        Matter.updated_at >= recent_cutoff
+        Matter.updated_at >= recent_cutoff,
+        Matter.created_by == current_user["user_id"]
     ).order_by(Matter.updated_at.desc()).limit(limit).all()
     
     tasks = []
@@ -129,7 +155,7 @@ def get_ai_tasks(
 
 
 @router.get("/tasks/{task_id}", response_model=Dict[str, Any])
-def get_task_detail(task_id: str, db: Session = Depends(get_db)):
+def get_task_detail(task_id: str, db: Session = Depends(get_db), current_user: Dict[str, Any] = Depends(get_current_user_sync)):
 
     """
     Get detailed status of a specific AI task.
@@ -141,7 +167,7 @@ def get_task_detail(task_id: str, db: Session = Depends(get_db)):
     
     matter_id = parts[1]
     
-    matter = db.query(Matter).filter(Matter.id == matter_id).first()
+    matter = db.query(Matter).filter(Matter.id == matter_id, Matter.created_by == current_user["user_id"]).first()
     if not matter:
         return {"error": "Matter not found", "task_id": task_id}
     

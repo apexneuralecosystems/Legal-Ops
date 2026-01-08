@@ -10,7 +10,7 @@ import CommandPalette, { useCommandPalette } from '@/components/CommandPalette'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { api, ApiError, tokenManager } from '@/lib/api'
 import { useAuthStore } from '@/lib/authStore'
-import { Sparkles, Zap, Shield, LogOut, AlertCircle } from 'lucide-react'
+import { Sparkles, Zap, Shield, LogOut, AlertCircle, Bell } from 'lucide-react'
 
 interface Matter {
     id: string
@@ -52,12 +52,10 @@ function DashboardContent() {
 
     useEffect(() => {
         fetchAITasks()
-
         const interval = setInterval(() => {
             fetchMatters()
             fetchAITasks()
         }, 10000)
-
         return () => clearInterval(interval)
     }, [matters.length])
 
@@ -104,30 +102,18 @@ function DashboardContent() {
     }
 
     const getAgentForStatus = (status: string) => {
-        const agents: Record<string, string> = {
-            'intake': 'Document Analyzer',
-            'drafting': 'Drafting Agent',
-            'research': 'Research Agent'
-        }
+        const agents: Record<string, string> = { 'intake': 'Document Analyzer', 'drafting': 'Drafting Agent', 'research': 'Research Agent' }
         return agents[status] || 'AI Agent'
     }
 
     const getTaskTypeForStatus = (status: string) => {
-        const types: Record<string, string> = {
-            'intake': 'case_structuring',
-            'drafting': 'document_generation',
-            'research': 'research'
-        }
+        const types: Record<string, string> = { 'intake': 'case_structuring', 'drafting': 'document_generation', 'research': 'research' }
         return types[status] || 'processing'
     }
 
     const getTaskDescription = (matter: any) => {
-        if (matter.status === 'intake') {
-            return `Analyzing and structuring case for ${matter.title}`
-        }
-        if (matter.status === 'drafting') {
-            return `Generating pleading documents for ${matter.title}`
-        }
+        if (matter.status === 'intake') return `Analyzing case: ${matter.title}`
+        if (matter.status === 'drafting') return `Generating documents: ${matter.title}`
         return `Processing ${matter.title}`
     }
 
@@ -141,79 +127,72 @@ function DashboardContent() {
     }
 
     return (
-        <div className="flex min-h-screen bg-grid">
+        <div className="flex min-h-screen bg-white text-black selection:bg-[#D4A853] selection:text-black">
             <Sidebar />
 
-            <main className="flex-1 p-8 relative">
-                <div className="absolute top-0 right-0 w-96 h-96 bg-[var(--neon-purple)] opacity-5 blur-[120px] rounded-full pointer-events-none"></div>
-                <div className="absolute bottom-0 left-1/2 w-64 h-64 bg-[var(--neon-cyan)] opacity-5 blur-[100px] rounded-full pointer-events-none"></div>
+            <main className="flex-1 flex flex-col relative">
+                {/* Clean professional background */}
 
-                {/* Header with Logout */}
-                <div className="mb-10 animate-fade-in relative">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="icon-box w-12 h-12">
-                                <Zap className="w-6 h-6" />
-                            </div>
-                            <div>
-                                <h1 className="text-4xl font-bold gradient-text">Command Center</h1>
-                                <p className="text-[var(--text-secondary)] mt-1">
-                                    Real-time intelligence on matters, AI operations, and critical deadlines
-                                </p>
-                            </div>
+                {/* Top Bar - Minimalist */}
+                <header className="h-20 border-b border-gray-800 px-8 flex items-center justify-between bg-black">
+                    <div>
+                        <div className="flex items-center gap-2 text-[#D4A853] text-[10px] font-bold tracking-[0.2em] uppercase mb-1">
+                            <Sparkles className="w-3 h-3" />
+                            <span>Legal Intelligence Hub</span>
                         </div>
+                        <h1 className="text-2xl font-serif font-black text-white tracking-tight">Case Overview</h1>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <button className="w-10 h-10 rounded-full border border-gray-600 flex items-center justify-center text-gray-400 hover:text-[#D4A853] hover:border-[#D4A853] transition-all">
+                            <Bell className="w-5 h-5" />
+                        </button>
                         <button
                             onClick={handleLogout}
-                            className="flex items-center gap-2 px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-300 hover:bg-slate-600/50 hover:text-white transition-all"
+                            className="flex items-center gap-2 px-4 py-2 border border-gray-600 text-gray-300 hover:text-white hover:border-[#D4A853] rounded-lg text-sm font-medium transition-all"
                         >
                             <LogOut className="w-4 h-4" />
-                            <span className="hidden sm:inline">Logout</span>
+                            <span>Sign Out</span>
                         </button>
                     </div>
+                </header>
 
-                    <div className="cyber-line mt-6"></div>
-                </div>
+                {/* Content */}
+                <div className="flex-1 p-8 overflow-y-auto">
+                    {error && (
+                        <div className="mb-8 p-4 bg-red-900/10 border border-red-500/20 rounded-lg flex items-center gap-3">
+                            <AlertCircle className="w-5 h-5 text-red-400" />
+                            <span className="text-red-400 text-sm font-medium">{error}</span>
+                            <button onClick={() => setError(null)} className="ml-auto text-red-400 hover:text-red-300">✕</button>
+                        </div>
+                    )}
 
-                {/* Error Display */}
-                {error && (
-                    <div className="mb-6 p-4 bg-red-500/10 border border-red-500/50 rounded-lg flex items-center gap-3">
-                        <AlertCircle className="w-5 h-5 text-red-400" />
-                        <span className="text-red-400">{error}</span>
-                        <button onClick={() => setError(null)} className="ml-auto text-red-400 hover:text-red-300">
-                            ✕
-                        </button>
+                    <div className="mb-10">
+                        <DashboardStats stats={stats} />
                     </div>
-                )}
 
-                <div className="mb-10 animate-slide-up stagger-1">
-                    <DashboardStats stats={stats} />
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div className="lg:col-span-2 animate-slide-up stagger-2">
-                        {loading ? (
-                            <div className="card p-16 text-center">
-                                <div className="relative inline-block">
-                                    <div className="w-16 h-16 rounded-full border-4 border-[var(--border-light)] border-t-[var(--neon-purple)] animate-spin"></div>
-                                    <Sparkles className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 text-[var(--neon-purple)]" />
+                    <div className="grid grid-cols-1 gap-8">
+                        <div className="w-full">
+                            <h2 className="text-xl font-serif font-bold mb-6 flex items-center gap-3 text-black">
+                                <span className="w-2 h-2 rounded-full bg-[#D4A853]"></span>
+                                Active Matters
+                            </h2>
+                            {loading ? (
+                                <div className="bg-white border border-gray-200 rounded-2xl p-20 text-center shadow-sm">
+                                    <div className="relative inline-block">
+                                        <div className="w-12 h-12 rounded-full border-2 border-gray-200 border-t-[#D4A853] animate-spin"></div>
+                                    </div>
+                                    <p className="text-gray-500 mt-6 text-sm tracking-widest uppercase">Retrieving Case Files...</p>
                                 </div>
-                                <p className="text-[var(--text-secondary)] mt-6 text-lg">Initializing neural networks...</p>
-                            </div>
-                        ) : (
-                            <MatterSummaryPanel matters={matters as any} />
-                        )}
-                    </div>
-
-                    <div className="lg:col-span-1 animate-slide-up stagger-3">
-                        <AIActivityFeed tasks={aiTasks as any} />
+                            ) : (
+                                <MatterSummaryPanel matters={matters as any} />
+                            )}
+                        </div>
                     </div>
                 </div>
 
-                <div className="mt-8 flex items-center justify-center gap-2 text-[var(--text-tertiary)] text-sm animate-fade-in">
-                    <Shield className="w-4 h-4" />
-                    <span>Secured by enterprise-grade encryption</span>
-                    <span className="mx-2">•</span>
-                    <span>Last sync: Just now</span>
+                <div className="mt-12 flex items-center justify-center gap-2 text-gray-600 text-[10px] uppercase tracking-widest opacity-50">
+                    <Shield className="w-3 h-3" />
+                    <span>Encrypted • PDPA Compliant • Secure</span>
                 </div>
             </main>
 
@@ -222,7 +201,6 @@ function DashboardContent() {
     )
 }
 
-// Export wrapped with ProtectedRoute
 export default function DashboardPage() {
     return (
         <ProtectedRoute>
@@ -230,4 +208,3 @@ export default function DashboardPage() {
         </ProtectedRoute>
     )
 }
-

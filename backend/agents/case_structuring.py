@@ -7,6 +7,9 @@ import json
 import re
 from services.llm_service import get_llm_service
 import re
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class CaseStructuringAgent(BaseAgent):
@@ -47,6 +50,8 @@ class CaseStructuringAgent(BaseAgent):
         matter_id = inputs["matter_id"]
         doc_manifest = inputs.get("document_manifest", [])
         
+        logger.info(f"CaseStructuring: Processing {len(parallel_texts)} text segments for matter {matter_id}")
+        
         # Combine all text for analysis
         combined_text_en = []
         combined_text_ms = []
@@ -62,11 +67,21 @@ class CaseStructuringAgent(BaseAgent):
         full_text_en = "\n".join(combined_text_en)
         full_text_ms = "\n".join(combined_text_ms)
         
+        logger.info(f"CaseStructuring: Combined text length - EN: {len(full_text_en)} chars, MS: {len(full_text_ms)} chars")
+        
+        if len(full_text_en) > 0:
+            logger.info(f"CaseStructuring: Text preview (first 500 chars): {full_text_en[:500]}")
+        
         # Use LLM to extract structured information
         extraction_prompt = self._create_extraction_prompt(full_text_en, full_text_ms)
         
+        logger.info(f"CaseStructuring: Calling LLM for extraction...")
         response_text = await self.llm.generate(extraction_prompt)
+        logger.info(f"CaseStructuring: LLM response length: {len(response_text)} chars")
+        logger.info(f"CaseStructuring: LLM response preview: {response_text[:500] if len(response_text) > 500 else response_text}")
+        
         extracted_data = self._parse_llm_response(response_text)
+        logger.info(f"CaseStructuring: Extracted data: {extracted_data}")
         
         # Build matter snapshot
         # Use actual page count if provided, otherwise estimate from text

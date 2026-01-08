@@ -111,17 +111,54 @@ class MalayDraftingAgent(BaseAgent):
             for p in matter.get("parties", [])
         ])
         
-        issues_str = "\n".join([
-            f"{i+1}. {issue.get('text_ms', issue.get('text_en', ''))}"
-            for i, issue in enumerate(issues)
-        ])
+        # Handle issues text based on language preference
+        issues_str = ""
+        for i, issue in enumerate(issues):
+            text = ""
+            if language == "en":
+                text = issue.get('text_en', issue.get('text_ms', issue.get('title', '')))
+            else:
+                text = issue.get('text_ms', issue.get('text_en', issue.get('title', '')))
+            issues_str += f"{i+1}. {text}\n"
         
-        prayers_str = "\n".join([
-            f"{i+1}. {prayer.get('text', '')}"
-            for i, prayer in enumerate(prayers)
-        ])
+        # Handle prayers text based on language preference
+        prayers_str = ""
+        for i, prayer in enumerate(prayers):
+            text = ""
+            if language == "en":
+                text = prayer.get('text_en', prayer.get('text_ms', prayer.get('text', '')))
+            else:
+                text = prayer.get('text_ms', prayer.get('text_en', prayer.get('text', '')))
+            prayers_str += f"{i+1}. {text}\n"
         
-        return f"""Anda adalah peguam Malaysia yang mahir. Draf satu pernyataan tuntutan (Statement of Claim) dalam Bahasa Melayu formal untuk kes berikut:
+        if language == "en":
+            return f"""You are an expert Malaysian lawyer. Draft a Statement of Claim in formal legal English for the following case:
+
+CASE INFORMATION:
+Title: {matter.get('title', 'Unnamed Case')}
+Court: {matter.get('court', 'High Court of Malaya')}
+Case Type: {matter.get('case_type', 'general')}
+
+PARTIES:
+{parties_str}
+
+LEGAL ISSUES:
+{issues_str}
+
+PRAYERS (REMEDIES SOUGHT):
+{prayers_str}
+
+INSTRUCTIONS:
+1. Use formal Malaysian legal English format
+2. Use correct terms: PLAINTIFF, DEFENDANT (uppercase)
+3. Number paragraphs with Arabic numerals (1., 2., 3., etc.)
+4. Ensure all dates and numbers are accurate as per case info
+5. Use standard structure: Introduction → Facts → Breach → Remedy → Prayer
+6. Use formal language like "The Plaintiff humbly submits", "WHEREFORE the Plaintiff prays"
+
+Draft the complete Statement of Claim in English:"""
+        else:
+            return f"""Anda adalah peguam Malaysia yang mahir. Draf satu pernyataan tuntutan (Statement of Claim) dalam Bahasa Melayu formal untuk kes berikut:
 
 MAKLUMAT KES:
 Tajuk: {matter.get('title', 'Kes Tidak Dinamakan')}
@@ -153,12 +190,42 @@ Draf pernyataan tuntutan lengkap dalam Bahasa Melayu:"""
         # Ensure defined terms are uppercase
         text = re.sub(r'\bplaintif\b', 'PLAINTIF', text, flags=re.IGNORECASE)
         text = re.sub(r'\bdefendan\b', 'DEFENDAN', text, flags=re.IGNORECASE)
+        text = re.sub(r'\bplaintiff\b', 'PLAINTIFF', text, flags=re.IGNORECASE)
+        text = re.sub(r'\bdefendant\b', 'DEFENDANT', text, flags=re.IGNORECASE)
+        
+        # Check language based on content (simple heuristic)
+        is_english = "statement of claim" in text.lower() or "plaintiff" in text.lower()
         
         # Add header if not present
-        if not text.strip().startswith("DALAM MAHKAMAH"):
-            header = f"""DALAM MAHKAMAH {matter.get('court', 'TINGGI MALAYA').upper()}
+        if not text.strip().upper().startswith("IN THE") and not text.strip().upper().startswith("DALAM"):
+            
+            if is_english:
+                court_default = 'HIGH COURT OF MALAYA'
+                title_default = 'UNNAMED CASE'
+            else:
+                court_default = 'TINGGI MALAYA'
+                title_default = 'KES TIDAK DINAMAKAN'
+                
+            court_name = matter.get('court', court_default).upper()
+            
+            # If court name is Malay but we drafting in English, try to translate common terms (simple heuristic)
+            if is_english and "TINGGI" in court_name:
+                court_name = court_name.replace("MAHKAMAH", "COURT").replace("TINGGI", "HIGH").replace("MALAYA", "OF MALAYA")
+                
+            title = matter.get('title', title_default)
+            
+            if is_english:
+                header = f"""IN THE {court_name}
 
-{matter.get('title', 'KES TIDAK DINAMAKAN')}
+{title}
+
+STATEMENT OF CLAIM
+
+"""
+            else:
+                header = f"""DALAM MAHKAMAH {court_name}
+
+{title}
 
 PERNYATAAN TUNTUTAN
 

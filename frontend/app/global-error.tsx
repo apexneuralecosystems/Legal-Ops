@@ -39,7 +39,7 @@ export default function GlobalError({
                         <AlertTriangle className="w-8 h-8 text-red-400" />
                     </div>
 
-                    <h2 className="text-2xl font-bold mb-3 gradient-text">Application Error</h2>
+                    <h2 className="text-2xl font-bold mb-3 text-black">Application Error</h2>
                     <p className="text-[var(--text-secondary)] mb-8 text-sm leading-relaxed">
                         We encountered an unexpected issue. This might be due to a new update.
                     </p>
@@ -51,7 +51,7 @@ export default function GlobalError({
                             reset();
                             setTimeout(() => window.location.reload(), 100);
                         }}
-                        className="w-full btn-primary py-3 flex items-center justify-center gap-2"
+                        className="w-full py-3 flex items-center justify-center gap-2 bg-black hover:bg-gray-900 text-[var(--gold-primary)] font-bold rounded-lg transition-colors shadow-lg border-2 border-[var(--gold-primary)]"
                     >
                         <RotateCw className="w-4 h-4" />
                         Reload Application

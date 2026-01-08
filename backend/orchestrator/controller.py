@@ -56,7 +56,7 @@ class WorkflowState(TypedDict, total=False):
     filters: Dict[str, Any]
     cases: List[Dict]
     argument_memo: Dict[str, Any]
-    data_source: str  # "commonlii" or "mock"
+    data_source: str  # "commonlii" or other real source
     live_data: bool  # True if from CommonLII
     
     # Evidence workflow state
@@ -270,6 +270,80 @@ class OrchestrationController:
                 "workflow_status": "failed",
                 "error": str(e)
             }
+
+    async def run_drafting_workflow_stream(
+        self,
+        matter_snapshot: Dict[str, Any],
+        template_id: str,
+        issues_selected: List[Dict],
+        prayers_selected: List[Dict]
+    ):
+        """
+        Run the drafting workflow and stream updates.
+        Yields JSON strings for Server-Sent Events.
+        """
+        import json
+        
+        initial_state = {
+            "matter_snapshot": matter_snapshot,
+            "template_id": template_id,
+            "issues_selected": issues_selected,
+            "prayers_selected": prayers_selected,
+            "workflow_status": "started"
+        }
+        
+        try:
+            # Yield initial status
+            yield json.dumps({
+                "type": "status",
+                "step": "start",
+                "message": "Initializing drafting workflow..."
+            })
+            
+            # Stream events from the graph
+            final_state = None
+            
+            # REAL WORKFLOW EXECUTION
+            async for event in self.drafting_workflow.astream_events(initial_state, version="v1"):
+                kind = event.get("event")
+                name = event.get("name", "")
+                
+                # Map workflow nodes to status messages
+                if kind == "on_chain_start" and name in ["plan_issues", "select_template", "draft_malay", "draft_english", "qa_check"]:
+                    yield json.dumps({
+                        "type": "progress",
+                        "step": name,
+                        "message": f"Running {name.replace('_', ' ').title()}..."
+                    })
+                    
+                if kind == "on_chain_end":
+                    # Capture final state from last node
+                    if hasattr(event.get("data", {}), "output"):
+                        final_state = event["data"]["output"]
+            
+            # Yield final result
+            if final_state:
+                # Add workflow status
+                final_state["workflow_status"] = "completed"
+                
+                # Sanitize for JSON (remove binary etc if needed)
+                yield json.dumps({
+                    "type": "result",
+                    "data": final_state
+                })
+            else:
+                 yield json.dumps({
+                    "type": "error",
+                    "message": "Workflow completed but returned no state"
+                })
+                
+        except Exception as e:
+            import traceback
+            logger.error(f"Streaming error: {e}")
+            yield json.dumps({
+                "type": "error",
+                "message": str(e)
+            })
     
     async def run_research_workflow(
         self,
@@ -593,7 +667,7 @@ class OrchestrationController:
         state["cases"] = data.get("cases", [])
         
         # Pass through CommonLII integration metadata
-        state["data_source"] = data.get("data_source", "mock")
+        state["data_source"] = data.get("data_source", "commonlii")
         state["live_data"] = data.get("live_data", False)
         
         return state

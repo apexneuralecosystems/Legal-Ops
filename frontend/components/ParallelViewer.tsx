@@ -63,7 +63,6 @@ export default function ParallelViewer({ matterId }: ParallelViewerProps) {
 
     const handleFlagForReview = (segmentId: string) => {
         // TODO: API call to flag segment
-        console.log('Flagging segment for review:', segmentId)
     }
 
     return (

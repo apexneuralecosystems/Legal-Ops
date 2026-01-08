@@ -1,0 +1,88 @@
+{
+    "nav": {
+        "howItWorks": "Cara Ia Berfungsi",
+        "features": "Ciri-ciri",
+        "accessEvidence": "Mulakan",
+        "getStarted": "Log Masuk"
+    },
+    "hero": {
+        "headline": "Undang-undang Malaysia, Kecerdasan",
+        "subheading": "Sistem AI multi-ejen yang canggih untuk pemprosesan dokumen undang-undang, penggubalan dwibahasa, dan penyelidikan komprehensif.",
+        "badge1": "Keselamatan Gred Perusahaan",
+        "badge2": "Ejen AI Undang-undang",
+        "ctaHowItWorks": "Cara Ia Berfungsi",
+        "ctaAccessEvidence": "Mulakan"
+    },
+    "howItWorks": {
+        "title": "Cara Ia Berfungsi",
+        "subtitle": "Ejen AI bekerjasama untuk mengubah amalan undang-undang anda",
+        "steps": [
+            {
+                "number": "1",
+                "title": "Muat Naik Dokumen",
+                "description": "Muat naik fail kes dan dokumen undang-undang anda dengan selamat ke platform."
+            },
+            {
+                "number": "2",
+                "title": "Analisis AI",
+                "description": "AI Penganalisis Dokumen kami mengekstrak fakta utama, pihak, dan butiran kes secara automatik."
+            },
+            {
+                "number": "3",
+                "title": "Penggubalan Dwibahasa",
+                "description": "Jana pliding rasmi dalam Bahasa Melayu dengan draf Bahasa Inggeris yang diselaraskan."
+            },
+            {
+                "number": "4",
+                "title": "Penyelidikan Undang-undang",
+                "description": "Carian mendalam merentasi undang-undang kes Malaysia dengan klasifikasi autoriti dikuasakan AI."
+            }
+        ]
+    },
+    "accessSection": {
+        "title": "Sedia untuk Bermula?",
+        "subtitle": "Akses papan pemuka anda untuk mengurus kes dan bukti dengan selamat",
+        "button": "Lancarkan Papan Pemuka",
+        "securityNote": "Data anda dilindungi dengan penyulitan gred perusahaan"
+    },
+    "features": {
+        "title": "Direka untuk Pasukan Undang-undang",
+        "subtitle": "LegalOps menyediakan alat yang anda perlukan untuk pengurusan kes yang cekap",
+        "items": [
+            {
+                "title": "Storan Selamat",
+                "description": "Semua dokumen disulitkan semasa rehat dan transit dengan keselamatan gred bank."
+            },
+            {
+                "title": "Carian Pintar",
+                "description": "Carian dikuasakan AI merentasi semua bukti dan dokumen kes anda."
+            },
+            {
+                "title": "Jejak Audit",
+                "description": "Perakaman lengkap setiap tindakan untuk pematuhan dan akauntabiliti."
+            },
+            {
+                "title": "Akses Pasukan",
+                "description": "Kebenaran terkawal untuk seluruh pasukan undang-undang anda."
+            },
+            {
+                "title": "Sokongan Dwibahasa",
+                "description": "Sokongan penuh untuk dokumentasi Bahasa Inggeris dan Bahasa Melayu."
+            },
+            {
+                "title": "Analitik Kes",
+                "description": "Pandangan dan analitik untuk menjejaki kemajuan dan hasil kes."
+            }
+        ]
+    },
+    "footer": {
+        "copyright": "© 2026 LegalOps. Hak cipta terpelihara.",
+        "privacy": "Privasi",
+        "security": "Keselamatan",
+        "contact": "Hubungi"
+    },
+    "language": {
+        "english": "English",
+        "malay": "Bahasa Melayu"
+    }
+}

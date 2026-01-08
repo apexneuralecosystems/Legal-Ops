@@ -94,7 +94,7 @@ export default function MatterDetailPage() {
                         </div>
                         <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Matter not found</h2>
                         <p className="text-[var(--text-secondary)] mb-6">The matter you're looking for doesn't exist.</p>
-                        <Link href="/dashboard" className="btn-primary inline-flex items-center gap-2 px-6 py-3">
+                        <Link href="/dashboard" className="inline-flex items-center gap-2 px-6 py-3 bg-black hover:bg-gray-900 text-[var(--gold-primary)] font-bold rounded-lg transition-colors shadow-lg border-2 border-[var(--gold-primary)]">
                             Back to Dashboard
                         </Link>
                     </div>
@@ -125,7 +125,7 @@ export default function MatterDetailPage() {
                     <div className="flex items-start justify-between mb-4 flex-wrap gap-4">
                         <div>
                             <div className="flex items-center gap-3 mb-2 flex-wrap">
-                                <h1 className="text-3xl font-bold gradient-text">{matter.title}</h1>
+                                <h1 className="text-3xl font-bold text-black">{matter.title}</h1>
                                 {matter.human_review_required && (
                                     <span className="px-3 py-1 bg-[var(--neon-orange)]/10 text-[var(--neon-orange)] text-xs font-semibold rounded-full border border-[var(--neon-orange)]/20">
                                         Requires Review
@@ -141,7 +141,7 @@ export default function MatterDetailPage() {
                         <div className="flex gap-3 flex-wrap">
                             <Link
                                 href={`/drafting?matterId=${matterId}`}
-                                className="btn-primary px-5 py-2.5 flex items-center gap-2 text-sm"
+                                className="px-5 py-2.5 flex items-center gap-2 text-sm bg-black hover:bg-gray-900 text-[var(--gold-primary)] font-bold rounded-lg transition-colors shadow-lg border-2 border-[var(--gold-primary)]"
                             >
                                 <Scale className="w-4 h-4" />
                                 Drafting

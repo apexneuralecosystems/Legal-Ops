@@ -82,16 +82,19 @@ def validate_file_extension(filename: str) -> bool:
 
 
 @router.get("/", response_model=list)
+@router.get("/", response_model=list)
 def list_documents(
     skip: int = 0,
     limit: int = 50,
     matter_id: Optional[str] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_user_sync)
 ):
     """
     List all documents with optional filtering by matter_id.
     """
-    query = db.query(Document)
+    # Join with Matter to filter by created_by
+    query = db.query(Document).join(Matter).filter(Matter.created_by == current_user["user_id"])
     
     if matter_id:
         query = query.filter(Document.matter_id == matter_id)
@@ -114,9 +117,8 @@ def list_documents(
 async def upload_document(
     file: UploadFile = File(...),
     matter_id: Optional[str] = Form(None),
-    db: Session = Depends(get_db)
-    # Auth temporarily removed for testing
-    # current_user: Dict[str, Any] = Depends(get_current_user_sync)
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_user_sync)
 ):
     """
     Upload a single document.
@@ -139,9 +141,13 @@ async def upload_document(
     
     # Validate matter_id if provided
     if matter_id:
-        matter = db.query(Matter).filter(Matter.id == matter_id).first()
+        logger.info(f"Uploading file '{file.filename}' for matter_id: {matter_id}")
+        matter = db.query(Matter).filter(Matter.id == matter_id, Matter.created_by == current_user["user_id"]).first()
         if not matter:
+            logger.error(f"Matter {matter_id} not found during upload")
             raise HTTPException(status_code=404, detail="Matter not found")
+    else:
+        logger.warning(f"Uploading file '{file.filename}' without matter_id")
 
     # Read file content
     content = await file.read()
@@ -188,12 +194,14 @@ async def upload_document(
 
 
 @router.get("/{doc_id}", response_model=dict)
-def get_document(doc_id: str, db: Session = Depends(get_db)):
-    # Auth temporarily removed
+def get_document(doc_id: str, db: Session = Depends(get_db), current_user: Dict[str, Any] = Depends(get_current_user_sync)):
     """
     Get document metadata.
     """
-    document = db.query(Document).filter(Document.id == doc_id).first()
+    document = db.query(Document).join(Matter).filter(
+        Document.id == doc_id,
+        Matter.created_by == current_user["user_id"]
+    ).first()
     
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
@@ -206,7 +214,10 @@ def download_document(doc_id: str, db: Session = Depends(get_db), current_user: 
     """
     Download original document file.
     """
-    document = db.query(Document).filter(Document.id == doc_id).first()
+    document = db.query(Document).join(Matter).filter(
+        Document.id == doc_id,
+        Matter.created_by == current_user["user_id"]
+    ).first()
     
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
@@ -222,11 +233,14 @@ def download_document(doc_id: str, db: Session = Depends(get_db), current_user: 
 
 
 @router.get("/{doc_id}/preview", response_model=dict)
-def get_document_preview(doc_id: str, db: Session = Depends(get_db)):
+def get_document_preview(doc_id: str, db: Session = Depends(get_db), current_user: Dict[str, Any] = Depends(get_current_user_sync)):
     """
     Get OCR preview of document (first 1000 characters).
     """
-    document = db.query(Document).filter(Document.id == doc_id).first()
+    document = db.query(Document).join(Matter).filter(
+        Document.id == doc_id,
+        Matter.created_by == current_user["user_id"]
+    ).first()
     
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")

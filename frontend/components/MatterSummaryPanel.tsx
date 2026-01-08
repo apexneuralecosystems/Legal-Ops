@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Search, Clock, User, FolderOpen, Plus, ArrowUpRight, Sparkles } from 'lucide-react'
+import { Search, Clock, User, FolderOpen, Plus, ChevronRight, FileText } from 'lucide-react'
 
 interface Matter {
     matter_id: string
@@ -20,13 +20,13 @@ interface MatterSummaryPanelProps {
     matters: Matter[]
 }
 
-const statusConfig: Record<string, { label: string; className: string; gradient: string }> = {
-    'intake': { label: 'Processing', className: 'badge-active', gradient: 'from-[var(--teal-primary)] to-[var(--teal-dark)]' },
-    'structured': { label: 'Review', className: 'badge-pending', gradient: 'from-[var(--gold-primary)] to-[var(--gold-dark)]' },
-    'drafting': { label: 'Active', className: 'badge-active', gradient: 'from-[var(--teal-primary)] to-[var(--emerald)]' },
-    'ready': { label: 'Ready', className: 'badge-success', gradient: 'from-[var(--emerald)] to-[#059669]' },
-    'urgent': { label: 'Urgent', className: 'badge-urgent', gradient: 'from-[var(--rose)] to-[var(--amber)]' },
-    'critical': { label: 'Critical', className: 'badge-urgent', gradient: 'from-[var(--rose)] to-[#e11d48]' }
+const statusConfig: Record<string, { label: string; dotColor: string }> = {
+    'intake': { label: 'Processing', dotColor: 'bg-blue-400' },
+    'structured': { label: 'Review', dotColor: 'bg-amber-400' },
+    'drafting': { label: 'Active', dotColor: 'bg-[#D4A853]' },
+    'ready': { label: 'Ready', dotColor: 'bg-green-400' },
+    'urgent': { label: 'Urgent', dotColor: 'bg-red-400' },
+    'critical': { label: 'Critical', dotColor: 'bg-red-500' }
 }
 
 export default function MatterSummaryPanel({ matters }: MatterSummaryPanelProps) {
@@ -55,50 +55,49 @@ export default function MatterSummaryPanel({ matters }: MatterSummaryPanelProps)
         const diffMins = Math.floor(diffMs / 60000)
         const diffHours = Math.floor(diffMins / 60)
         const diffDays = Math.floor(diffHours / 24)
-
-        if (diffMins < 60) return `${diffMins}m`
-        if (diffHours < 24) return `${diffHours}h`
-        return `${diffDays}d`
+        if (diffMins < 60) return `${diffMins}m ago`
+        if (diffHours < 24) return `${diffHours}h ago`
+        return `${diffDays}d ago`
     }
 
     return (
-        <div className="card p-6">
-            <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[var(--gold-primary)] to-[var(--gold-dark)] flex items-center justify-center shadow-lg">
-                        <FolderOpen className="w-6 h-6 text-[#0d1117]" />
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+            {/* Header */}
+            <div className="p-5 border-b border-gray-200 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-[var(--gold-primary)] flex items-center justify-center">
+                        <FolderOpen className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                        <h2 className="text-2xl font-bold text-[var(--text-primary)]">Active Matters</h2>
-                        <p className="text-sm text-[var(--text-secondary)]">
-                            <span className="text-[var(--teal-primary)]">{matters.length}</span> cases in pipeline
-                        </p>
+                        <h2 className="text-lg font-semibold text-black">Active Matters</h2>
+                        <p className="text-xs text-gray-500">{matters.length} cases in pipeline</p>
                     </div>
                 </div>
                 <Link
                     href="/upload"
-                    className="btn-primary flex items-center gap-2 px-5 py-3 text-sm"
+                    className="flex items-center gap-2 px-4 py-2 bg-[var(--gold-primary)] hover:bg-[var(--gold-light)] text-white rounded-lg font-semibold text-sm transition-colors"
                 >
                     <Plus className="w-4 h-4" />
                     New Matter
                 </Link>
             </div>
 
-            <div className="flex gap-4 mb-6">
-                <div className="flex-1 relative group">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--text-tertiary)] group-focus-within:text-[var(--gold-primary)] transition-colors" />
+            {/* Search & Filter */}
+            <div className="p-4 border-b border-gray-200 flex gap-3">
+                <div className="flex-1 relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
                     <input
                         type="text"
                         placeholder="Search matters..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-12 pr-4 py-3 rounded-xl text-sm"
+                        className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-300 rounded-lg text-sm text-black placeholder-gray-400 focus:outline-none focus:border-[#D4A853] focus:bg-white"
                     />
                 </div>
                 <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
-                    className="px-5 py-3 rounded-xl text-sm min-w-[160px]"
+                    className="px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-[#D4A853] focus:bg-white min-w-[140px]"
                 >
                     <option>All Status</option>
                     <option>Urgent</option>
@@ -108,66 +107,54 @@ export default function MatterSummaryPanel({ matters }: MatterSummaryPanelProps)
                 </select>
             </div>
 
-            <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
+            {/* Matter List */}
+            <div className="max-h-[360px] overflow-y-auto">
                 {filteredMatters.length === 0 ? (
-                    <div className="text-center py-16">
-                        <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center">
-                            <Sparkles className="w-10 h-10 text-[var(--text-tertiary)]" />
+                    <div className="p-12 text-center">
+                        <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center">
+                            <FolderOpen className="w-8 h-8 text-[#D4A853]" />
                         </div>
-                        <p className="text-[var(--text-secondary)] text-lg">No matters found</p>
-                        <p className="text-[var(--text-tertiary)] text-sm mt-1">Try adjusting your filters</p>
+                        <p className="text-gray-500">No matters found</p>
+                        <p className="text-xs text-gray-400 mt-1">Try adjusting your filters</p>
                     </div>
                 ) : (
-                    filteredMatters.map((matter, index) => {
-                        const matterStatus = getMatterStatus(matter)
-                        const statusInfo = statusConfig[matterStatus] || { label: 'Unknown', className: 'badge', gradient: 'from-gray-500 to-gray-600' }
-                        const matterId = matter.matter_id || matter.id || ''
+                    <div className="divide-y divide-gray-200">
+                        {filteredMatters.map((matter) => {
+                            const matterStatus = getMatterStatus(matter)
+                            const statusInfo = statusConfig[matterStatus] || { label: 'Unknown', dotColor: 'bg-gray-500' }
+                            const matterId = matter.matter_id || matter.id || ''
 
-                        return (
-                            <Link
-                                key={matterId}
-                                href={`/matter/${matterId}`}
-                                className="group block matter-card animate-slide-up"
-                                style={{ animationDelay: `${index * 0.05}s` }}
-                            >
-                                <div className="flex items-start justify-between mb-3">
+                            return (
+                                <Link
+                                    key={matterId}
+                                    href={`/matter/${matterId}`}
+                                    className="group flex items-center gap-4 p-4 hover:bg-white/[0.02] transition-colors"
+                                >
+                                    <div className="w-10 h-10 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center flex-shrink-0">
+                                        <FileText className="w-5 h-5 text-[#D4A853]" />
+                                    </div>
                                     <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-3 mb-2">
-                                            <span className="font-mono text-xs text-[var(--teal-primary)] bg-[var(--bg-tertiary)] px-2 py-1 rounded-md">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="font-mono text-[10px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
                                                 {matterId}
                                             </span>
-                                            <span className={`badge ${statusInfo.className}`}>
-                                                {statusInfo.label}
-                                            </span>
+                                            <div className="flex items-center gap-1.5">
+                                                <div className={`w-1.5 h-1.5 rounded-full ${statusInfo.dotColor}`}></div>
+                                                <span className="text-[10px] text-gray-400">{statusInfo.label}</span>
+                                            </div>
                                         </div>
-                                        <h3 className="font-semibold text-[var(--text-primary)] text-lg truncate group-hover:text-[var(--gold-primary)] transition-colors">
+                                        <h3 className="text-sm font-medium text-black truncate group-hover:text-[#D4A853] transition-colors">
                                             {matter.title}
                                         </h3>
-                                        <p className="text-sm text-[var(--text-tertiary)] capitalize mt-1">
-                                            {matter.matter_type?.replace('_', ' ') || 'General Matter'}
+                                        <p className="text-xs text-gray-500 capitalize">
+                                            {matter.matter_type?.replace('_', ' ') || 'General'} • {formatTimeAgo(matter.created_at)}
                                         </p>
                                     </div>
-                                    <ArrowUpRight className="w-5 h-5 text-[var(--text-tertiary)] opacity-0 group-hover:opacity-100 group-hover:text-[var(--gold-primary)] transition-all transform group-hover:translate-x-1 group-hover:-translate-y-1" />
-                                </div>
-
-                                <div className="flex items-center gap-4 text-xs text-[var(--text-tertiary)] pt-3 border-t border-[var(--border-light)]">
-                                    {matter.time_remaining && (
-                                        <div className="flex items-center gap-1.5">
-                                            <Clock className="w-3.5 h-3.5" />
-                                            <span>{matter.time_remaining}</span>
-                                        </div>
-                                    )}
-                                    {matter.assignee && (
-                                        <div className="flex items-center gap-1.5">
-                                            <User className="w-3.5 h-3.5" />
-                                            <span>{matter.assignee}</span>
-                                        </div>
-                                    )}
-                                    <span className="ml-auto font-mono">{formatTimeAgo(matter.created_at)} ago</span>
-                                </div>
-                            </Link>
-                        )
-                    })
+                                    <ChevronRight className="w-4 h-4 text-gray-600 group-hover:text-[#D4A853] group-hover:translate-x-1 transition-all" />
+                                </Link>
+                            )
+                        })}
+                    </div>
                 )}
             </div>
         </div>

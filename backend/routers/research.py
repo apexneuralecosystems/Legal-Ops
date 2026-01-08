@@ -70,7 +70,7 @@ async def search_cases(request: SearchRequest, db: AsyncSession = Depends(get_db
             "cases": cases,
             "query": request.query,
             "total_results": len(cases),
-            "data_source": data.get("data_source", "mock"),
+            "data_source": data.get("data_source", "commonlii"),
             "live_data": data.get("live_data", False)
         }
             

@@ -5,11 +5,12 @@
 
 import React, { useState, useRef, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { useQuery, useMutation } from '@tanstack/react-query'
+import Link from 'next/link'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
     Package, Loader2, FileText, CheckCircle2, Download, Scale,
     Volume2, Square, Sparkles, FolderOpen, AlertCircle,
-    Gavel, BookOpen, FileCheck, Printer
+    Gavel, BookOpen, FileCheck, Printer, Upload
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import Sidebar from '@/components/Sidebar'
@@ -22,6 +23,32 @@ function EvidenceContent() {
     const [isSpeaking, setIsSpeaking] = useState(false)
     const [currentSection, setCurrentSection] = useState<string>('')
     const speechRef = useRef<SpeechSynthesisUtterance | null>(null)
+
+    const [isUploading, setIsUploading] = useState(false)
+    const fileInputRef = useRef<HTMLInputElement>(null)
+    const queryClient = useQueryClient()
+
+    const uploadMutation = useMutation({
+        mutationFn: async (file: File) => {
+            if (!matterId) throw new Error('No matter selected')
+            return api.uploadDocument(file, matterId)
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['matter-documents', matterId] })
+            setIsUploading(false)
+        },
+        onError: (error) => {
+            console.error('Upload failed:', error)
+            setIsUploading(false)
+        }
+    })
+
+    const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            setIsUploading(true)
+            uploadMutation.mutate(e.target.files[0])
+        }
+    }
 
     const { data: matterData } = useQuery({
         queryKey: ['matter', matterId],
@@ -156,10 +183,13 @@ ${data.hearing_bundle?.if_judge_asks?.map((qa: any, idx: number) =>
                         <p className="text-[var(--text-secondary)] mb-6">
                             Please select a matter from the Dashboard to prepare evidence and hearing materials.
                         </p>
-                        <a href="/dashboard" className="btn-primary inline-flex items-center gap-2 px-6 py-3">
+                        <Link
+                            href="/dashboard"
+                            className="inline-flex items-center gap-2 px-6 py-3 bg-black hover:bg-gray-900 text-[var(--gold-primary)] font-bold rounded-lg transition-colors shadow-lg border-2 border-[var(--gold-primary)]"
+                        >
                             <FolderOpen className="w-5 h-5" />
                             Go to Dashboard
-                        </a>
+                        </Link>
                     </div>
                 </main>
             </div>
@@ -237,6 +267,32 @@ ${data.hearing_bundle?.if_judge_asks?.map((qa: any, idx: number) =>
 
                             {/* Action Buttons */}
                             <div className="space-y-3">
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    className="hidden"
+                                    onChange={handleFileSelect}
+                                    accept=".pdf,.doc,.docx,.txt"
+                                />
+
+                                <button
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={isUploading}
+                                    className="w-full py-3 border-2 border-dashed border-[var(--border-primary)] hover:border-[var(--neon-cyan)] text-[var(--text-secondary)] hover:text-[var(--neon-cyan)] rounded-xl font-medium transition-all flex items-center justify-center gap-2 text-sm"
+                                >
+                                    {isUploading || uploadMutation.isPending ? (
+                                        <>
+                                            <Loader2 className="w-5 h-5 animate-spin" />
+                                            Uploading...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Upload className="w-5 h-5" />
+                                            Upload Document
+                                        </>
+                                    )}
+                                </button>
+
                                 <button
                                     onClick={() => evidenceMutation.mutate()}
                                     disabled={selectedDocs.length === 0 || evidenceMutation.isPending}

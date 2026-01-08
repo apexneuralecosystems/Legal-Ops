@@ -30,7 +30,7 @@ export default function MattersPage() {
     }
 
     return (
-        <div className="flex min-h-screen bg-[var(--bg-primary)]">
+        <div className="flex min-h-screen bg-white">
             <Sidebar />
 
             <main className="flex-1 p-8 relative">
@@ -39,11 +39,11 @@ export default function MattersPage() {
 
                 <div className="mb-10 animate-fade-in">
                     <div className="flex items-center gap-3 mb-3">
-                        <div className="icon-box w-12 h-12">
-                            <FolderOpen className="w-6 h-6" />
+                        <div className="w-12 h-12 rounded-lg bg-[var(--gold-primary)] flex items-center justify-center">
+                            <FolderOpen className="w-6 h-6 text-white" />
                         </div>
                         <div>
-                            <h1 className="text-4xl font-bold gradient-text">All Matters</h1>
+                            <h1 className="text-4xl font-bold text-black">All Matters</h1>
                             <p className="text-[var(--text-secondary)] mt-1">
                                 Comprehensive list of all legal matters in the system
                             </p>

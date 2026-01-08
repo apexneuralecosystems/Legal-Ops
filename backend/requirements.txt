@@ -86,3 +86,10 @@ apex-saas-framework>=0.3.24
 
 # OpenRouter Integration
 openai>=1.0.0
+
+# RAG & Embeddings
+chromadb>=0.5.0
+firecrawl-py>=0.0.15
+langchain-chroma>=0.1.0
+langchain-openai>=0.1.0
+tiktoken>=0.7.0

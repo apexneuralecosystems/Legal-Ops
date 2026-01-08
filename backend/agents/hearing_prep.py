@@ -77,13 +77,15 @@ class HearingPrepAgent(BaseAgent):
             faqs_task
         )
         
+        # Merge additional fields into the bundle object to flatten the structure
+        bundle["oral_script_ms"] = oral_script_ms
+        bundle["oral_script_en_notes"] = oral_script_en
+        bundle["if_judge_asks"] = faqs
+        bundle["total_faqs"] = len(faqs)
+
         return self.format_output(
             data={
-                "hearing_bundle": bundle,
-                "oral_script_ms": oral_script_ms,
-                "oral_script_en_notes": oral_script_en,
-                "if_judge_asks": faqs,
-                "total_faqs": len(faqs)
+                "hearing_bundle": bundle
             },
             confidence=0.85
         )
@@ -99,17 +101,24 @@ class HearingPrepAgent(BaseAgent):
         tabs = []
         
         # Tab 1: Pleadings
+        pleading_items = [
+            {
+                "description": p.get("pleading_type", "Pleading"),
+                "language": "Malay (with English translation)",
+                "pages": "TBD"
+            }
+            for p in pleadings
+        ] if pleadings else [
+            {
+                "description": "Statement of Claim (to be drafted)",
+                "language": "Malay",
+                "pages": "TBD"
+            }
+        ]
         tabs.append({
             "tab": "1",
             "section": "Pleadings",
-            "items": [
-                {
-                    "description": p.get("pleading_type", "Pleading"),
-                    "language": "Malay (with English translation)",
-                    "pages": "TBD"
-                }
-                for p in pleadings
-            ]
+            "items": pleading_items
         })
         
         # Tab 2: Submissions
@@ -127,8 +136,8 @@ class HearingPrepAgent(BaseAgent):
         
         # Tab 3: Authorities
         # Safe filtering with None checks
-        binding_cases = [c for c in cases if c.get("weight") == "binding" or c.get("binding") == True]
-        persuasive_cases = [c for c in cases if c.get("weight") == "persuasive" or (c.get("binding") == False and c not in binding_cases)]
+        binding_cases = [c for c in cases if c.get("weight") == "binding" or c.get("binding") == True] if cases else []
+        persuasive_cases = [c for c in cases if c.get("weight") == "persuasive" or (c.get("binding") == False and c not in binding_cases)] if cases else []
         
         authority_items = []
         for i, case in enumerate(binding_cases, 1):
@@ -144,6 +153,16 @@ class HearingPrepAgent(BaseAgent):
                 "summary": (case.get("headnote_en") or "")[:100],
                 "pages": "TBD"
             })
+        
+        # Add placeholder if no authorities
+        if not authority_items:
+            authority_items = [
+                {
+                    "description": "Relevant case authorities (to be researched)",
+                    "summary": "Use Research module to find supporting cases",
+                    "pages": "TBD"
+                }
+            ]
         
         tabs.append({
             "tab": "3",

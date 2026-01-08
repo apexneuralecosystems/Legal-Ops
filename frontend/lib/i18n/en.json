@@ -1,0 +1,88 @@
+{
+  "nav": {
+    "howItWorks": "How It Works",
+    "features": "Features",
+    "accessEvidence": "Get Started",
+    "getStarted": "Sign In"
+  },
+  "hero": {
+    "headline": "Malaysian Legal, Intelligence",
+    "subheading": "A sophisticated multi-agent AI system for legal document processing, bilingual drafting, and comprehensive research.",
+    "badge1": "Enterprise-Grade Security",
+    "badge2": "Legal AI Agent",
+    "ctaHowItWorks": "How It Works",
+    "ctaAccessEvidence": "Get Started"
+  },
+  "howItWorks": {
+    "title": "How It Works",
+    "subtitle": "AI-powered agents working together to transform your legal practice",
+    "steps": [
+      {
+        "number": "1",
+        "title": "Upload Documents",
+        "description": "Upload your case files and legal documents securely to the platform."
+      },
+      {
+        "number": "2",
+        "title": "AI Analysis",
+        "description": "Our Document Analyzer AI extracts key facts, parties, and case details automatically."
+      },
+      {
+        "number": "3",
+        "title": "Bilingual Drafting",
+        "description": "Generate formal pleadings in Malay with synchronized English companion drafts."
+      },
+      {
+        "number": "4",
+        "title": "Legal Research",
+        "description": "Deep search across Malaysian caselaw with AI-powered authority classification."
+      }
+    ]
+  },
+  "accessSection": {
+    "title": "Ready to Get Started?",
+    "subtitle": "Access your dashboard to manage cases and evidence securely",
+    "button": "Launch Dashboard",
+    "securityNote": "Your data is protected with enterprise-grade encryption"
+  },
+  "features": {
+    "title": "Designed for Legal Teams",
+    "subtitle": "LegalOps provides the tools you need for efficient case management",
+    "items": [
+      {
+        "title": "Secure Storage",
+        "description": "All documents encrypted at rest and in transit with bank-grade security."
+      },
+      {
+        "title": "Smart Search",
+        "description": "AI-powered search across all your evidence and case documents."
+      },
+      {
+        "title": "Audit Trail",
+        "description": "Complete logging of every action for compliance and accountability."
+      },
+      {
+        "title": "Team Access",
+        "description": "Controlled permissions for your entire legal team."
+      },
+      {
+        "title": "Bilingual Support",
+        "description": "Full support for English and Bahasa Melayu documentation."
+      },
+      {
+        "title": "Case Analytics",
+        "description": "Insights and analytics to track case progress and outcomes."
+      }
+    ]
+  },
+  "footer": {
+    "copyright": "© 2026 LegalOps. All rights reserved.",
+    "privacy": "Privacy",
+    "security": "Security",
+    "contact": "Contact"
+  },
+  "language": {
+    "english": "English",
+    "malay": "Bahasa Melayu"
+  }
+}
