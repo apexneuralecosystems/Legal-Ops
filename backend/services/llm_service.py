@@ -57,6 +57,7 @@ class LLMService:
             self._openrouter_client = OpenAI(
                 base_url="https://openrouter.ai/api/v1",
                 api_key=settings.OPENROUTER_API_KEY,
+                timeout=120.0,  # 120 second timeout to prevent indefinite hangs
             )
             logger.info(f"LLM Service initialized with OpenRouter ({settings.OPENROUTER_MODEL})")
         except ImportError:

@@ -29,6 +29,12 @@ class Settings(BaseSettings):
     OPENROUTER_API_KEY: str = ""
     OPENROUTER_MODEL: str = "google/gemini-2.0-flash-exp:free"
     
+    # OpenAI API (For embeddings in RAG service)
+    OPENAI_API_KEY: str = ""
+    
+    # Firecrawl API (For web scraping in RAG service - optional)
+    FIRECRAWL_API_KEY: str = ""
+    
     # LLM Provider Selection: "gemini" or "openrouter"
     LLM_PROVIDER: str = "gemini"
     
