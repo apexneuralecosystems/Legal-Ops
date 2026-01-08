@@ -1,0 +1,45 @@
+# ============================================
+# Frontend .dockerignore
+# ============================================
+
+# Dependencies
+node_modules/
+
+# Build output (we rebuild in Docker)
+.next/
+out/
+
+# Environment files
+.env
+.env.*
+!.env.production.example
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Testing
+coverage/
+.nyc_output/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Git
+.git/
+.gitignore
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Documentation
+*.md
+!README.md
+
+# Editor directories
+*.sublime-workspace
+*.sublime-project

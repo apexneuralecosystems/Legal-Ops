@@ -1,0 +1,67 @@
+# ============================================
+# Backend .dockerignore
+# ============================================
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.env
+.env.*
+!.env.example
+!.env.production.example
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Build artifacts
+*.egg-info/
+dist/
+build/
+
+# Logs
+logs/
+*.log
+
+# Local data
+uploads/
+*.db
+*.sqlite3
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+!README.md
+
+# Debug files
+debug_*.py
+reproduce_*.py
+test_*.py
+*_debug.py
+
+# Temporary files
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
