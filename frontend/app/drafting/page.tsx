@@ -151,6 +151,9 @@ function DraftingContent() {
     };
 
     const handleStreamEvent = (event: any) => {
+        // DEBUG: Log every event received
+        console.log("Drafting Stream Event:", event);
+
         if (event.type === 'status') {
             // Optional: Show global status toast
         }
@@ -182,13 +185,46 @@ function DraftingContent() {
             });
         }
         else if (event.type === 'result') {
+            console.log("FINAL RESULT DATA:", JSON.stringify(event.data, null, 2));
             setGeneratedPleading(event.data);
             setStreamStatus('completed');
             setWorkflowSteps(prev => prev.map(s => ({ ...s, status: 'completed' })));
         }
         else if (event.type === 'error') {
+            console.error("Workflow Error:", event.message);
             setStreamStatus('error');
         }
+    };
+
+    // Helper to extract pleading content with multiple fallback paths
+    const getPleadingContent = (data: any): string => {
+        if (!data) return '';
+
+        // Log for debugging
+        console.log("Extracting content from:", Object.keys(data || {}));
+
+        // Try all possible paths
+        const paths = [
+            data?.pleading_ms?.pleading_ms_text,
+            data?.pleading_en?.pleading_en_text,
+            data?.workflow_result?.pleading_ms?.pleading_ms_text,
+            data?.workflow_result?.pleading_en?.pleading_en_text,
+            // Direct text fields
+            data?.pleading_ms_text,
+            data?.pleading_en_text,
+            // If data itself is the text
+            typeof data === 'string' ? data : null,
+        ];
+
+        for (const path of paths) {
+            if (path && typeof path === 'string' && path.length > 0) {
+                console.log("Found content at path, length:", path.length);
+                return path;
+            }
+        }
+
+        console.warn("No pleading content found in data structure");
+        return '';
     };
 
     if (!matterId) {
@@ -377,12 +413,7 @@ function DraftingContent() {
                                 {generatedPleading ? (
                                     <div className="absolute inset-0 overflow-y-auto custom-scrollbar bg-white p-8">
                                         <StructuredDocument
-                                            content={
-                                                generatedPleading.pleading_ms?.pleading_ms_text ||
-                                                generatedPleading.pleading_en?.pleading_en_text ||
-                                                generatedPleading?.workflow_result?.pleading_ms?.pleading_ms_text ||
-                                                generatedPleading?.workflow_result?.pleading_en?.pleading_en_text
-                                            }
+                                            content={getPleadingContent(generatedPleading)}
                                         />
                                     </div>
                                 ) : (
