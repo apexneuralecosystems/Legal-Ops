@@ -217,10 +217,21 @@ function DraftingContent() {
 
     // Helper to extract pleading content with multiple fallback paths
     const getPleadingContent = (data: any): string => {
-        if (!data) return '';
+        if (!data) {
+            console.error("getPleadingContent: data is null/undefined");
+            return '';
+        }
 
-        // Log for debugging
-        console.log("Extracting content from:", Object.keys(data || {}));
+        // Extensive debug logging
+        console.log("=== PLEADING EXTRACTION DEBUG ===");
+        console.log("Top-level keys:", Object.keys(data));
+        console.log("pleading_ms exists?", !!data.pleading_ms);
+        console.log("pleading_ms type:", typeof data.pleading_ms);
+        if (data.pleading_ms) {
+            console.log("pleading_ms keys:", Object.keys(data.pleading_ms));
+            console.log("pleading_ms_text exists?", !!data.pleading_ms.pleading_ms_text);
+            console.log("pleading_ms_text length:", data.pleading_ms.pleading_ms_text?.length || 0);
+        }
 
         // Try all possible paths
         const paths = [
@@ -235,15 +246,17 @@ function DraftingContent() {
             typeof data === 'string' ? data : null,
         ];
 
-        for (const path of paths) {
+        for (let i = 0; i < paths.length; i++) {
+            const path = paths[i];
             if (path && typeof path === 'string' && path.length > 0) {
-                console.log("Found content at path, length:", path.length);
+                console.log(`✅ Found content at path index ${i}, length: ${path.length}`);
                 return path;
             }
         }
 
-        console.warn("No pleading content found in data structure");
-        return '';
+        // EMERGENCY FALLBACK: Show raw data keys if nothing found
+        console.error("❌ No pleading content found! Raw data:", JSON.stringify(data, null, 2).substring(0, 500));
+        return `[DEBUG] No pleading text extracted. Keys available: ${Object.keys(data).join(', ')}. Check browser console.`;
     };
 
     if (!matterId) {
