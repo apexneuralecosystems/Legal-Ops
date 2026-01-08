@@ -1,7 +1,7 @@
 # ============================================
 # Legal-Ops Frontend Dockerfile
 # ============================================
-# Multi-stage build for Next.js application
+# Multi-stage build for Next.js with Nginx
 
 # Stage 1: Dependencies
 FROM node:20-alpine AS deps
@@ -13,7 +13,7 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 
 # Install dependencies
-RUN npm ci --only=production=false
+RUN npm ci
 
 # Stage 2: Builder
 FROM node:20-alpine AS builder
@@ -25,53 +25,42 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Set build-time environment variables
-ARG NEXT_PUBLIC_API_URL
-ARG NEXT_PUBLIC_APP_URL
+ARG NEXT_PUBLIC_API_URL=https://legalops-api.apexneural.cloud
+ARG NEXT_PUBLIC_APP_URL=https://legalops.apexneural.cloud
 
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
+ENV NEXT_TELEMETRY_DISABLED=1
 
 # Build the application
-ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
-# Stage 3: Production runner
-FROM node:20-alpine AS runner
+# Stage 3: Production with Nginx
+FROM nginx:alpine AS runner
+
+# Install Node.js for Next.js server
+RUN apk add --no-cache nodejs npm
 
 WORKDIR /app
 
-# Set production environment
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
+# Copy nginx configuration
+COPY nginx.conf /etc/nginx/nginx.conf
 
-# Create non-root user for security
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
-
-# Copy necessary files from builder
+# Copy built application from builder
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 
-# Set correct permissions for prerender cache
-RUN mkdir .next
-RUN chown nextjs:nodejs .next
+# Copy entrypoint script
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
-# Copy built application
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-# Switch to non-root user
-USER nextjs
-
-# Expose port
-EXPOSE 8006
-
-# Set environment variables
-ENV PORT=8006
-ENV HOSTNAME="0.0.0.0"
+# Expose port 3001
+EXPOSE 3001
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8006/ || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3001/ || exit 1
 
-# Start the application
-CMD ["node", "server.js"]
+# Start with entrypoint script
+ENTRYPOINT ["/docker-entrypoint.sh"]
