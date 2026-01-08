@@ -120,28 +120,47 @@ function DraftingContent() {
 
             if (!response.ok) throw new Error('Failed to start workflow');
 
-            // Read stream
+            // Read stream with proper SSE buffering
             const reader = response.body?.getReader();
             const decoder = new TextDecoder();
 
             if (!reader) return;
 
+            let buffer = ''; // Buffer for incomplete data
+
             while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
 
-                const chunk = decoder.decode(value);
-                const lines = chunk.split('\n\n');
+                // Append new data to buffer
+                buffer += decoder.decode(value, { stream: true });
 
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) {
+                // Process complete SSE messages (ending with \n\n)
+                const messages = buffer.split('\n\n');
+
+                // Keep the last incomplete message in buffer
+                buffer = messages.pop() || '';
+
+                for (const message of messages) {
+                    if (message.startsWith('data: ')) {
                         try {
-                            const data = JSON.parse(line.slice(6));
+                            const jsonStr = message.slice(6);
+                            const data = JSON.parse(jsonStr);
                             handleStreamEvent(data);
                         } catch (e) {
-                            console.error('Error parsing SSE:', e);
+                            console.error('Error parsing SSE:', e, 'Raw:', message.slice(0, 200));
                         }
                     }
+                }
+            }
+
+            // Process any remaining buffered data
+            if (buffer.startsWith('data: ')) {
+                try {
+                    const data = JSON.parse(buffer.slice(6));
+                    handleStreamEvent(data);
+                } catch (e) {
+                    console.error('Error parsing final SSE:', e);
                 }
             }
         } catch (error) {

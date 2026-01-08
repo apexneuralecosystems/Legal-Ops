@@ -126,18 +126,23 @@ export default function ParalegalChat() {
             const reader = response.body.getReader()
             const decoder = new TextDecoder()
             let aiContent = ""
+            let buffer = "" // Buffer for incomplete SSE data
 
             while (true) {
                 const { done, value } = await reader.read()
                 if (done) break
 
-                const chunk = decoder.decode(value)
-                const lines = chunk.split('\n\n')
+                // Append to buffer with streaming decode
+                buffer += decoder.decode(value, { stream: true })
 
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) {
+                // Process complete messages
+                const messages = buffer.split('\n\n')
+                buffer = messages.pop() || '' // Keep incomplete data in buffer
+
+                for (const message of messages) {
+                    if (message.startsWith('data: ')) {
                         try {
-                            const data = JSON.parse(line.slice(6))
+                            const data = JSON.parse(message.slice(6))
 
                             if (data.type === 'token') {
                                 aiContent += data.content
