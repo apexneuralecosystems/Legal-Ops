@@ -218,7 +218,17 @@ If you cannot read the document, explain why."""
                         "X-Title": "Legal-Ops PDF Extractor"
                     }
                 )
-                return response.choices[0].message.content
+                if not response.choices or len(response.choices) == 0:
+                    logger.warning(f"OpenRouter returned no choices for PDF: {os.path.basename(file_path)}")
+                    return "[Error: LLM returned empty response]"
+
+                # Safe access
+                choice = response.choices[0]
+                if not choice.message or not choice.message.content:
+                     logger.warning(f"OpenRouter returned empty content for PDF: {os.path.basename(file_path)}")
+                     return "[Error: LLM returned no content]"
+
+                return choice.message.content
             
             # Fallback to Gemini if OpenRouter not available
             elif self._gemini_model:

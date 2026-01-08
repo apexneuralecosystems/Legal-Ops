@@ -23,12 +23,11 @@ def get_current_user_sync(
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         user_id = payload.get("sub")
         return {"user_id": user_id, "email": payload.get("email")}
-    except Exception:
-         # For tasks API, failed auth should likely 401
-         pass # Let the main router handle it or raise here
-    
-    # Simple strict implementation
-    return {"user_id": payload.get("sub")} 
+    except Exception as e:
+        logger.error(f"Auth error in ai_tasks: {e}")
+        # Return empty/safe default or raise Proper HTTP 401
+        from fastapi import HTTPException
+        raise HTTPException(status_code=401, detail="Invalid authentication credentials") 
 
 # Better to reuse from another module or redefine properly
 
