@@ -19,6 +19,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
+    gcc \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install Python dependencies
@@ -43,12 +44,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # OCR dependencies
     tesseract-ocr \
     tesseract-ocr-eng \
-    tesseract-ocr-msa \
     # PDF processing
     poppler-utils \
     libmagic1 \
     # Runtime utilities
     curl \
+    wget \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
@@ -64,19 +65,22 @@ RUN mkdir -p /app/uploads /app/logs
 # Set permissions
 RUN chmod -R 755 /app
 
-# Expose port (configurable via environment)
+# Expose port
 EXPOSE 8091
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:${BACKEND_PORT:-8091}/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:8091/health || exit 1
 
 # Run with gunicorn for production
+# Workers = 2 * CPU cores + 1 (default 2 for small servers)
 CMD ["gunicorn", "main:app", \
-    "--workers", "4", \
+    "--workers", "2", \
     "--worker-class", "uvicorn.workers.UvicornWorker", \
     "--bind", "0.0.0.0:8091", \
-    "--timeout", "120", \
+    "--timeout", "300", \
     "--keep-alive", "5", \
     "--access-logfile", "-", \
-    "--error-logfile", "-"]
+    "--error-logfile", "-", \
+    "--capture-output", \
+    "--enable-stdio-inheritance"]
