@@ -12,7 +12,7 @@ export default function ParalegalPage() {
                     <div className="p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-light)]">
                         <Sparkles className="w-5 h-5 text-[var(--gold-primary)]" />
                     </div>
-                    <h1 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">AI Paralegal Consultant</h1>
+                    <h1 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">Doc Chat</h1>
                 </div>
                 <p className="text-[var(--text-secondary)] text-sm">
                     Your dedicated AI assistant for rapid legal research, document summarization, and drafting support.

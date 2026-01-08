@@ -397,9 +397,19 @@ export default function MatterDetailPage() {
                                     <button
                                         onClick={analyzeCaseStrength}
                                         disabled={analyzingStrength}
-                                        className="w-full py-2 border border-[var(--neon-purple)]/30 text-[var(--neon-purple)] rounded-xl text-sm font-medium hover:bg-[var(--neon-purple)]/5 transition-colors"
+                                        className="w-full py-2.5 bg-[#D4A853] text-white rounded-xl text-sm font-bold hover:bg-[#B08D3C] hover:shadow-[0_0_15px_rgba(212,168,83,0.4)] active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2"
                                     >
-                                        Re-analyze
+                                        {analyzingStrength ? (
+                                            <>
+                                                <Loader2 className="w-5 h-5 animate-spin" />
+                                                Analyzing...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Target className="w-5 h-5" />
+                                                Analyze Case
+                                            </>
+                                        )}
                                     </button>
                                 </div>
                             )}

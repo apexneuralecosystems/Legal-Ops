@@ -29,7 +29,7 @@ const navigation = [
             { name: 'Pleadings', href: '/drafting', icon: FileText },
             { name: 'Research', href: '/research', icon: Search },
             { name: 'Hearings', href: '/evidence', icon: Calendar },
-            { name: 'Paralegal', href: '/paralegal', icon: Sparkles }
+            { name: 'Doc Chat', href: '/paralegal', icon: Sparkles }
         ]
     },
     {

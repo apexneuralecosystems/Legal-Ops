@@ -40,7 +40,7 @@ export default function TermsOfUse() {
                         <li><strong>Bilingual Drafting:</strong> Generation of legal pleadings and correspondence in English and Malay languages.</li>
                         <li><strong>Legal Research:</strong> AI-powered search and analysis of Malaysian case law and statutes.</li>
                         <li><strong>Evidence Analysis:</strong> Processing of potential evidence including document summaries and transcription analysis.</li>
-                        <li><strong>AI Paralegal:</strong> Interactive conversational agent for quick legal queries and task execution.</li>
+                        <li><strong>Doc Chat:</strong> Interactive conversational agent for quick legal queries and task execution.</li>
                     </ul>
                     <p>
                         The Platform may contain experimental AI features, and may generate content that is inaccurate, biased, incomplete, or unreliable. The form, features, algorithms, and functionality of the Services may change or be discontinued at any time without prior notice.

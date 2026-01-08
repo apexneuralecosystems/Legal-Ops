@@ -17,7 +17,7 @@ export default function ParalegalChat() {
         {
             id: 'welcome',
             role: 'assistant',
-            content: "Hello. I am your AI Paralegal. I can assist you with quick research, document summaries, or drafting tasks. How can I help you today?",
+            content: "Hello. I am your AI Doc Chat Assistant. I can assist you with quick research, document summaries, or drafting tasks. How can I help you today?",
             timestamp: new Date()
         }
     ])
@@ -264,7 +264,7 @@ export default function ParalegalChat() {
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={handleKeyDown}
-                        placeholder="Ask your paralegal anything..."
+                        placeholder="Ask Doc Chat anything..."
                         className="flex-1 bg-transparent border-none focus:ring-0 text-[var(--text-primary)] placeholder-[var(--text-tertiary)] resize-none max-h-32 min-h-[44px] py-2.5 text-sm"
                         rows={1}
                         disabled={isStreaming}
@@ -288,7 +288,7 @@ export default function ParalegalChat() {
                 <div className="px-2 pt-2 flex items-center justify-between text-[10px] text-[var(--text-tertiary)]">
                     <div className="flex items-center gap-1.5">
                         <Sparkles size={12} className="text-[var(--gold-primary)]" />
-                        <span>AI Paralegal v1.0 • Connected</span>
+                        <span>Doc Chat v1.0 • Connected</span>
                     </div>
                     <div>Press Enter to send, Shift + Enter for new line</div>
                 </div>
