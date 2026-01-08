@@ -303,6 +303,7 @@ class OrchestrationController:
             # Stream events from the graph
             final_state = None
             last_error = None
+            last_node_output = None
             
             # REAL WORKFLOW EXECUTION
             logger.info(f"Starting drafting workflow stream for matter")
@@ -327,20 +328,49 @@ class OrchestrationController:
                     if isinstance(data, dict) and "output" in data:
                         output = data["output"]
                         if isinstance(output, dict):
-                            final_state = output
+                            # Keep updating - the last one should be the complete state
+                            last_node_output = output
                             logger.debug(f"Captured state from {name}: keys={list(output.keys())[:5]}")
+                            
+                            # If this output has pleading_ms, it's our target
+                            if "pleading_ms" in output and output.get("pleading_ms"):
+                                final_state = output
+                                logger.info(f"Found pleading_ms in output from {name}")
                 
                 # Track errors
                 if kind == "on_chain_error":
                     last_error = event.get("data", {}).get("error", "Unknown error")
                     logger.error(f"Workflow error in {name}: {last_error}")
             
+            # Use the best available state
+            if not final_state and last_node_output:
+                final_state = last_node_output
+                logger.info(f"Using last node output as final state")
+            
+            # FALLBACK: If streaming didn't capture state properly, run sync
+            if not final_state or "pleading_ms" not in final_state:
+                logger.warning("Streaming did not capture pleading_ms. Running ainvoke as fallback.")
+                try:
+                    final_state = await self.drafting_workflow.ainvoke(initial_state)
+                    logger.info(f"Fallback ainvoke completed. pleading_ms present: {'pleading_ms' in final_state}")
+                except Exception as invoke_err:
+                    logger.error(f"Fallback ainvoke failed: {invoke_err}")
+            
             # Yield final result
             if final_state:
                 # Add workflow status
                 final_state["workflow_status"] = "completed"
                 
-                logger.info(f"Drafting workflow completed. pleading_ms present: {'pleading_ms' in final_state}")
+                # Debug logging for the actual content
+                if "pleading_ms" in final_state:
+                    pm = final_state["pleading_ms"]
+                    if isinstance(pm, dict):
+                        content_length = len(pm.get("pleading_ms_text", "")) if pm.get("pleading_ms_text") else 0
+                        logger.info(f"Drafting completed. pleading_ms_text length: {content_length}")
+                    else:
+                        logger.warning(f"pleading_ms is not a dict: {type(pm)}")
+                else:
+                    logger.warning(f"No pleading_ms in final_state. Keys: {list(final_state.keys())}")
                 
                 # Sanitize for JSON (remove binary etc if needed)
                 yield json.dumps({
