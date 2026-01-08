@@ -410,11 +410,20 @@ class OrchestrationController:
         try:
             result = await self.research_workflow.ainvoke(initial_state)
             result["workflow_status"] = "completed"
+            
+            # Ensure expected keys exist to prevent empty frontend display
+            result.setdefault("cases", [])
+            result.setdefault("argument_memo", {})
+            
+            logger.info(f"Research workflow completed. Cases found: {len(result.get('cases', []))}")
             return result
         except Exception as e:
+            logger.error(f"Research workflow failed: {e}")
             return {
                 "workflow_status": "failed",
-                "error": str(e)
+                "error": str(e),
+                "cases": [],
+                "argument_memo": {}
             }
 
     async def build_argument_only(
@@ -493,13 +502,22 @@ class OrchestrationController:
             logger.info(f"Starting evidence workflow for matter {matter_id} with {len(initial_state['documents'])} documents")
             result = await self.evidence_workflow.ainvoke(initial_state)
             result["workflow_status"] = "completed"
-            logger.info(f"Evidence workflow completed successfully")
+            
+            # Ensure expected keys exist to prevent empty frontend display
+            result.setdefault("evidence_packet", {})
+            result.setdefault("hearing_bundle", {})
+            result.setdefault("translation_cert", {})
+            
+            logger.info(f"Evidence workflow completed. Packet docs: {len(result.get('evidence_packet', {}).get('documents', []))}")
             return result
         except Exception as e:
             logger.error(f"Evidence workflow failed: {e}", exc_info=True)
             return {
                 "workflow_status": "failed",
-                "error": str(e)
+                "error": str(e),
+                "evidence_packet": {},
+                "hearing_bundle": {},
+                "translation_cert": {}
             }
     
     # Node implementations
@@ -651,7 +669,12 @@ class OrchestrationController:
             "prayers_selected": state.get("prayers_selected", [])
         })
         
-        state["pleading_ms"] = result["data"]
+        # Safe assignment with null check
+        if result and isinstance(result, dict) and "data" in result:
+            state["pleading_ms"] = result["data"]
+        else:
+            logger.error(f"Malay drafting agent returned invalid result: {type(result)}")
+            state["pleading_ms"] = {"pleading_ms_text": "", "error": "Agent failed", "confidence": 0}
         return state
     
     async def _draft_english_node(self, state: WorkflowState) -> WorkflowState:
