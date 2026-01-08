@@ -302,11 +302,15 @@ class OrchestrationController:
             
             # Stream events from the graph
             final_state = None
+            last_error = None
             
             # REAL WORKFLOW EXECUTION
+            logger.info(f"Starting drafting workflow stream for matter")
             async for event in self.drafting_workflow.astream_events(initial_state, version="v1"):
                 kind = event.get("event")
                 name = event.get("name", "")
+                
+                logger.debug(f"LangGraph event: kind={kind}, name={name}")
                 
                 # Map workflow nodes to status messages
                 if kind == "on_chain_start" and name in ["plan_issues", "select_template", "draft_malay", "draft_english", "qa_check"]:
@@ -315,16 +319,28 @@ class OrchestrationController:
                         "step": name,
                         "message": f"Running {name.replace('_', ' ').title()}..."
                     })
-                    
+                
+                # Capture output from chain end events
                 if kind == "on_chain_end":
-                    # Capture final state from last node
-                    if hasattr(event.get("data", {}), "output"):
-                        final_state = event["data"]["output"]
+                    data = event.get("data", {})
+                    # LangGraph returns output in data["output"] as a dict
+                    if isinstance(data, dict) and "output" in data:
+                        output = data["output"]
+                        if isinstance(output, dict):
+                            final_state = output
+                            logger.debug(f"Captured state from {name}: keys={list(output.keys())[:5]}")
+                
+                # Track errors
+                if kind == "on_chain_error":
+                    last_error = event.get("data", {}).get("error", "Unknown error")
+                    logger.error(f"Workflow error in {name}: {last_error}")
             
             # Yield final result
             if final_state:
                 # Add workflow status
                 final_state["workflow_status"] = "completed"
+                
+                logger.info(f"Drafting workflow completed. pleading_ms present: {'pleading_ms' in final_state}")
                 
                 # Sanitize for JSON (remove binary etc if needed)
                 yield json.dumps({
@@ -332,14 +348,17 @@ class OrchestrationController:
                     "data": final_state
                 })
             else:
-                 yield json.dumps({
+                error_msg = last_error or "Workflow completed but returned no state"
+                logger.error(f"Drafting workflow failed: {error_msg}")
+                yield json.dumps({
                     "type": "error",
-                    "message": "Workflow completed but returned no state"
+                    "message": error_msg
                 })
                 
         except Exception as e:
             import traceback
             logger.error(f"Streaming error: {e}")
+            traceback.print_exc()
             yield json.dumps({
                 "type": "error",
                 "message": str(e)

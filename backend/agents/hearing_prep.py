@@ -62,6 +62,10 @@ class HearingPrepAgent(BaseAgent):
         if issues is None:
             issues = []
         
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"HearingPrepAgent: Starting with {len(pleadings)} pleadings, {len(cases)} cases, {len(issues)} issues")
+        
         # Create hearing bundle
         bundle = self._create_hearing_bundle(matter, pleadings, cases)
         
@@ -72,10 +76,17 @@ class HearingPrepAgent(BaseAgent):
         faqs_task = self._create_judge_faqs(matter, issues, cases)
         
         # Wait for both tasks to complete
-        (oral_script_ms, oral_script_en), faqs = await asyncio.gather(
-            oral_script_task,
-            faqs_task
-        )
+        try:
+            (oral_script_ms, oral_script_en), faqs = await asyncio.gather(
+                oral_script_task,
+                faqs_task
+            )
+            logger.info(f"HearingPrepAgent: oral_script_ms length={len(oral_script_ms) if oral_script_ms else 0}, faqs count={len(faqs) if faqs else 0}")
+        except Exception as e:
+            logger.error(f"HearingPrepAgent: Error in LLM generation: {e}")
+            oral_script_ms = ""
+            oral_script_en = ""
+            faqs = []
         
         # Merge additional fields into the bundle object to flatten the structure
         bundle["oral_script_ms"] = oral_script_ms

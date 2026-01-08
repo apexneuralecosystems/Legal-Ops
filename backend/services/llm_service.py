@@ -131,7 +131,12 @@ class LLMService:
     
     def _generate_openrouter(self, prompt: str, max_tokens: int = 4096) -> str:
         """Generate using OpenRouter API."""
+        import time
+        start_time = time.time()
+        
         try:
+            logger.info(f"OpenRouter: Starting generation with model {settings.OPENROUTER_MODEL}, prompt_len={len(prompt)}")
+            
             response = self._openrouter_client.chat.completions.create(
                 model=settings.OPENROUTER_MODEL,
                 messages=[
@@ -143,9 +148,15 @@ class LLMService:
                     "X-Title": "Legal-Ops AI"
                 }
             )
-            return response.choices[0].message.content
+            
+            elapsed = time.time() - start_time
+            result = response.choices[0].message.content
+            logger.info(f"OpenRouter: Generation completed in {elapsed:.2f}s, response_len={len(result) if result else 0}")
+            
+            return result
         except Exception as e:
-            logger.error(f"OpenRouter generation error: {e}")
+            elapsed = time.time() - start_time
+            logger.error(f"OpenRouter generation error after {elapsed:.2f}s: {e}")
             raise
 
     async def extract_pdf_content(self, file_path: str) -> str:

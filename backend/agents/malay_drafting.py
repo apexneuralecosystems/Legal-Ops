@@ -62,9 +62,15 @@ class MalayDraftingAgent(BaseAgent):
             prompt = self._create_drafting_prompt(matter, template_id, issues, prayers, language="ms")
         
         # Call LLM directly - with error handling
+        import logging
+        logger = logging.getLogger(__name__)
+        
         try:
+            logger.info(f"MalayDraftingAgent: Starting LLM generation for {template_id}")
             pleading_text = await self.llm.generate(prompt)
+            logger.info(f"MalayDraftingAgent: LLM response length={len(pleading_text) if pleading_text else 0}")
         except Exception as e:
+            logger.error(f"MalayDraftingAgent: Error in LLM generation: {e}")
             print(f"Error in Malay drafting LLM generation: {e}")
             # Return partial error result instead of 500
             return {
