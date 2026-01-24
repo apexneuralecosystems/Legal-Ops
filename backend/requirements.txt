@@ -73,6 +73,7 @@ flake8>=7.0.0
 mypy>=1.8.0
 
 # Web Scraping
+playwright>=1.40.0
 beautifulsoup4>=4.12.3
 lxml>=5.1.0
 

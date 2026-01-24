@@ -20,6 +20,7 @@ controller = OrchestrationController()
 class SearchRequest(BaseModel):
     query: str
     filters: dict = {}
+    force_refresh: bool = False  # Skip cache and fetch fresh data
 
 
 class ArgumentRequest(BaseModel):
@@ -34,13 +35,19 @@ async def search_cases(request: SearchRequest, db: AsyncSession = Depends(get_db
     """
     Search for legal cases based on query and filters.
     
+    Performance Optimizations:
+    - Results are cached in Redis for 24 hours
+    - Use force_refresh=true to skip cache and get fresh data
+    - Browser connections are pooled for faster execution
+    
     Workflow: Research Agent searches case law database
     
     Args:
-        request: Search query and optional filters (jurisdiction, date range, etc.)
+        request: Search query, optional filters, and force_refresh flag
         
     Returns:
         List of relevant cases with citations and summaries
+        Includes `cached` field indicating if result was from cache
     """
     
     try:
@@ -49,29 +56,35 @@ async def search_cases(request: SearchRequest, db: AsyncSession = Depends(get_db
         from agents import ResearchAgent
         
         logger = logging.getLogger(__name__)
-        logger.info(f"Research search request: query='{request.query}'")
+        cache_status = "force_refresh" if request.force_refresh else "normal"
+        logger.info(f"Research search request: query='{request.query}' mode={cache_status}")
         
         research_agent = ResearchAgent()
         
         result = await research_agent.process({
             "query": request.query,
             "filters": request.filters or {},
+            "force_refresh": request.force_refresh,
             "limit": 20
         })
         
         # Extract data from research agent response
         data = result.get("data", {})
         cases = data.get("cases", [])
+        cached = result.get("cached", False)
         
-        logger.info(f"Research search completed: {len(cases)} cases found")
+        cache_msg = "from cache ⚡" if cached else "live search"
+        logger.info(f"Research search completed: {len(cases)} cases found ({cache_msg})")
         
         return {
             "status": "success",
             "cases": cases,
             "query": request.query,
             "total_results": len(cases),
-            "data_source": data.get("data_source", "commonlii"),
-            "live_data": data.get("live_data", False)
+            "data_source": data.get("data_source", "lexis_advance"),
+            "live_data": data.get("live_data", False),
+            "cached": cached,
+            "search_duration_seconds": data.get("search_duration_seconds", 0)
         }
             
     except Exception as e:

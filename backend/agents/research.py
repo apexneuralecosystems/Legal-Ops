@@ -1,104 +1,222 @@
 """
 Research Agent - Find Malaysian caselaw and English authorities.
-Now with real-time CommonLII web scraping!
+Now with Lexis Advance integration ("Robot Browser") and Redis caching.
+
+Performance Optimizations:
+- Browser connection pooling (saves 5-10s per search)
+- Redis caching (instant results for repeated queries)
+- Force refresh option for fresh data
 """
 from agents.base_agent import BaseAgent
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from datetime import datetime
 from pathlib import Path
-from services.commonlii_scraper import get_commonlii_scraper
+from services.lexis_scraper import LexisScraper
+from config import settings
 import logging
 import os
+import json
+import hashlib
+import redis.asyncio as redis
 
 logger = logging.getLogger(__name__)
 
 
 class ResearchAgent(BaseAgent):
     """
-    Find Malaysian caselaw and English authorities, produce bilingual summaries.
+    Find Malaysian caselaw using Lexis Advance.
     
-    Now features real-time web scraping from CommonLII Malaysia!
+    Features:
+    - Real-time "Robot Browser" search with connection pooling
+    - Redis caching for instant repeated searches
+    - Strict Real Data (No Mock)
+    - Jurisdiction Filtering
+    - Force refresh option
     
     Inputs:
-    - query: search query (natural language or keywords)
-    - filters: {court, year, jurisdiction, binding}
-    - limit: max results (default 10)
+    - query: search query (natural language)
+    - filters: {jurisdiction, year, court}
+    - force_refresh: bool (skip cache, fetch fresh data)
     
     Outputs:
-    - cases: array of {citation, court, headnote_en, headnote_ms, key_quotes, weight}
+    - cases: array of {citation, court, summary, link}
+    - cached: bool (whether result came from cache)
     """
+    
+    # Cache configuration
+    CACHE_TTL = 86400  # 24 hours in seconds
+    CACHE_PREFIX = "lexis_search:"
     
     def __init__(self):
         super().__init__(agent_id="Research")
         
-        # Configuration: Use CommonLII by default, fallback to mock on errors
-        self.use_commonlii = os.getenv("USE_COMMONLII", "false").lower() == "true"
+        # Initialize the Robot (with pooling enabled)
+        self.lexis_scraper = LexisScraper(use_pool=True)
         
-        # Initialize data source
-        self.commonlii_scraper = get_commonlii_scraper()
+        # Initialize Redis connection
+        self._redis: Optional[redis.Redis] = None
         
-        logger.info(f"Research Agent initialized (USE_COMMONLII={self.use_commonlii})")
+        logger.info(f"Research Agent initialized (Source: Lexis Advance, Caching: Redis)")
 
+    async def _get_redis(self) -> redis.Redis:
+        """Get or create Redis connection."""
+        if self._redis is None:
+            try:
+                self._redis = redis.from_url(
+                    settings.REDIS_URL,
+                    encoding="utf-8",
+                    decode_responses=True
+                )
+                # Test connection
+                await self._redis.ping()
+                logger.info("✅ Redis connected for caching")
+            except Exception as e:
+                logger.warning(f"Redis connection failed: {e}. Caching disabled.")
+                self._redis = None
+        return self._redis
     
+    def _generate_cache_key(self, query: str, filters: Dict) -> str:
+        """Generate a unique cache key for the query + filters."""
+        # Normalize query and filters for consistent hashing
+        normalized = {
+            "query": query.lower().strip(),
+            "filters": json.dumps(filters, sort_keys=True) if filters else "{}"
+        }
+        key_data = json.dumps(normalized, sort_keys=True)
+        key_hash = hashlib.sha256(key_data.encode()).hexdigest()[:16]
+        return f"{self.CACHE_PREFIX}{key_hash}"
+    
+    async def _get_cached_result(self, cache_key: str) -> Optional[Dict]:
+        """Try to get cached result from Redis."""
+        try:
+            redis_client = await self._get_redis()
+            if redis_client:
+                cached = await redis_client.get(cache_key)
+                if cached:
+                    return json.loads(cached)
+        except Exception as e:
+            logger.warning(f"Cache read error: {e}")
+        return None
+    
+    async def _set_cached_result(self, cache_key: str, result: Dict):
+        """Store result in Redis cache."""
+        try:
+            redis_client = await self._get_redis()
+            if redis_client:
+                await redis_client.setex(
+                    cache_key,
+                    self.CACHE_TTL,
+                    json.dumps(result)
+                )
+                logger.info(f"💾 Result cached (TTL: {self.CACHE_TTL}s)")
+        except Exception as e:
+            logger.warning(f"Cache write error: {e}")
+
     async def process(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Process research request using CommonLII.
+        Process research request using Lexis Advance.
         
-        Args:
-            inputs: {
-                "query": str,
-                "filters": Dict (optional),
-                "limit": int (default 10)
-            }
-            
-        Returns:
-            {
-                "cases": List[Dict],
-                "total_results": int,
-                "data_source": "commonlii"
-            }
+        Uses Redis cache for performance. Pass force_refresh=True to skip cache.
         """
         await self.validate_input(inputs, ["query"])
         
         query = inputs["query"]
         filters = inputs.get("filters", {})
-        if filters is None:
+        if filters is None: 
             filters = {}
-        limit = inputs.get("limit", 10)
+        force_refresh = inputs.get("force_refresh", False)
+        
+        # Jurisdiction defaults to Malaysia
+        jurisdiction = filters.get("jurisdiction", "Malaysia")
+        
+        # Generate cache key
+        cache_key = self._generate_cache_key(query, filters)
+        
+        # Check cache first (unless force refresh)
+        if not force_refresh:
+            cached_result = await self._get_cached_result(cache_key)
+            if cached_result:
+                logger.info(f"⚡ Cache HIT for: '{query[:50]}...'")
+                # Add cache indicator
+                cached_result["cached"] = True
+                cached_result["cache_key"] = cache_key
+                return cached_result
+        else:
+            logger.info(f"🔄 Force refresh requested - skipping cache")
+        
+        logger.info(f"📡 Cache MISS - executing live search for: '{query}'")
         
         results = []
-        data_source = "commonlii"
+        data_source = "lexis_advance"
+        search_start = datetime.now()
         
         try:
-            logger.info(f"Searching CommonLII for: '{query}'")
-            # Ensure we pass a valid dict for filters
-            search_filters = dict(filters) if filters else {}
-            search_filters["limit"] = limit
+            logger.info(f"🤖 Research Robot activating for: '{query}' ({jurisdiction})")
             
-            results = await self.commonlii_scraper.search(
+            # Execute Robot Search with ALL filters
+            results = await self.lexis_scraper.search(
                 query=query,
-                filters=search_filters
+                country=jurisdiction,
+                filters=filters  # Pass all filters
             )
-            logger.info(f"[OK] Retrieved {len(results)} cases from CommonLII")
+            
+            search_duration = (datetime.now() - search_start).total_seconds()
+            logger.info(f"[OK] Retrieved {len(results)} cases from Lexis in {search_duration:.1f}s")
             
         except Exception as e:
-            logger.error(f"CommonLII search failed: {e}", exc_info=True)
-            # No fallback to mock data as per user request
-            results = []
-            data_source = "error"
+            logger.error(f"Lexis Robot failed: {e}", exc_info=True)
+            # STRICT REAL DATA POLICY: Return Error, NO MOCK
+            return {
+                "error": f"Research failed: {str(e)}",
+                "status": "error",
+                "data_source": "lexis_advance",
+                "cases": [],
+                "cached": False
+            }
         
-        return self.format_output(
+        # Format output
+        output = self.format_output(
             data={
                 "cases": results,
                 "total_results": len(results),
                 "query": query,
                 "filters_applied": filters,
                 "data_source": data_source,
-                "live_data": True
+                "live_data": True,
+                "search_duration_seconds": (datetime.now() - search_start).total_seconds()
             },
-            confidence=0.85 if results else 0.0
+            confidence=0.95 if results else 0.0
         )
-
-
+        
+        # Add cache metadata
+        output["cached"] = False
+        output["cache_key"] = cache_key
+        
+        # Store in cache for future requests
+        await self._set_cached_result(cache_key, output)
+        
+        return output
     
-
+    async def invalidate_cache(self, query: str = None, filters: Dict = None):
+        """
+        Invalidate cached results.
+        
+        If query/filters provided, invalidate specific cache.
+        If not provided, invalidate all research cache.
+        """
+        try:
+            redis_client = await self._get_redis()
+            if not redis_client:
+                return
+            
+            if query:
+                cache_key = self._generate_cache_key(query, filters or {})
+                await redis_client.delete(cache_key)
+                logger.info(f"🗑️ Invalidated cache for: {query[:50]}...")
+            else:
+                # Delete all research cache keys
+                async for key in redis_client.scan_iter(f"{self.CACHE_PREFIX}*"):
+                    await redis_client.delete(key)
+                logger.info("🗑️ Invalidated all research cache")
+        except Exception as e:
+            logger.warning(f"Cache invalidation error: {e}")

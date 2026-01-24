@@ -116,10 +116,10 @@ class CaseStructuringAgent(BaseAgent):
         return f"""You are a Malaysian legal AI assistant. Extract structured information from the following legal documents.
 
 English Text:
-{text_en[:5000]}  # Limit to first 5000 chars
+{text_en[:20000]}  # Limit to first 20000 chars
 
 Malay Text:
-{text_ms[:5000]}
+{text_ms[:20000]}
 
 Extract and return a JSON object with the following structure:
 {{
@@ -136,9 +136,9 @@ Extract and return a JSON object with the following structure:
     "case_type": "contract", "tort", "criminal", "family", or "other",
     "key_dates": [
         {{
-            "type": "contract_date", "incident_date", "filing_date", etc.,
+            "type": "future_deadline" or "hearing_date" or "contract_date" or "filing_date",
             "date": "YYYY-MM-DD",
-            "description": "Brief description"
+            "description": "Extract ALL key dates (past and future). sort chronologically. Include future deadlines (2026+) AND past milestones (filings, contracts)."
         }}
     ],
     "issues": [

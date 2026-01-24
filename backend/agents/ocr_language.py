@@ -105,8 +105,8 @@ class OCRLanguageAgent(BaseAgent):
         
         # Try text extraction first (faster and doesn't need Poppler)
         try:
-            import PyPDF2
-            pdf_reader = PyPDF2.PdfReader(io.BytesIO(pdf_content))
+            from pypdf import PdfReader
+            pdf_reader = PdfReader(io.BytesIO(pdf_content))
             actual_page_count = len(pdf_reader.pages)  # Get actual page count
             full_text = ""
             for page in pdf_reader.pages:

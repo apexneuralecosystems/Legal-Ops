@@ -10,6 +10,28 @@ import {
 import { api } from '@/lib/api'
 import Sidebar from '@/components/Sidebar'
 
+// Helper to highlight query terms in text
+function HighlightText(text: string, query: string) {
+    if (!query.trim() || !text) return text
+
+    const terms = query.toLowerCase().split(/\s+/).filter(t => t.length > 2)
+    if (terms.length === 0) return text
+
+    // Create regex to match terms
+    const pattern = new RegExp(`(${terms.join('|')})`, 'gi')
+    const parts = text.split(pattern)
+
+    return parts.map((part, i) =>
+        terms.some(t => t === part.toLowerCase()) ? (
+            <span key={i} className="font-bold text-[var(--text-primary)] bg-[var(--gold-primary)]/20 px-0.5 rounded ml-0.5 mr-0.5">
+                {part}
+            </span>
+        ) : (
+            part
+        )
+    )
+}
+
 function ResearchContent() {
     const searchParams = useSearchParams()
     const matterId = searchParams.get('matterId') || searchParams.get('matter')
@@ -19,6 +41,7 @@ function ResearchContent() {
         court: '',
         year: '',
         binding: '',
+        jurisdiction: 'Malaysia',
     })
     const [selectedCases, setSelectedCases] = useState<any[]>([])
 
@@ -63,10 +86,10 @@ function ResearchContent() {
                         <div>
                             <h1 className="text-4xl font-bold text-black">Legal Research</h1>
                             <p className="text-[var(--text-secondary)] mt-1 flex items-center gap-2">
-                                Search Malaysian caselaw with bilingual headnotes
+                                Search Malaysian caselaw via Lexis Advance
                                 <span className="px-2 py-0.5 bg-[var(--neon-green)]/10 text-[var(--neon-green)] text-xs rounded-full flex items-center gap-1">
                                     <Globe className="w-3 h-3" />
-                                    Live CommonLII
+                                    Lexis Advance
                                 </span>
                             </p>
                         </div>
@@ -77,9 +100,9 @@ function ResearchContent() {
                 {searchMutation.data?.live_data && (
                     <div className="mb-6 p-3 rounded-xl bg-[var(--neon-green)]/10 border border-[var(--neon-green)]/20 flex items-center gap-3 animate-slide-up">
                         <div className="w-2 h-2 bg-[var(--neon-green)] rounded-full animate-pulse"></div>
-                        <span className="text-sm text-[var(--neon-green)] font-medium">Live Data from CommonLII</span>
+                        <span className="text-sm text-[var(--neon-green)] font-medium">Live Data from Lexis Advance</span>
                         <span className="text-[var(--text-tertiary)]">|</span>
-                        <span className="text-sm text-[var(--text-secondary)]">Real Malaysian legal cases</span>
+                        <span className="text-sm text-[var(--text-secondary)]">Real Malaysian legal cases via Robot Browser</span>
                     </div>
                 )}
 
@@ -108,6 +131,17 @@ function ResearchContent() {
                                         <Filter className="w-4 h-4" />
                                         Filters
                                     </div>
+
+                                    <select
+                                        value={filters.jurisdiction}
+                                        onChange={(e) => setFilters({ ...filters, jurisdiction: e.target.value })}
+                                        className="w-full px-4 py-3 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--neon-cyan)]"
+                                    >
+                                        <option value="Malaysia">Malaysia (Default)</option>
+                                        <option value="United Kingdom">United Kingdom</option>
+                                        <option value="Singapore">Singapore</option>
+                                        <option value="Australia">Australia</option>
+                                    </select>
 
                                     <select
                                         value={filters.court}
@@ -306,15 +340,15 @@ function ResearchContent() {
                                                     <h3 className="font-semibold text-[var(--text-primary)]">{caseItem.title}</h3>
                                                     <div className="flex items-center gap-2 mt-1">
                                                         <p className="text-sm text-[var(--text-secondary)]">{caseItem.citation}</p>
-                                                        {caseItem.url && (
+                                                        {caseItem.link && (
                                                             <a
-                                                                href={caseItem.url}
+                                                                href={caseItem.link}
                                                                 target="_blank"
                                                                 rel="noopener noreferrer"
                                                                 onClick={(e) => e.stopPropagation()}
-                                                                className="text-xs text-[var(--neon-cyan)] hover:underline"
+                                                                className="text-xs text-[var(--neon-cyan)] hover:underline flex items-center gap-1"
                                                             >
-                                                                View on CommonLII
+                                                                View on Lexis <ExternalLink className="w-3 h-3" />
                                                             </a>
                                                         )}
                                                     </div>
@@ -328,23 +362,30 @@ function ResearchContent() {
                                                     <span className="px-2 py-1 bg-[var(--bg-secondary)] text-[var(--text-secondary)] text-xs font-medium rounded-lg">
                                                         {caseItem.court}
                                                     </span>
+                                                    <span className="px-2 py-1 bg-[var(--bg-secondary)] text-[var(--text-secondary)] text-xs font-medium rounded-lg">
+                                                        {caseItem.judgment_date || caseItem.date}
+                                                    </span>
                                                 </div>
                                             </div>
 
-                                            <div className="space-y-2">
-                                                <div className="p-3 rounded-lg bg-[var(--bg-secondary)]">
-                                                    <div className="text-xs font-medium text-[var(--neon-cyan)] mb-1">English Headnote</div>
-                                                    <p className="text-sm text-[var(--text-secondary)]">{caseItem.headnote_en}</p>
-                                                </div>
-                                                <div className="p-3 rounded-lg bg-[var(--bg-secondary)]">
-                                                    <div className="text-xs font-medium text-[var(--neon-orange)] mb-1">Malay Headnote</div>
-                                                    <p className="text-sm text-[var(--text-secondary)]">{caseItem.headnote_ms}</p>
-                                                </div>
+                                            <div className="p-3 rounded-lg bg-[var(--bg-secondary)]">
+                                                <div className="text-xs font-medium text-[var(--neon-cyan)] mb-1">Case Summary</div>
+                                                <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+                                                    {HighlightText(caseItem.summary || caseItem.headnote_en || "No summary available", query)}
+                                                </p>
                                             </div>
 
-                                            <div className="mt-3 flex items-center gap-2 text-xs text-[var(--text-tertiary)]">
-                                                <BookOpen className="w-4 h-4" />
-                                                <span>Relevance: {(caseItem.relevance_score * 100).toFixed(0)}%</span>
+                                            <div className="mt-3 flex items-center gap-3">
+                                                <div className="flex items-center gap-2 text-xs text-[var(--text-tertiary)] min-w-[100px]">
+                                                    <BookOpen className="w-4 h-4" />
+                                                    <span>Relevance: {(caseItem.relevance_score * 100).toFixed(0)}%</span>
+                                                </div>
+                                                <div className="flex-1 h-1.5 bg-[var(--bg-primary)] rounded-full overflow-hidden">
+                                                    <div
+                                                        className="h-full bg-gradient-to-r from-[var(--neon-green)] to-[var(--neon-cyan)] rounded-full transition-all duration-500"
+                                                        style={{ width: `${Math.max(5, caseItem.relevance_score * 100)}%` }}
+                                                    ></div>
+                                                </div>
                                             </div>
                                         </div>
                                     ))}

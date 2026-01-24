@@ -119,7 +119,7 @@ function DashboardContent() {
 
     const stats = {
         totalMatters: matters.length,
-        activeMatters: matters.filter(m => m.status === 'drafting' || m.status === 'research').length,
+        activeMatters: matters.filter(m => ['drafting', 'research', 'structured'].includes(m.status)).length,
         urgentDeadlines: matters.filter(m => m.human_review_required).length,
         aiTasksProcessing: aiTasks.filter(t => t.status === 'processing').length,
         completedToday: aiTasks.filter(t => t.status === 'completed').length,

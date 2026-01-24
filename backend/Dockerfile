@@ -35,9 +35,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy requirements first (for better layer caching)
 COPY requirements.txt .
 
-# Install Python dependencies with parallel processing
+# Install Python dependencies
 RUN pip install --upgrade pip && \
-    pip install -r requirements.txt
+    pip install -r requirements.txt && \
+    playwright install --with-deps chromium
 
 # Copy application code
 COPY . .
@@ -53,9 +54,11 @@ EXPOSE 8091
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://127.0.0.1:8091/health || exit 1
 
-# Run with uvicorn directly (simpler than gunicorn for debugging)
-CMD ["python", "-m", "uvicorn", "main:app", \
-    "--host", "0.0.0.0", \
-    "--port", "8091", \
-    "--workers", "1", \
-    "--timeout-keep-alive", "300"]
+# Run with gunicorn for production performance
+CMD ["gunicorn", "main:app", \
+    "--workers", "4", \
+    "--worker-class", "uvicorn.workers.UvicornWorker", \
+    "--bind", "0.0.0.0:8091", \
+    "--timeout", "300", \
+    "--access-logfile", "-", \
+    "--error-logfile", "-"]
