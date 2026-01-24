@@ -60,7 +60,8 @@ class RiskScoringAgent(BaseAgent):
         
         # Generate rationale
         rationale = self._generate_rationale(
-            jurisdictional, language, volume, time_pressure, matter
+            jurisdictional, language, volume, time_pressure, 
+            matter, doc_manifest, user_deadline
         )
         
         # Determine if human review is required
@@ -233,24 +234,81 @@ class RiskScoringAgent(BaseAgent):
         language: int,
         volume: int,
         time_pressure: int,
-        matter: Dict[str, Any]
+        matter: Dict[str, Any],
+        doc_manifest: List[Dict] = [],
+        user_deadline: str = None
     ) -> List[str]:
-        """Generate human-readable rationale for scores."""
+        """Generate human-readable, specific rationale for scores."""
         rationale = []
         
+        # --- Jurisdictional Rationale ---
+        court = matter.get('court', 'Unspecified Court')
+        parties = matter.get('parties', [])
+        foreign_parties = []
+        for p in parties:
+            addr = str(p.get("address", "")).lower()
+            if any(c in addr for c in ["singapore", "uk", "usa", "china", "indonesia"]):
+                foreign_parties.append(p.get("name", "Unknown Party"))
+
         if jurisdictional >= 4:
-            rationale.append(f"High jurisdictional complexity due to {matter.get('court', 'complex court')} level")
+            reasons = []
+            if "federal" in str(court).lower() or "appeal" in str(court).lower():
+                reasons.append(f"proceedings in the {court}")
+            if foreign_parties:
+                reasons.append(f"foreign parties involved ({', '.join(foreign_parties)})")
+            
+            rationale.append(f"High jurisdictional complexity due to {' and '.join(reasons) if reasons else 'complex factors'}.")
+            
+        elif jurisdictional == 3:
+            rationale.append(f"Moderate complexity: Matter is in the {court}, covering High Court jurisdiction.")
+        else:
+            rationale.append(f"Standard jurisdiction: Domestic matter in {court}.")
+        
+        # --- Language Rationale ---
+        # Analyze specific language mix
+        lang_counts = {"ms": 0, "en": 0, "mixed": 0}
+        for doc in doc_manifest:
+            hint = doc.get("doc_lang_hint", "unknown")
+            if hint in lang_counts:
+                lang_counts[hint] += 1
         
         if language >= 4:
-            rationale.append("Significant language complexity with mixed Malay/English documents and low translation confidence")
-        elif language >= 3:
-            rationale.append("Moderate language complexity with bilingual documents")
+            rationale.append(f"High language complexity: {lang_counts['mixed']} mixed-language documents detected requiring distinct segmentation.")
+        elif language == 3:
+            rationale.append(f"Moderate language complexity: Contains {lang_counts['ms']} Malay and {lang_counts['en']} English documents.")
+        else:
+            primary_code = matter.get("primary_language", "ms").lower()
+            lang_map = {"ms": "Malay", "en": "English", "zh": "Chinese", "ta": "Tamil"}
+            primary_name = lang_map.get(primary_code, primary_code.upper())
+            rationale.append(f"Standard language profile: Predominantly {primary_name} documents.")
+        
+        # --- Volume Rationale ---
+        est_pages = matter.get('estimated_pages', 0)
+        doc_count = len(doc_manifest)
         
         if volume >= 4:
-            rationale.append(f"High volume risk with {matter.get('estimated_pages', 'many')} estimated pages")
+            rationale.append(f"High volume risk: {doc_count} documents totaling ~{est_pages} pages exceeds standard review capacity.")
+        elif volume == 3:
+            rationale.append(f"Moderate substantial volume: ~{est_pages} pages across {doc_count} files.")
+        else:
+            rationale.append(f"Low volume: {doc_count} files ({est_pages} pages) is well within standard operating limits.")
         
+        # --- Time Pressure Rationale ---
+        days_remaining = "unknown"
+        if user_deadline:
+            try:
+                deadline_dt = datetime.fromisoformat(user_deadline.replace('Z', '+00:00'))
+                delta = (deadline_dt - datetime.utcnow()).days
+                days_remaining = str(delta)
+            except:
+                pass
+
         if time_pressure >= 4:
-            rationale.append("Urgent deadline requiring immediate attention")
+            rationale.append(f"High time pressure: Urgent deadline in {days_remaining} days requires immediate prioritization.")
+        elif time_pressure == 3:
+            rationale.append(f"Moderate urgency: {days_remaining} days remaining until deadline.")
+        else:
+            rationale.append("Standard timeline: No immediate urgent deadlines detected.")
         
         return rationale
     

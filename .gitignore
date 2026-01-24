@@ -1,81 +1,227 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
+# ============================================
+# OS & System Files
+# ============================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.log
+*.swp
+*.swo
+*~
 
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
+# ============================================
+# IDEs & Editors
+# ============================================
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.project
+.classpath
+.settings/
 
-# Virtual Environment
-venv/
-.venv/
-env/
-.env/
-venv.bak/
-
-# Environment Variables
+# ============================================
+# Environment Variables & Secrets
+# ============================================
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
-.flaskenv
-.env.backup
+.env.*
+!.env.example
+!.env.production.example
+*.pem
+*.key
+*.crt
+*.p12
+secrets/
+credentials/
+lexis_session.json
 
-# Node.js / Next.js
+# ============================================
+# Python / Backend
+# ============================================
+# Virtual environments
+backend/venv/
+backend/.venv/
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Python compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.manifest
+*.spec
+
+# Python testing & coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+
+# Python logs & databases
+*.log
+*.sqlite3
+*.db
+backend/logs/
+backend/uploads/
+backend/test_result.txt
+backend/install_log*.txt
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Alembic
+alembic/versions/__pycache__/
+
+# ============================================
+# Node.js / Frontend
+# ============================================
+# Dependencies
 frontend/node_modules/
 node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
+jspm_packages/
+bower_components/
+
+# Next.js
 frontend/.next/
 .next/
+frontend/out/
+frontend/build/
+frontend/dist/
 out/
 build/
 dist/
 
-# Logs
-logs/
-*.log
-
-# IDEs
-.vscode/
-.idea/
-*.swp
-*.swo
-.DS_Store
-Thumbs.db
-
-# Project Specific
-backend/uploads/
-uploads/
-*.db
-*.sqlite3
-backend/app.db
-debug_draft.py
-draft_test.json
-test_draft.json
-draft_payload.json
-law-agent-final.case-study.json
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
 
 # Testing
-.pytest_cache/
-.coverage
-htmlcov/
+coverage/
+.nyc_output
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+pnpm-debug.log*
+
+# Lock files (optional - remove if you want to keep them)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# ESLint
+.eslintcache
+
+# Turbo
+.turbo
+
+# Vercel
+.vercel
+
+# ============================================
+# Docker
+# ============================================
+docker-compose.override.yml
+.dockerignore
+*.pid
+volumes/
+data/
+pgdata/
+redis-data/
+
+# ============================================
+# Database
+# ============================================
+*.sql
+*.dump
+*.backup
+*.bak
+*.db-shm
+*.db-wal
+migrations/versions/*.pyc
+db_backup/
+dumps/
+
+# ============================================
+# AI/ML Models & Data
+# ============================================
+*.h5
+*.hdf5
+*.pkl
+*.pickle
+*.pt
+*.pth
+models/
+checkpoints/
+trained_models/
+
+# ============================================
+# Local Artifacts & Tools
+# ============================================
+.gemini/
+.agent/
+brain/
+artifacts/
+temp/
+tmp/
+*.tmp
+
+# Local Performance & Test Artifacts
+backend/debug_captures/
+backend/test_lexis_auth.py
+backend/perf_test_api.py
+backend/SUCCESS.txt
+backend/FAILURE.txt
+backend/PERFORMANCE_RESULTS.txt
+backend/lexis_session.json
+law-agent-final.case-study.json
+
+# ============================================
+# Documentation Build
+# ============================================
+docs/_build/
+site/
+.sphinx/
+
+# ============================================
+# Misc
+# ============================================
+*.bak
+*.orig
+*.rej
+.cache/
+.parcel-cache/

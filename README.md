@@ -151,7 +151,41 @@ alembic upgrade head
 
 ---
 
-## 🚢 Production Deployment
+---
+---
+
+## 🏗️ Dokploy Deployment (Recommended)
+
+This project is optimized for deployment on **Dokploy**.
+
+### 1. Create a New Project
+In your Dokploy dashboard, create a new project named `Legal-Ops`.
+
+### 2. Add Services
+Add the following three services from your GitHub repository:
+
+#### A. Database (PostgreSQL)
+- Use `postgres:15-alpine`
+- Add Persistent Volume: `/var/lib/postgresql/data`
+- Set Environment Variables: `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`
+
+#### B. Backend (FastAPI)
+- **Path**: `/backend`
+- **Port**: `8091`
+- **Environment**: Copy from `.env.docker.example`
+- **Volumes**: Add persistent volume for `/app/uploads` and `/app/logs`
+
+#### C. Frontend (Next.js)
+- **Path**: `/frontend`
+- **Port**: `3001`
+- **Build Args**: Set `NEXT_PUBLIC_API_URL` to your backend domain.
+
+### 3. Networking
+Ensure the frontend and backend are on the same Dokploy internal network. Set `CORS_ORIGINS` in the backend to your frontend's public domain.
+
+---
+
+## 🚢 Local Production Deployment (Docker Compose)
 
 ### Using PM2
 

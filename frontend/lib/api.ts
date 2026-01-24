@@ -75,7 +75,7 @@ export const tokenManager = {
 const createApiClient = (): AxiosInstance => {
     const client = axios.create({
         baseURL: `${API_URL}/api`,
-        timeout: 60000,
+        timeout: 300000, // 5 minutes (Lexis scraper can take ~90s)
         headers: {
             'Content-Type': 'application/json',
         },

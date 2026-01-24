@@ -116,6 +116,11 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     LOG_FILE: str = "./logs/app.log"
     
+    # Lexis Advance
+    LEXIS_USERNAME: str = ""
+    LEXIS_PASSWORD: str = ""
+    LEXIS_HEADLESS: bool = True
+
     model_config = SettingsConfigDict(
         env_file=".env",
         case_sensitive=True,
@@ -138,3 +143,5 @@ class Settings(BaseSettings):
 # Global settings instance
 settings = Settings()
 settings.ensure_directories()
+
+

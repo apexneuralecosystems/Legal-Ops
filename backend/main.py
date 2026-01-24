@@ -8,6 +8,13 @@ from fastapi.responses import JSONResponse
 from config import settings
 from database import init_db, Base
 import logging
+import sys
+import os
+import asyncio
+
+# Fix for Playwright on Windows (Asyncio Loop Policy)
+if sys.platform == 'win32':
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
 # Configure logging
 logging.basicConfig(
@@ -86,8 +93,15 @@ async def lifespan(app: FastAPI):
     
     yield  # Application runs here
     
-    # Shutdown (cleanup if needed)
+    # Shutdown (cleanup browser pool and other resources)
     logger.info("Shutting down Malaysian Legal AI Agent API...")
+    try:
+        from services.browser_pool import cleanup_browser_pool
+        await cleanup_browser_pool()
+        logger.info("✓ Browser pool cleaned up")
+    except Exception as e:
+        logger.warning(f"Browser pool cleanup failed: {e}")
+
 
 
 # Create FastAPI app with lifespan
@@ -196,10 +210,12 @@ app.include_router(webhooks.router, prefix="/api", tags=["Webhooks"])
 
 if __name__ == "__main__":
     import uvicorn
+    # Disable reload to prevent loop policy issues on Windows
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
         port=settings.BACKEND_PORT,
-        reload=True,
+        reload=False, 
+        loop="asyncio",
         log_level=settings.LOG_LEVEL.lower()
     )

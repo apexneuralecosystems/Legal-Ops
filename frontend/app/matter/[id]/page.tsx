@@ -313,6 +313,23 @@ export default function MatterDetailPage() {
                                         </span>
                                     </div>
                                 </div>
+
+                                {riskScores.rationale && riskScores.rationale.length > 0 && (
+                                    <div className="pt-4 border-t border-[var(--border-primary)]">
+                                        <h3 className="text-xs font-semibold text-[var(--text-secondary)] mb-3 flex items-center gap-2">
+                                            <Lightbulb className="w-3 h-3 text-[var(--gold-primary)]" />
+                                            ANALYSIS EXPLANATION
+                                        </h3>
+                                        <ul className="space-y-2">
+                                            {riskScores.rationale.map((item: string, idx: number) => (
+                                                <li key={idx} className="text-xs text-[var(--text-secondary)] flex gap-2 leading-relaxed">
+                                                    <span className="text-[var(--neon-cyan)] mt-1">•</span>
+                                                    {item}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -426,7 +443,9 @@ export default function MatterDetailPage() {
                                         <div key={idx} className="flex items-start gap-3">
                                             <div className="w-2 h-2 rounded-full bg-[var(--neon-orange)] mt-2 flex-shrink-0" />
                                             <div>
-                                                <p className="font-medium text-[var(--text-primary)] capitalize text-sm">{date.type || 'Date'}</p>
+                                                <p className="font-medium text-[var(--text-primary)] capitalize text-sm">
+                                                    {date.type ? date.type.replace(/_/g, ' ') : 'Date'}
+                                                </p>
                                                 <p className="text-xs text-[var(--text-secondary)]">{date.date || 'Date not specified'}</p>
                                             </div>
                                         </div>
