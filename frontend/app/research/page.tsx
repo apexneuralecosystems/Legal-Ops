@@ -14,22 +14,25 @@ import Sidebar from '@/components/Sidebar'
 function HighlightText(text: string, query: string) {
     if (!query.trim() || !text) return text
 
+    const escapeRegExp = (string: string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     const terms = query.toLowerCase().split(/\s+/).filter(t => t.length > 2)
     if (terms.length === 0) return text
 
     // Create regex to match terms
-    const pattern = new RegExp(`(${terms.join('|')})`, 'gi')
+    const pattern = new RegExp(`(${terms.map(escapeRegExp).join('|')})`, 'gi')
     const parts = text.split(pattern)
 
-    return parts.map((part, i) =>
-        terms.some(t => t === part.toLowerCase()) ? (
+    return parts.map((part, i) => {
+        if (!part) return <span key={i}>{part}</span>;
+
+        return terms.some(t => t === part.toLowerCase()) ? (
             <span key={i} className="font-bold text-[var(--text-primary)] bg-[var(--gold-primary)]/20 px-0.5 rounded ml-0.5 mr-0.5">
                 {part}
             </span>
         ) : (
             part
         )
-    )
+    })
 }
 
 function ResearchContent() {
