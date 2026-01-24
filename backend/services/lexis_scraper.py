@@ -651,19 +651,6 @@ class LexisScraper:
             if country and country.lower() != "malaysia":
                 augmentations.append(country)
             
-            # Year filter - robust handling
-            try:
-                year_raw = filters.get("year", "")
-                year = str(year_raw).strip() if year_raw else ""
-                logger.info(f"🔍 YEAR DEBUG: raw='{year_raw}' type={type(year_raw).__name__} final='{year}'")
-                if year and year.isdigit():
-                    augmentations.append(year)
-                    logger.info(f"✅ ADDED YEAR: {year}")
-                else:
-                    logger.warning(f"⚠️ YEAR SKIPPED: value='{year}' isdigit={year.isdigit() if year else 'N/A'}")
-            except Exception as e:
-                logger.error(f"❌ YEAR ERROR: {e}")
-            
             # Court level
             court = filters.get("court", "").strip().lower()
             court_map = {"federal": "Federal Court", "appeal": "Court of Appeal", "high": "High Court"}
