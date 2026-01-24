@@ -677,12 +677,36 @@ class LexisScraper:
             # Lexis result items often have class 'search-result' or similar
             # We wait for *something* to appear
             try:
-                # Wait for results or 'no results' message
-                await self._page.wait_for_selector("a[href*='document'], .doc-title, article.item, .noresults", timeout=10000)
+                # Wait for results OR document view (direct hit)
+                await self._page.wait_for_selector("a[href*='document'], .doc-title, article.item, .noresults, .document-view, #api_content", timeout=10000)
                 
                 t3 = datetime.now()
                 logger.info(f"⏱️ Results appeared in {(t3 - t2).total_seconds():.2f}s")
                 
+                # CHECK FOR DIRECT HIT (Document Page)
+                if "/document" in self._page.url or await self._page.is_visible(".document-view") or await self._page.is_visible(".ss-header-content"):
+                    logger.info("⚡ Direct Document Hit Detected!")
+                    current_url = self._page.url
+                    # Extract single result specifics
+                    title = await self._page.title()
+                    # Try to get cleaner title from H1 if possible
+                    try:
+                        h1 = await self._page.query_selector("h1")
+                        if h1: title = await h1.inner_text()
+                    except: pass
+                    
+                    return [{
+                        "title": title.replace(" - Lexis Advance", "").strip(),
+                        "citation": query, # Best guess for citation is the query itself in this case
+                        "court": "Direct Document",
+                        "judgment_date": datetime.now().strftime("%Y-%m-%d"),
+                        "date": datetime.now().strftime("%Y-%m-%d"),
+                        "summary": "Direct document access via citation search.",
+                        "link": current_url, # The EXACT link user wants
+                        "relevance_score": 1.0,
+                        "binding": False
+                    }]
+
             except Exception as e:
                 logger.info(f"⚠️ Result wait timed out or failed: {e}")
                 # Save debug snapshot to see what we missed
@@ -798,13 +822,53 @@ class LexisScraper:
                         });
 
                         // 6. GENERATE DEEP LINK (Proxy-Aware)
-                        // Use window.location.origin to maintain EzProxy session if present
-                        const origin = window.location.origin;
-                        let link = origin + "/search?q=" + encodeURIComponent(citation);
+                        let link = "";
                         
-                        // Fallback if citation is missing
-                        if (citation === "No Citation") {
-                            link = origin + "/search?q=" + encodeURIComponent(title);
+                        // Strategy 1: Extract URN from checkbox (Most reliable for SPA)
+                        const urnInput = card.querySelector("input[data-docid]");
+                        if (urnInput) {
+                            const urn = urnInput.getAttribute("data-docid");
+                            // Construct standard Lexis deep link for Malaysian cases
+                            if (urn) {
+                                // We use 'cases-my' as default path for cases. 
+                                // pdmfid=1522468 is the standard product ID for Lexis Advance
+                                link = "https://advance.lexis.com/document?pddocfullpath=/shared/document/cases-my/" + encodeURIComponent(urn) + "&pdmfid=1522468";
+                            }
+                        }
+
+                        // Strategy 2: If URN failed, try "View document" link (Fallback)
+                        if (!link) {
+                             const viewDocLink = Array.from(card.querySelectorAll("a")).find(a => {
+                                const t = (a.textContent || a.innerText || "").toLowerCase().trim();
+                                return t.includes("view document") || t.includes("view this passage");
+                            });
+                             if (viewDocLink && viewDocLink.href && !viewDocLink.href.includes("#")) {
+                                link = viewDocLink.href;
+                            }
+                        }
+
+                        // Strategy 3: Direct href search
+                        if (!link) {
+                            const docHrefLink = Array.from(card.querySelectorAll("a")).find(a => {
+                                return a.href && a.href.includes("/document?");
+                            });
+                            if (docHrefLink) link = docHrefLink.href;
+                        }
+
+                        // Strategy 4: Fallback to Search URL
+                        if (!link || link === "#") {
+                             const origin = window.location.origin;
+                             // Just send them to valid search results instead of broken link
+                             if (citation !== "No Citation") {
+                                 link = origin + "/search?q=" + encodeURIComponent(citation);
+                             } else {
+                                 link = origin + "/search?q=" + encodeURIComponent(title);
+                             }
+                        }
+                        
+                        let debug_html = "";
+                        if (!link || link.includes("/search?")) {
+                                debug_html = card.outerHTML;
                         }
 
                         results.push({
@@ -815,8 +879,11 @@ class LexisScraper:
                             date, 
                             summary: summary.substring(0, 500),
                             link,
-                            relevance_score: 0.5 
+                            relevance_score: 0.5,
+                            debug_html
                         });
+
+
 
                     } catch (e) {
                          // Skip failed card
@@ -832,12 +899,42 @@ class LexisScraper:
             logger.info(f"⏱️ Extraction completed in {(t4 - t_extraction_start).total_seconds():.2f}s")
             
             logger.info(f"✅ Turbo Extraction complete. Found {len(raw_results)} cases.")
+
+            # FALLBACK: If 0 results but URL is a document, treat as Direct Hit
+            if len(raw_results) == 0 and ("/document" in self._page.url or "pddocfullpath" in self._page.url):
+                 logger.info("⚡ Fallback: Zero results but URL indicates Document Page. Treating as Direct Hit.")
+                 current_url = self._page.url
+                 title = await self._page.title()
+                 try:
+                     h1 = await self._page.query_selector("h1")
+                     if h1: title = await h1.inner_text()
+                 except: pass
+                 
+                 raw_results = [{
+                    "title": title.replace(" - Lexis Advance", "").strip(),
+                    "citation": query,
+                    "court": "Direct Document",
+                    "judgment_date": datetime.now().strftime("%Y-%m-%d"),
+                    "date": datetime.now().strftime("%Y-%m-%d"),
+                    "summary": "Direct document access via citation search.",
+                    "link": current_url,
+                    "relevance_score": 1.0,
+                    "binding": False
+                 }]
             
             results = []
             for res in raw_results: # Use raw_results here
+                if res.get('debug_html'):
+                    try:
+                        debug_path = self.debug_dir / f"card_dump_{datetime.now().strftime('%H%M%S_%f')}.html"
+                        debug_path.write_text(res['debug_html'], encoding='utf-8')
+                        logger.info(f"🐛 Saved debug card HTML to {debug_path}")
+                    except Exception as e:
+                        logger.warning(f"Failed to save debug HTML: {e}")
+
                 # Python-side Relevance Scoring (Fast enough)
-                title_lower = res['title'].lower()
-                summary_lower = res['summary'].lower()
+                title_lower = res.get('title', '').lower()
+                summary_lower = res.get('summary', '').lower()
                 query_terms = query.lower().split()
                 
                 score = 0.5
@@ -848,8 +945,8 @@ class LexisScraper:
                     score += summary_lower.count(term) * 0.03
                 
                 # Recency bonus
-                if "2026" in res['judgment_date']: score += 0.1
-                elif "2025" in res['judgment_date']: score += 0.05
+                if "2026" in res.get('judgment_date', ''): score += 0.1
+                elif "2025" in res.get('judgment_date', ''): score += 0.05
                 
                 res['relevance_score'] = min(score, 0.99)
                 results.append(res)
