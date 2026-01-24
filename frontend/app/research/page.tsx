@@ -39,8 +39,6 @@ function ResearchContent() {
     const [query, setQuery] = useState('')
     const [filters, setFilters] = useState({
         court: '',
-        year: '',
-        binding: '',
         jurisdiction: 'Malaysia',
     })
     const [selectedCases, setSelectedCases] = useState<any[]>([])
@@ -152,24 +150,6 @@ function ResearchContent() {
                                         <option value="federal">Federal Court</option>
                                         <option value="appeal">Court of Appeal</option>
                                         <option value="high">High Court</option>
-                                    </select>
-
-                                    <input
-                                        type="number"
-                                        value={filters.year}
-                                        onChange={(e) => setFilters({ ...filters, year: e.target.value })}
-                                        placeholder="Year (e.g., 2020)"
-                                        className="w-full px-4 py-3 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:border-[var(--neon-cyan)]"
-                                    />
-
-                                    <select
-                                        value={filters.binding}
-                                        onChange={(e) => setFilters({ ...filters, binding: e.target.value })}
-                                        className="w-full px-4 py-3 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--neon-cyan)]"
-                                    >
-                                        <option value="">All Status</option>
-                                        <option value="binding">Binding Only</option>
-                                        <option value="persuasive">Persuasive</option>
                                     </select>
                                 </div>
 
