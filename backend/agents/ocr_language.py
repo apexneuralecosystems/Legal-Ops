@@ -302,8 +302,13 @@ class OCRLanguageAgent(BaseAgent):
                 
                 lang_confidence = 0.85  # langdetect doesn't provide confidence
             except (ImportError, Exception) as e:
-                logger.error(f"DEBUG: Language detection failed or library missing for '{sentence[:30]}...': {e}")
-                lang = 'en'  # Default to English if library missing
+                msg = str(e)
+                if "No features in text" in msg:
+                    # Common expected error for numbers/symbols
+                    logger.debug(f"Language detection skip for short text: {msg}")
+                else:
+                    logger.warning(f"Language detection failed: {msg}")
+                lang = 'en'  # Default to English if library missing or failure
                 lang_confidence = 0.5
             
             # Merge adjacent sentences of same language
