@@ -3,16 +3,20 @@ OCR and Language Detection Agent.
 """
 from agents.base_agent import BaseAgent
 from typing import Dict, Any, List, Optional
-import pytesseract
-from PIL import Image
 import io
-from pdf2image import convert_from_bytes
-from langdetect import detect, DetectorFactory
+import os
 from config import settings
 import logging
 
-# Set seed for consistent language detection
-DetectorFactory.seed = 0
+# Set seed for consistent language detection if langdetect is available
+def _init_detector_factory():
+    try:
+        from langdetect import DetectorFactory
+        DetectorFactory.seed = 0
+    except ImportError:
+        pass
+
+_init_detector_factory()
 
 logger = logging.getLogger(__name__)
 
@@ -31,9 +35,7 @@ class OCRLanguageAgent(BaseAgent):
     
     def __init__(self):
         super().__init__(agent_id="OCRLanguage")
-        # Configure Tesseract
-        if settings.TESSERACT_CMD:
-            pytesseract.pytesseract.tesseract_cmd = settings.TESSERACT_CMD
+        # Tesseract configuration is checked lazily in process
     
     async def process(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -109,12 +111,13 @@ class OCRLanguageAgent(BaseAgent):
             pdf_reader = PdfReader(io.BytesIO(pdf_content))
             actual_page_count = len(pdf_reader.pages)  # Get actual page count
             full_text = ""
-            for page in pdf_reader.pages:
-                full_text += page.extract_text() + "\n"
+            for i, page in enumerate(pdf_reader.pages, 1):
+                text = page.extract_text()
+                if text:
+                    full_text += text + "\n"
             
             if full_text.strip():
                 logger.info(f"Successfully extracted text from PDF {doc_id} without OCR. Length: {len(full_text)}, Pages: {actual_page_count}")
-                logger.info(f"Extracted Text Preview: {full_text[:200]}")
                 segments = await self._segment_text(doc_id, full_text, page=1, ocr_confidence=1.0)
                 return segments, actual_page_count
             else:
@@ -124,16 +127,21 @@ class OCRLanguageAgent(BaseAgent):
             logger.warning(f"Text extraction failed, falling back to OCR: {e}")
 
         try:
-            # Convert PDF to images
-            images = convert_from_bytes(pdf_content)
-            actual_page_count = len(images)  # Get page count from images
+            # Convert PDF to images using PyMuPDF (no Poppler needed)
+            import fitz
+            doc = fitz.open(stream=pdf_content, filetype="pdf")
+            actual_page_count = len(doc)
             
-            for page_num, image in enumerate(images, start=1):
-                page_segments = await self._process_image(doc_id, image, page=page_num)
+            for page_num in range(1, actual_page_count + 1):
+                page = doc.load_page(page_num - 1)
+                pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
+                image_data = pix.tobytes("png")
+                page_segments = await self._process_image(doc_id, image_data, page=page_num)
                 segments.extend(page_segments)
+            doc.close()
         
         except Exception as e:
-            print(f"Error processing PDF: {e}")
+            logger.error(f"Error processing PDF with OCR: {e}")
             # Return empty segments with error flag
             segments.append({
                 "segment_id": f"SEG-{doc_id}-error",
@@ -155,6 +163,11 @@ class OCRLanguageAgent(BaseAgent):
         page: int
     ) -> List[Dict[str, Any]]:
         """Process image with OCR."""
+        try:
+            from PIL import Image
+        except ImportError:
+            logger.error("PIL (Pillow) not installed. OCR requires PIL.")
+            return [{"error": "PIL not installed"}]
         
         # If image_content is bytes, convert to PIL Image
         if isinstance(image_content, bytes):
@@ -163,10 +176,35 @@ class OCRLanguageAgent(BaseAgent):
             image = image_content
         
         try:
+            try:
+                import pytesseract
+            except ImportError:
+                return [{
+                    "segment_id": f"SEG-{doc_id}-p{page}-error",
+                    "doc_id": doc_id,
+                    "page": page,
+                    "text": "[OCR ERROR: pytesseract not installed. Please install it to use OCR features.]",
+                    "lang": "unknown",
+                    "lang_confidence": 0.0,
+                    "ocr_confidence": 0.0,
+                    "error": True
+                }]
+
+            # Configure Tesseract
+            if settings.TESSERACT_CMD:
+                pytesseract.pytesseract.tesseract_cmd = settings.TESSERACT_CMD
+                
+            # Configure local tessdata if it exists
+            local_tessdata = os.path.join(settings.BASE_DIR, "tessdata")
+            config = ""
+            if os.path.exists(local_tessdata):
+                config = f'--tessdata-dir "{local_tessdata}"'
+            
             # Perform OCR with confidence data
             ocr_data = pytesseract.image_to_data(
                 image,
                 lang=settings.OCR_LANGUAGES,
+                config=config,
                 output_type=pytesseract.Output.DICT
             )
             
@@ -251,6 +289,7 @@ class OCRLanguageAgent(BaseAgent):
             
             # Detect language
             try:
+                from langdetect import detect
                 detected_lang = detect(sentence)
                 logger.info(f"DEBUG: Sentence '{sentence[:30]}...' detected as '{detected_lang}'")
                 # Map to our language codes
@@ -262,10 +301,10 @@ class OCRLanguageAgent(BaseAgent):
                     lang = 'en'  # default to English
                 
                 lang_confidence = 0.85  # langdetect doesn't provide confidence
-            except Exception as e:
-                logger.error(f"DEBUG: Language detection failed for '{sentence[:30]}...': {e}")
-                lang = 'unknown'
-                lang_confidence = 0.0
+            except (ImportError, Exception) as e:
+                logger.error(f"DEBUG: Language detection failed or library missing for '{sentence[:30]}...': {e}")
+                lang = 'en'  # Default to English if library missing
+                lang_confidence = 0.5
             
             # Merge adjacent sentences of same language
             if lang == current_lang and current_text:

@@ -92,6 +92,28 @@ backend/logs/
 backend/uploads/
 backend/test_result.txt
 backend/install_log*.txt
+backend/tessdata/
+backend/test_*.py
+backend/test_*.json
+backend/test_*.sh
+backend/debug_*.py
+backend/reproduce_*.py
+backend/audit_*.py
+backend/fix_*.py
+backend/verify_*.py
+backend/clear_*.py
+backend/delete_*.py
+backend/deep_*.py
+backend/seed_*.py
+backend/download_*.py
+backend/perf_*
+backend/startup_error.log
+backend/__pycache__/
+backend/lexis_session.json
+backend/SUCCESS.txt
+backend/FAILURE.txt
+backend/PERFORMANCE_RESULTS.txt
+backend/dependencies.py
 
 # Jupyter Notebook
 .ipynb_checkpoints
@@ -202,13 +224,14 @@ tmp/
 
 # Local Performance & Test Artifacts
 backend/debug_captures/
-backend/test_lexis_auth.py
-backend/perf_test_api.py
-backend/SUCCESS.txt
-backend/FAILURE.txt
-backend/PERFORMANCE_RESULTS.txt
-backend/lexis_session.json
+UPDATED_ARCHITECTURE_DIAGRAM.html
+project_workflow.png
+upload_test.txt
 law-agent-final.case-study.json
+debug_captures/
+logs/
+uploads/
+!uploads/.gitkeep
 
 # ============================================
 # Documentation Build

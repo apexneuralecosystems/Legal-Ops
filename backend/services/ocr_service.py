@@ -9,6 +9,8 @@ Supports multiple OCR backends with automatic fallback:
 import platform
 import shutil
 import logging
+import os
+import io
 from pathlib import Path
 from typing import Optional, Tuple
 from config import settings
@@ -141,7 +143,8 @@ class OCRService:
             else:
                 raise ValueError(f"Unknown OCR engine: {self.engine}")
         except Exception as e:
-            logger.error(f"OCR failed with {self.engine}: {e}")
+            # Avoid logging traceback for common path/binary issues
+            logger.warning(f"OCR failed with {self.engine}: {e}")
             # Try fallback
             return self._try_fallback(str(file_path), exclude=self.engine)
     
@@ -182,18 +185,60 @@ class OCRService:
         if self._tesseract_path:
             pytesseract.pytesseract.tesseract_cmd = self._tesseract_path
         
+        # Configure local tessdata if it exists
+        local_tessdata = Path(settings.BASE_DIR) / "tessdata"
+        config = ""
+        if local_tessdata.exists():
+            # Pass tessdata-dir via config
+            # Note: TESSDATA_PREFIX env var is also an option but config is more direct
+            config = f'--tessdata-dir "{local_tessdata}"'
+            logger.info(f"Using local tessdata: {local_tessdata}")
+        
+        # Check if languages are available, fallback if not
+        langs = settings.OCR_LANGUAGES
+        try:
+            available_langs = pytesseract.get_languages(config=config)
+            requested_langs = langs.split('+')
+            final_langs = []
+            for lang in requested_langs:
+                if lang in available_langs:
+                    final_langs.append(lang)
+                else:
+                    logger.warning(f"Language '{lang}' not available in Tesseract. Falling back.")
+            
+            if not final_langs:
+                final_langs = ['eng']
+            langs = '+'.join(final_langs)
+        except Exception as e:
+            logger.warning(f"Could not check available Tesseract languages: {e}")
+
         # Handle PDFs by converting to images first
         if file_path.lower().endswith('.pdf'):
-            from pdf2image import convert_from_path
-            images = convert_from_path(file_path)
-            text_parts = []
-            for i, image in enumerate(images):
-                text = pytesseract.image_to_string(image, lang=settings.OCR_LANGUAGES)
-                text_parts.append(f"--- Page {i+1} ---\n{text}")
-            return "\n\n".join(text_parts)
+            try:
+                import fitz # PyMuPDF
+                doc = fitz.open(file_path)
+                text_parts = []
+                for i in range(len(doc)):
+                    page = doc.load_page(i)
+                    pix = page.get_pixmap(matrix=fitz.Matrix(2, 2)) # Higher resolution for OCR
+                    image_data = pix.tobytes("png")
+                    image = Image.open(io.BytesIO(image_data))
+                    text = pytesseract.image_to_string(image, lang=langs, config=config)
+                    text_parts.append(f"--- Page {i+1} ---\n{text}")
+                doc.close()
+                return "\n\n".join(text_parts)
+            except ImportError:
+                logger.warning("PyMuPDF not available, trying pdf2image fallback (needs Poppler)")
+                from pdf2image import convert_from_path
+                images = convert_from_path(file_path)
+                text_parts = []
+                for i, image in enumerate(images):
+                    text = pytesseract.image_to_string(image, lang=langs, config=config)
+                    text_parts.append(f"--- Page {i+1} ---\n{text}")
+                return "\n\n".join(text_parts)
         else:
             image = Image.open(file_path)
-            return pytesseract.image_to_string(image, lang=settings.OCR_LANGUAGES)
+            return pytesseract.image_to_string(image, lang=langs, config=config)
     
     def _ocr_pymupdf(self, file_path: str) -> str:
         """
@@ -258,13 +303,20 @@ class OCRService:
             pytesseract.pytesseract.tesseract_cmd = self._tesseract_path
         
         image = Image.open(file_path)
-        data = pytesseract.image_to_data(image, lang=settings.OCR_LANGUAGES, output_type=pytesseract.Output.DICT)
+        
+        # Configure local tessdata if it exists
+        local_tessdata = Path(settings.BASE_DIR) / "tessdata"
+        config = ""
+        if local_tessdata.exists():
+            config = f'--tessdata-dir "{local_tessdata}"'
+        
+        data = pytesseract.image_to_data(image, lang=settings.OCR_LANGUAGES, config=config, output_type=pytesseract.Output.DICT)
         
         # Calculate average confidence
         confidences = [int(c) for c in data['conf'] if int(c) > 0]
         avg_confidence = sum(confidences) / len(confidences) if confidences else 0.0
         
-        text = pytesseract.image_to_string(image, lang=settings.OCR_LANGUAGES)
+        text = pytesseract.image_to_string(image, lang=settings.OCR_LANGUAGES, config=config)
         
         return text, avg_confidence / 100.0
 

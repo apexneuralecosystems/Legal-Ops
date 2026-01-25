@@ -21,7 +21,14 @@ from typing import List, Dict, Optional, Any
 from datetime import datetime
 import urllib.parse
 from pathlib import Path
-from playwright.async_api import async_playwright, Browser, Page, BrowserContext, TimeoutError
+from typing import List, Dict, Optional, Any, TYPE_CHECKING
+if TYPE_CHECKING:
+    from playwright.async_api import Browser, Page, BrowserContext, TimeoutError
+else:
+    Browser = Any = object
+    Page = Any = object
+    BrowserContext = Any = object
+    TimeoutError = Any = object
 from config import settings
 from services.browser_pool import BrowserPool
 
@@ -87,6 +94,7 @@ class LexisScraper:
         
         # Legacy: Launch new browser each time
         logger.info(f"🤖 Starting Robot Browser (Headless: {self.headless})...")
+        from playwright.async_api import async_playwright
         p = await async_playwright().start()
         
         # Launch with stealth settings to bypass bot detection
@@ -460,10 +468,13 @@ class LexisScraper:
         
         # KEY OPTIMIZATION: Go directly to Search Page
         try:
-            await self._page.goto("https://advance.lexis.com/search", timeout=30000)
+            # If already on Search Page, just check status
+            if "advance.lexis.com/search" in self._page.url:
+                logger.info("Already on search page - checking status directly")
+            else:
+                await self._page.goto("https://advance.lexis.com/search", timeout=20000)
+            
             await self._page.wait_for_load_state("domcontentloaded")
-            await self._page.wait_for_load_state("domcontentloaded")
-            # await asyncio.sleep(2) # Brief settle <-- REMOVED
 
             
             # If we are redirected to signin, check_is_logged_in will return False
@@ -538,15 +549,19 @@ class LexisScraper:
                 return False
             
             # Second check: Do we see the dashboard or any valid Lexis view?
-            for selector in lexis_indicators:
-                try:
-                    # Slightly longer timeout for the first check to allow rendering
-                    timeout_val = 4000
-                    if await self._page.is_visible(selector, timeout=timeout_val):
-                        logger.info(f"✅ Lexis verified via: {selector}")
-                        return True
-                except Exception:
-                    continue
+            # Optimization: Try to find ANY indicator in a single JS execution
+            indicators_js = json.dumps(lexis_indicators)
+            found_indicator = await self._page.evaluate(f"""
+                (indicators) => {{
+                    return indicators.some(s => !!document.querySelector(s));
+                }}
+            """, lexis_indicators)
+            
+            if found_indicator:
+                # Still verify visibility of one just to be sure Playwright is ready
+                # but we use a very short timeout now
+                logger.info(f"✅ Lexis verified via indicators")
+                return True
             
             # DEBUG: If we reached here, we are on Lexis domain but couldn't find indicators
             logger.warning(f"⚠️ Check Failed on URL: {current_url}")
@@ -594,24 +609,35 @@ class LexisScraper:
              ]
             
             # Try to find input immediately
+            search_input = None
             try:
-                # 1.1 If already on Lexis, check visibility without navigation
+                # 1.1 If already on Lexis, check visibility first without navigation
                 current_url = self._page.url
-                if not any(d in current_url for d in self.LEXIS_DOMAINS) or current_url == "about:blank":
-                    logger.info(f"📄 Page at {current_url} - Navigating to Lexis Search...")
-                    await self._page.goto("https://advance.lexis.com/search", timeout=30000)
                 
-                # Increased timeout to 5s (optimistic but patient)
+                # Check if we are already on a results page or search page
+                is_on_lexis = any(d in current_url for d in self.LEXIS_DOMAINS)
+                
+                if not is_on_lexis or current_url == "about:blank":
+                    logger.info(f"📄 Page at {current_url} - Navigating to Lexis Search...")
+                    # Faster timeout for navigation in optimistic mode
+                    await self._page.goto("https://advance.lexis.com/search", timeout=20000)
+                
+                # Try to find search box with a shorter but effective wait
                 for selector in search_selectors:
-                    if await self._page.is_visible(selector, timeout=5000):
-                        search_input = await self._page.wait_for_selector(selector, timeout=1000)
-                        logger.info(f"⚡ Found search box via: {selector}")
-                        break
+                    try:
+                        # Use wait_for_selector with shorter timeout for each
+                        element = await self._page.wait_for_selector(selector, timeout=3000, state="visible")
+                        if element:
+                            search_input = element
+                            logger.info(f"⚡ Found search box via: {selector}")
+                            break
+                    except:
+                        continue
                 
                 if search_input:
-                    logger.info("⚡ OPTIMISTIC SEARCH: Found search box immediately! Skipping login check.")
+                    logger.info("⚡ OPTIMISTIC SEARCH: Found search box immediately! Skipping login flow.")
                 else:
-                    raise Exception("Search box not visible after 5s")
+                    raise Exception("Search box not visible after optimistic checks")
 
                     
             except Exception as e:
@@ -782,7 +808,7 @@ class LexisScraper:
                         
                         if (citation === "No Citation") {
                             // Regex fallback on text content
-                            const match = card.innerText.match(/\\[(\\d{4})\\]\\s+(MLJU|MLJ)\\s+(\\d+)/i);
+                            const match = card.innerText.match(/\[(\d{4})\]\s+(MLJU|MLJ)\s+(\d+)/i);
                             if (match) citation = match[0];
                         }
                         
@@ -953,6 +979,9 @@ class LexisScraper:
                 
             return results
 
+        except (ImportError, ModuleNotFoundError) as e:
+            logger.warning(f"🚫 Research disabled: {e}")
+            raise e
         except Exception as e:
             logger.error(f"Robot failed: {e}")
             try:

@@ -8,6 +8,7 @@ import re
 from services.llm_service import get_llm_service
 import re
 import logging
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -95,7 +96,7 @@ class CaseStructuringAgent(BaseAgent):
             "court": extracted_data.get("court", "Unknown Court"),
             "jurisdiction": extracted_data.get("jurisdiction", "Peninsular Malaysia"),
             "case_type": extracted_data.get("case_type", "general"),
-            "key_dates": extracted_data.get("key_dates", []),
+            "key_dates": self._process_key_dates(extracted_data.get("key_dates", [])),
             "issues": extracted_data.get("issues", []),
             "requested_remedies": extracted_data.get("requested_remedies", []),
             "volume_estimate": len(full_text_en.split()),
@@ -111,9 +112,8 @@ class CaseStructuringAgent(BaseAgent):
             human_review_required=confidence < 0.75
         )
     
-    def _create_extraction_prompt(self, text_en: str, text_ms: str) -> str:
-        """Create prompt for LLM extraction."""
         return f"""You are a Malaysian legal AI assistant. Extract structured information from the following legal documents.
+Current Date: {datetime.utcnow().strftime('%Y-%m-%d')}
 
 English Text:
 {text_en[:20000]}  # Limit to first 20000 chars
@@ -138,7 +138,7 @@ Extract and return a JSON object with the following structure:
         {{
             "type": "future_deadline" or "hearing_date" or "contract_date" or "filing_date",
             "date": "YYYY-MM-DD",
-            "description": "Extract ALL key dates (past and future). sort chronologically. Include future deadlines (2026+) AND past milestones (filings, contracts)."
+            "description": "Short description of the event"
         }}
     ],
     "issues": [
@@ -158,6 +158,59 @@ Extract and return a JSON object with the following structure:
 }}
 
 Return ONLY the JSON object, no additional text."""
+
+    def _process_key_dates(self, key_dates: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Sort and accurately categorize key dates."""
+        if not key_dates:
+            return []
+            
+        today = datetime.utcnow()
+        processed = []
+        
+        for item in key_dates:
+            date_str = item.get("date", "")
+            if not date_str or date_str == "Unknown":
+                continue
+                
+            try:
+                # Standardize date string and parse
+                # Handle YYYY-MM-DD
+                dt = datetime.strptime(date_str[:10], "%Y-%m-%d")
+                
+                # Re-categorize type based on current date
+                original_type = item.get("type", "").lower()
+                
+                if dt > today:
+                    if "hearing" in original_type:
+                        new_type = "hearing_date"
+                    else:
+                        new_type = "future_deadline"
+                else:
+                    if original_type in ["filing_date", "contract_date"]:
+                        new_type = original_type
+                    else:
+                        new_type = "past_milestone"
+                
+                processed.append({
+                    "date": date_str,
+                    "type": new_type,
+                    "description": item.get("description", ""),
+                    "_dt": dt # Internal field for sorting
+                })
+            except Exception as e:
+                logger.warning(f"Could not parse date '{date_str}': {e}")
+                # Keep it as is if unparseable, but mark it
+                processed.append(item)
+                
+        # Sort chronologically
+        processed.sort(key=lambda x: x.get("_dt", datetime.max))
+        
+        # Remove internal field
+        for p in processed:
+            if "_dt" in p:
+                del p["_dt"]
+                
+        return processed
     
     def _parse_llm_response(self, response_text: str) -> Dict[str, Any]:
         """Parse LLM response and extract JSON."""

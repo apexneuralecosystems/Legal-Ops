@@ -234,10 +234,15 @@ sudo systemctl start legal-ops-backend
 
 | Workflow | Agents | Description |
 |----------|--------|-------------|
-| **Intake** | 5 | Document upload, OCR, translation, structuring, risk scoring |
+| **Intake** | 5 | Document upload, **Bilingual OCR (Malay/English)**, translation, structuring, risk scoring |
 | **Drafting** | 5 | Issue planning, templates, Malay drafting, English companion, QA |
 | **Research** | 2 | Case law search, argument building |
 | **Evidence** | 3 | Evidence packets, translation cert, hearing prep |
+
+### 📄 Advanced OCR & PDF Processing
+- **Bilingual Support**: Native support for Malay (**msa**) and English (**eng**) OCR.
+- **Poppler-Free**: Uses `PyMuPDF` (fitz) for faster, reliable PDF-to-image conversion without external system requirements.
+- **Smart Fallback**: Handles both text-embedded and scanned PDFs with automatic language detection.
 
 ### 💳 Payment System
 

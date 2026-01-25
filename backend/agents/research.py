@@ -17,7 +17,6 @@ import logging
 import os
 import json
 import hashlib
-import redis.asyncio as redis
 
 logger = logging.getLogger(__name__)
 
@@ -58,10 +57,11 @@ class ResearchAgent(BaseAgent):
         
         logger.info(f"Research Agent initialized (Source: Lexis Advance, Caching: Redis)")
 
-    async def _get_redis(self) -> redis.Redis:
+    async def _get_redis(self) -> Optional[Any]:
         """Get or create Redis connection."""
         if self._redis is None:
             try:
+                import redis.asyncio as redis
                 self._redis = redis.from_url(
                     settings.REDIS_URL,
                     encoding="utf-8",
@@ -71,7 +71,7 @@ class ResearchAgent(BaseAgent):
                 await self._redis.ping()
                 logger.info("✅ Redis connected for caching")
             except Exception as e:
-                logger.warning(f"Redis connection failed: {e}. Caching disabled.")
+                # Silent failure for Redis - it's an optional cache
                 self._redis = None
         return self._redis
     
@@ -163,8 +163,16 @@ class ResearchAgent(BaseAgent):
             search_duration = (datetime.now() - search_start).total_seconds()
             logger.info(f"[OK] Retrieved {len(results)} cases from Lexis in {search_duration:.1f}s")
             
+        except (ImportError, ModuleNotFoundError) as e:
+            logger.warning(f"🚫 Research skipped: {e}")
+            return {
+                "error": f"Research feature unavailable: {str(e)}",
+                "status": "unavailable",
+                "cases": [],
+                "cached": False
+            }
         except Exception as e:
-            logger.error(f"Lexis Robot failed: {e}", exc_info=True)
+            logger.error(f"Lexis Robot failed: {e}") # Removed exc_info=True for general errors
             # STRICT REAL DATA POLICY: Return Error, NO MOCK
             return {
                 "error": f"Research failed: {str(e)}",
