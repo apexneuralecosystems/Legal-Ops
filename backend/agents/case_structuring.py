@@ -112,6 +112,8 @@ class CaseStructuringAgent(BaseAgent):
             human_review_required=confidence < 0.75
         )
     
+    def _create_extraction_prompt(self, text_en: str, text_ms: str) -> str:
+        """Create prompt for LLM extraction."""
         return f"""You are a Malaysian legal AI assistant. Extract structured information from the following legal documents.
 Current Date: {datetime.utcnow().strftime('%Y-%m-%d')}
 
