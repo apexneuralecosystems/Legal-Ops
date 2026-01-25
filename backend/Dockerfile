@@ -23,6 +23,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # OCR dependencies
     tesseract-ocr \
     tesseract-ocr-eng \
+    tesseract-ocr-msa \
     # PDF processing
     poppler-utils \
     libmagic1 \

@@ -15,9 +15,16 @@ import json
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional
-from playwright.async_api import async_playwright, Browser, BrowserContext, Page, Playwright
+from typing import Optional, TYPE_CHECKING
 from config import settings
+
+if TYPE_CHECKING:
+    from playwright.async_api import Browser, BrowserContext, Page, Playwright
+else:
+    Browser = Any = object
+    BrowserContext = Any = object
+    Page = Any = object
+    Playwright = Any = object
 
 
 logger = logging.getLogger(__name__)
@@ -53,6 +60,15 @@ class BrowserPool:
             cls._instance._last_used = None
         return cls._instance
 
+    @staticmethod
+    def is_playwright_available() -> bool:
+        """Helper to check if playwright is installed without triggering a crash."""
+        try:
+            import importlib.util
+            return importlib.util.find_spec("playwright") is not None
+        except:
+            return False
+
     
     @classmethod
     async def get_instance(cls) -> 'BrowserPool':
@@ -75,9 +91,14 @@ class BrowserPool:
         Assumes self._lock is already held.
         """
         if self._browser is None or not self._browser.is_connected():
+            if not self.is_playwright_available():
+                logger.warning("🚫 Playwright is not installed. Research features will be disabled.")
+                raise ImportError("Playwright not installed. Please run: pip install playwright && playwright install chromium")
+
             logger.info("🚀 Launching new browser instance (HEADED)...")
             
             if self._playwright is None:
+                from playwright.async_api import async_playwright
                 self._playwright = await async_playwright().start()
             
             self._browser = await self._playwright.chromium.launch(
@@ -287,7 +308,7 @@ class BrowserPool:
 
 
 # Convenience function for getting a page
-async def get_pooled_page() -> Page:
+async def get_pooled_page() -> 'Page':
     """
     Convenience function to get a page from the browser pool.
     

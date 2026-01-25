@@ -149,7 +149,11 @@ limiter = Limiter(key_func=get_rate_limit_key)
 # Global exception handler
 @app.exception_handler(Exception)
 async def global_exception_handler(request, exc):
-    logger.error(f"Global exception: {exc}", exc_info=True)
+    # Silence tracebacks for known optional dependency issues
+    if isinstance(exc, (ImportError, ModuleNotFoundError)):
+        logger.warning(f"🚫 Dependency missing: {exc}")
+    else:
+        logger.error(f"Global exception: {exc}", exc_info=True)
     return JSONResponse(
         status_code=500,
         content={
