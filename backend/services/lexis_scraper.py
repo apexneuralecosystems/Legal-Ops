@@ -66,7 +66,7 @@ class LexisScraper:
         self.username = settings.LEXIS_USERNAME
         self.password = settings.LEXIS_PASSWORD
         self.headless = getattr(settings, "LEXIS_HEADLESS", True)
-        self.timeout = 60000  # 60 seconds (extended for login)
+        self.timeout = 300000  # 5 minutes (extended for slow UM login flow)
         self.use_pool = use_pool  # Use browser pool for performance
         
         # Session storage
@@ -268,7 +268,7 @@ class LexisScraper:
                 lambda url: self.CAS_DOMAIN in url or \
                             "login.openathens.net" in url or \
                             any(d in url for d in self.LEXIS_DOMAINS),
-                timeout=30000
+                timeout=300000
             )
         except Exception:
             pass # Check URL below
@@ -276,42 +276,68 @@ class LexisScraper:
         current_url = self._page.url
         
         # HANDLE OPENATHENS CHOOSER INTERCEPTION
-        if "login.openathens.net" in current_url:
-            logger.info("ℹ️ Landed on OpenAthens chooser - selecting 'UM Staff and Students'")
+        if "login.openathens.net" in current_url or "wayfinder" in current_url:
+            logger.info(f"ℹ️ OpenAthens intermediate page (Attempting Institution Selection): {current_url}")
             
             try:
-                # Wait for any loader to disappear
+                # Wait for content to load
+                await self._page.wait_for_load_state("domcontentloaded")
+                
+                # Preferred selector: the clickable div
                 try:
-                    await self._page.wait_for_selector(".loader", state="hidden", timeout=10000)
-                except:
-                    pass
-
-                # Wait for the element
-                selector = "div[role='link']:has-text('UM Staff')"
-                await self._page.wait_for_selector(selector, timeout=10000)
+                    logger.info("Clicking institution link...")
+                    await self._page.click("div[role='link']:has-text('UM Staff')", timeout=10000, force=True)
+                    clicked = True
+                    logger.info("Successfully clicked UM Staff div link.")
+                except Exception as e:
+                    logger.debug(f"Primary selector click failed: {e}")
+                    
+                    # Try other selectors as fallback
+                    for selector in [
+                        "text=UM Staff and Students",
+                        "text='UM Staff and Students'",
+                        ".fa-chevron-circle-right"
+                    ]:
+                        try:
+                            element = await self._page.wait_for_selector(selector, timeout=3000, state="visible")
+                            if element:
+                                await element.click(force=True)
+                                clicked = True
+                                logger.info(f"Clicked institution using: {selector}")
+                                break
+                        except:
+                            continue
                 
-                logger.info("👉 Focusing and pressing Enter on 'UM Staff' option...")
-                # Try focus and enter (often works for GWT/Accessible apps)
-                await self._page.focus(selector)
-                await self._page.keyboard.press("Enter")
-                
-                # Also try click just in case
-                await self._page.click(selector, force=True, timeout=2000)
-                
+                if not clicked:
+                    # Last ditch: JS check and click
+                    logger.info("Last ditch JS click for institution...")
+                    await self._page.evaluate("""
+                        () => {
+                            const elements = Array.from(document.querySelectorAll('*'));
+                            const umLink = elements.find(
+                                e => (e.textContent && e.textContent.includes('UM Staff')) || 
+                                     (e.getAttribute && e.getAttribute('role') === 'link' && e.innerText.includes('Staff'))
+                            );
+                            if (umLink) {
+                                umLink.scrollIntoView();
+                                umLink.click();
+                                return true;
+                            }
+                            return false;
+                        }
+                    """)
             except Exception as e:
-                logger.warning(f"Failed to interact with UM Staff option: {e}")
-                # Try clicking the chevron icon explicitly
-                try:
-                    await self._page.click(".fa-chevron-circle-right", force=True)
-                except:
-                    pass
+                logger.warning(f"Institution selection attempt finished: {e}")
             
-            # Now wait for redirect to CAS
-            logger.info("⏳ Option activated - waiting for redirect to CAS...")
+            # Now wait for redirect to CAS or Lexis
+            logger.info("⏳ Waiting for final redirect to CAS or Lexis...")
             try:
-                await self._page.wait_for_url(lambda u: self.CAS_DOMAIN in u, timeout=15000)
+                await self._page.wait_for_url(
+                    lambda u: self.CAS_DOMAIN in u or any(d in u for d in self.LEXIS_DOMAINS), 
+                    timeout=45000
+                )
             except Exception:
-                pass # Check URL below
+                logger.info(f"Redirect from OpenAthens timed out. Current URL: {self._page.url}")
         
         current_url = self._page.url
         
@@ -320,17 +346,20 @@ class LexisScraper:
              # Loop wait if still on EzProxy
             logger.info("On EzProxy page - waiting for final redirect...")
             try:
-                await self._page.wait_for_url(lambda u: self.CAS_DOMAIN in u, timeout=15000)
+                await self._page.wait_for_url(lambda u: self.CAS_DOMAIN in u, timeout=30000)
             except Exception:
                 await self._capture_debug_state("step3_ezproxy_stuck")
                 raise Exception(f"Stuck on EzProxy page: {current_url}")
         
         current_url = self._page.url
-        if not (self.CAS_DOMAIN in current_url or any(d in current_url for d in self.LEXIS_DOMAINS)):
+        # ALLOW login.openathens.net if it's the final destination (some versions of the flow stay there briefly)
+        # but primarily we want CAS or Lexis.
+        valid_destinations = [self.CAS_DOMAIN, "login.openathens.net"] + self.LEXIS_DOMAINS
+        if not any(d in current_url for d in valid_destinations):
              await self._capture_debug_state("step3_unexpected_redirect")
              raise Exception(
                 f"Unexpected redirect destination: {current_url}. "
-                "Expected CAS login page or Lexis."
+                "Expected CAS login page, OpenAthens, or Lexis."
              )
         
         current_url = self._page.url
@@ -361,7 +390,7 @@ class LexisScraper:
             
             try:
                 # Wait for login form
-                await self._page.wait_for_selector("#login-form", timeout=10000)
+                await self._page.wait_for_selector("#login-form", timeout=300000)
                 
                 # Determine Domain Type from email
                 domain_type = "Staff"
@@ -406,7 +435,7 @@ class LexisScraper:
             # Wait for Lexis domain with extended timeout for complex redirects
             await self._page.wait_for_url(
                 lambda url: any(domain in url for domain in self.LEXIS_DOMAINS),
-                timeout=60000
+                timeout=180000
             )
         except Exception:
             current_url = self._page.url
@@ -753,7 +782,7 @@ class LexisScraper:
             # =========================================================================
             logger.info("🚀 Executing Turbo Extraction (Javascript Injection)...")
             
-            js_payload = """
+            js_payload = r"""
             () => {
                 // 1. SELECT ALL RESULT CARDS
                 // Try multiple patterns for the parent container

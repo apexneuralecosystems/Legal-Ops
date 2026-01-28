@@ -132,6 +132,21 @@ async def build_argument(
             query=request.query
         )
         
+        # Create Audit Log entry for research
+        from models.audit import AuditLog
+        audit_entry = AuditLog(
+            matter_id=matter_id_str,
+            agent_id="ResearchOrchestrator",
+            action_type="argument_built",
+            action_description=f"Generated legal argument memo addressing {len(request.issues)} issues with {len(request.cases)} case citations.",
+            entity_type="research_memo",
+            user_id=current_user["user_id"]
+        )
+        db.add(audit_entry)
+        # We can't commit if it's an async session without await, 
+        # but db is AsyncSession here.
+        await db.commit()
+
         return {
             "status": "success",
             "argument_memo": updated_state.get("argument_memo", {}),

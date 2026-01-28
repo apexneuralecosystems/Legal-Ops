@@ -9,6 +9,7 @@ from models.research import ResearchCase
 from models.audit import AuditLog
 from models.auth import User
 from models.usage import UserUsage
+from models.ocr_models import OCRDocument, OCRPage, OCRChunk, OCRProcessingLog
 
 __all__ = [
     "Matter",
@@ -18,6 +19,9 @@ __all__ = [
     "ResearchCase",
     "AuditLog",
     "User",
-    "UserUsage"
+    "UserUsage",
+    "OCRDocument",
+    "OCRPage",
+    "OCRChunk",
+    "OCRProcessingLog",
 ]
-

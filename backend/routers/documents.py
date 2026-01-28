@@ -1,7 +1,7 @@
 """
 Documents API router - Endpoints for document management.
 """
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
@@ -115,6 +115,7 @@ def list_documents(
 
 @router.post("/upload", response_model=dict)
 async def upload_document(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     matter_id: Optional[str] = Form(None),
     db: Session = Depends(get_db),
@@ -184,11 +185,48 @@ async def upload_document(
     
     logger.info(f"Document uploaded: {safe_filename} ({len(content)} bytes)")
     
+    # TRIGGER FULL INTAKE / RAG INGESTION
+    try:
+        async def run_detailed_intake(filepath: str, m_id: str, doc_obj: Any):
+            logger.info(f"Starting Background Intake for {filepath} (Matter: {m_id})")
+            
+            # 1. RAG Ingestion
+            from services.rag_service import get_rag_service
+            rag = get_rag_service()
+            await rag.ingest_document(filepath, matter_id=m_id)
+            
+            # 2. If it's a matter document, re-run orchestrator to update dashboard (Legal Issues, Parties, etc.)
+            if m_id and m_id != "general":
+                from orchestrator.controller import OrchestrationController
+                from routers.matters import _process_intake_background
+                
+                controller = OrchestrationController()
+                # We need files_data format
+                files_data = [{
+                    "filename": doc_obj.original_filename,
+                    "content": None, # Use file_path instead of content to save memory
+                    "mime_type": doc_obj.mime_type,
+                    "doc_id": doc_obj.id,
+                    "file_path": filepath
+                }]
+                
+                # Use the background helper from matters.py to update DB
+                # Note: This will potentially re-read all docs or just add this one 
+                # depending on how _process_intake_background is implemented.
+                # For now, let's just trigger it.
+                background_tasks.add_task(_process_intake_background, m_id, files_data, "upload", {})
+
+        background_tasks.add_task(run_detailed_intake, file_path, matter_id if matter_id else "general", document)
+        
+    except Exception as ingestion_err:
+        logger.error(f"Failed to queue intake task: {ingestion_err}")
+    
     return {
         "status": "success",
         "document_id": document.id,
         "filename": document.filename,
-        "size": document.file_size
+        "size": document.file_size,
+        "ocr_status": "queued"
     }
 
 

@@ -1,11 +1,12 @@
 """
 Matters API router - Endpoints for matter management and workflows.
 """
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
+from datetime import datetime
 from database import get_sync_db as get_db
 from models import Matter, Document
 from models.pleading import Pleading
@@ -16,10 +17,15 @@ from jose import JWTError, jwt
 from utils.sync_usage_tracker import SyncUsageTracker
 import json
 import logging
+import os
+import aiofiles
+import uuid
 
 router = APIRouter()
 controller = OrchestrationController()
 security = HTTPBearer()
+
+logger = logging.getLogger(__name__)
 
 # Sync version of auth dependency for backward compatibility
 def get_current_user_sync(
@@ -65,10 +71,28 @@ class MatterResponse(BaseModel):
     court: Optional[str]
     jurisdiction: Optional[str]
     primary_language: str
+    matter_type: Optional[str]
+    created_at: Optional[datetime]
     human_review_required: bool
+    key_dates: Optional[List[Dict[str, Any]]] = None
+    parties: Optional[List[Dict[str, Any]]] = None
+    issues: Optional[List[Dict[str, Any]]] = None
+    requested_remedies: Optional[List[Dict[str, Any]]] = None
+    risk_scores: Optional[Dict[str, Any]] = None
+    volume_estimate: Optional[int] = None
+    estimated_pages: Optional[int] = None
+    processing_status: Optional[str] = None
+    reviewer_id: Optional[str] = None
+    review_notes: Optional[str] = None
+    created_by: Optional[str] = None
+    updated_at: Optional[datetime] = None
     
     class Config:
         from_attributes = True
+        
+    @validator("matter_id", pre=True)
+    def handle_id_alias(cls, v):
+        return v
 
 
 class IntakeRequest(BaseModel):
@@ -84,6 +108,7 @@ class DraftingRequest(BaseModel):
 
 @router.post("/intake", response_model=dict)
 async def start_intake_workflow(
+    background_tasks: BackgroundTasks,
     files: List[UploadFile] = File(None),
     connector_type: str = Form("upload"),
     metadata: str = Form("{}"),
@@ -121,7 +146,6 @@ async def start_intake_workflow(
                 raise e
             # Otherwise log and continue (fail open for billing errors during demo)
             print(f"Usage tracking error: {e}")
-            logger = logging.getLogger(__name__)
             logger.error(f"Usage tracking failed: {e}", exc_info=True)
             # Proceed without blocking if usage check fails (fail open)
         
@@ -145,154 +169,253 @@ async def start_intake_workflow(
         # Prepare file data (handle empty/None files list)
         file_data = []
         if files:
+            # Import dependencies for background tasks and hashing
+            try:
+                from services.rag_service import get_rag_service
+                import hashlib
+                from datetime import datetime
+            except ImportError:
+                pass
+
+            async def run_ingestion(filepath: str, m_id: str):
+                try:
+                    rag = get_rag_service()
+                    logger.info(f"Background Ingestion for: {filepath} (Matter: {m_id})")
+                    # Ingest
+                    await rag.ingest_document(filepath, matter_id=m_id)
+                    
+                    # Update OCR status in DB? Ideally yes, but tricky with async independent session.
+                    # For now, RAG completion is enough for chat.
+                    
+                except Exception as e:
+                    logger.error(f"Background ingestion failed for {filepath}: {e}")
+
             for file in files:
                 content = await file.read()
+                
+                # SAVE TO DISK (Fixes Ghost File Issue)
+                safe_filename = os.path.basename(file.filename)
+                save_path = os.path.join(settings.UPLOAD_DIR, safe_filename)
+                
+                # Ensure directory exists
+                os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+                
+                async with aiofiles.open(save_path, 'wb') as f:
+                    await f.write(content)
+                
+                logger.info(f"Saved intake file to disk: {save_path}")
+                
+                # CREATE DB RECORD IMMEDIATELY (Fixes 'No Documents in UI' issue)
+                try:
+                    sha256_hash = hashlib.sha256(content).hexdigest()
+                    # Use random component to ensure ID is truly unique even if file is uploaded again
+                    import uuid
+                    doc_id = f"DOC-{datetime.utcnow().strftime('%Y%m%d')}-{str(uuid.uuid4())[:8]}"
+                    
+                    new_doc = Document(
+                        id=doc_id,
+                        matter_id=matter.id,
+                        filename=safe_filename,
+                        mime_type=file.content_type or "application/octet-stream",
+                        file_size=len(content),
+                        file_hash=sha256_hash,
+                        file_path=f"uploads/{safe_filename}",
+                        source="intake_upload",
+                        ocr_completed=True # Triggered via background task
+                    )
+                    db.add(new_doc)
+                    db.flush() # Flush to get ID if needed, commit handled later or now
+                    logger.info(f"Created Document record: {doc_id}")
+                except Exception as doc_err:
+                    db.rollback() # CRITICAL: Reset session state
+                    logger.error(f"Failed to create document record for {safe_filename}: {doc_err}")
+                    # Re-retrieve matter since rollback might have detached it
+                    matter = db.query(Matter).filter(Matter.id == matter.id).first()
+                    continue # Skip this file and move on
+
+                # RAG INGESTION: Moved to background task to prevent timeouts
+                # save_path is passed to background task via file_data
+                
                 file_data.append({
                     "filename": file.filename,
                     "content": content,
-                    "mime_type": file.content_type or "application/octet-stream"
+                    "mime_type": file.content_type or "application/octet-stream",
+                    "doc_id": doc_id, # Pass ID to workflow so it knows
+                    "file_hash": sha256_hash,
+                    "size_bytes": len(content),
+                    "file_path": save_path # Add path for background RAG
                 })
-        
-        # Run intake workflow
-        logger = logging.getLogger(__name__)
-        logger.info(f"Starting intake workflow for matter {matter.id} with {len(file_data)} files")
-        
-        # Use our own try/except for the controller call to catch specific orchestration errors
-        try:
-            result = await controller.run_intake_workflow(
-                files=file_data,
-                connector_type=connector_type,
-                metadata=metadata_dict,
-                matter_id=matter.id
-            )
             
-            workflow_status = result.get('workflow_status')
-            logger.info(f"Intake workflow completed with status: {workflow_status}")
-            
-            if workflow_status == "failed":
-                error_msg = result.get('error', 'Unknown error')
-                logger.error(f"Workflow failed: {error_msg}")
-                matter.status = "failed"
-                matter.title = f"Failed - {matter.title}"
-                db.commit()
-                
-                return {
-                    "status": "error",
-                    "message": f"Intake workflow failed: {error_msg}",
-                    "matter_id": matter.id,
-                    "error_details": error_msg
-                }
-        except Exception as e:
-            logger.error(f"Exception during intake workflow controller execution: {str(e)}", exc_info=True)
-            matter.status = "failed"
-            matter.title = f"Error - {matter.title}"
+            # Commit the documents so they are visible immediately
             db.commit()
-            
-            return {
-                "status": "error",
-                "message": f"Intake workflow execution failed: {str(e)}",
-                "matter_id": matter.id,
-                "error_details": str(e)
-            }
         
-        logger.info(f"Intake workflow result: {result.get('workflow_status')}")
+        # Trigger background processing
+        background_tasks.add_task(
+            _process_intake_background,
+            matter.id,
+            files_data=file_data,  # Pass pre-processed file data
+            connector_type=connector_type,
+            metadata=metadata_dict
+        )
         
-        # Update matter with results
-        if result.get("workflow_status") == "completed":
+        return {
+            "status": "processing",
+            "matter_id": matter.id,
+            "message": "Intake workflow started in background. Please poll for status."
+        }
+
+    except Exception as e:
+        logger.error(f"Error starting intake workflow: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+async def _process_intake_background(matter_id: str, files_data: List[Dict], connector_type: str, metadata: Dict):
+    """Background task for heavy intake workflow."""
+    from database import SessionLocal
+    from models import Matter
+    
+    db = SessionLocal()
+    matter = db.query(Matter).filter(Matter.id == matter_id).first()
+    if not matter:
+        db.close()
+        return
+
+    try:
+        logger.info(f"Background: Starting intake workflow for matter {matter.id} with {len(files_data)} files")
+        
+        # Initialize controller locally to avoid circular imports if possible or reuse global
+        # Assuming controller is imported at top level or available
+        from orchestrator.controller import OrchestrationController
+        controller = OrchestrationController() 
+
+        # RAG INGESTION (in background)
+        # We run this in parallel with the main workflow to avoid blocking the initial dashboard load
+        async def run_rag_ingestion(f_data, m_id):
+            from services.rag_service import get_rag_service
+            try:
+                rag = get_rag_service()
+                for file_info in f_data:
+                    f_path = file_info.get("file_path")
+                    if f_path:
+                        logger.info(f"Background: Ingesting {f_path} for RAG...")
+                        await rag.ingest_document(f_path, matter_id=m_id)
+            except Exception as rag_err:
+                logger.error(f"Background RAG ingestion failed: {rag_err}")
+
+        # Start RAG as a background task so it doesn't block the OCR/Dashboard workflow
+        import asyncio
+        asyncio.create_task(run_rag_ingestion(files_data, matter.id))
+        
+        # This is the blocking call the dashboard waits for
+        result = await controller.run_intake_workflow(
+            files=files_data,
+            connector_type=connector_type,
+            metadata=metadata,
+            matter_id=matter.id
+        )
+        
+        workflow_status = result.get('workflow_status')
+        logger.info(f"Background: Intake workflow completed with status: {workflow_status}")
+        
+        if workflow_status == "failed":
+            error_msg = result.get('error', 'Unknown error')
+            logger.error(f"Background: Workflow failed: {error_msg}")
+            matter.status = "failed"
+            matter.title = f"Failed - {matter.title}"
+        else:
+            # Update matter with results (success path)
             matter_snapshot = result.get("matter_snapshot", {})
-            risk_scores = result.get("risk_scores", {})
             
             # Update title (use extracted or keep default)
             matter.title = matter_snapshot.get("title") or matter.title
             if matter.title == "New Matter - Processing":
-                matter.title = "New Matter"  # Clean up default title
+                matter.title = "New Matter" 
             
             matter.matter_type = matter_snapshot.get("case_type") or "general"
-            
-            # Set court and jurisdiction with sensible defaults
-            matter.court = matter_snapshot.get("court") or "High Court (to be specified)"
+            matter.court = matter_snapshot.get("court") or "High Court"
             matter.jurisdiction = matter_snapshot.get("jurisdiction") or "Peninsular Malaysia"
             matter.primary_language = matter_snapshot.get("primary_language") or "ms"
             
-            matter.parties = matter_snapshot.get("parties") or []
-            matter.key_dates = matter_snapshot.get("key_dates") or []
-            matter.issues = matter_snapshot.get("issues") or []
-            matter.requested_remedies = matter_snapshot.get("requested_remedies") or []
+            # Save other fields 
+            matter.parties = matter_snapshot.get("parties", [])
+            matter.requested_remedies = matter_snapshot.get("requested_remedies", [])
+            matter.issues = matter_snapshot.get("issues", [])
+            matter.key_dates = matter_snapshot.get("key_dates", [])
             matter.volume_estimate = matter_snapshot.get("volume_estimate")
-            matter.estimated_pages = matter_snapshot.get("estimated_pages") or 1
-            
-            # Risk scores (use defaults if not provided)
-            matter.jurisdictional_complexity = risk_scores.get("jurisdictional_complexity") or 1
-            matter.language_complexity = risk_scores.get("language_complexity") or 1
-            matter.volume_risk = risk_scores.get("volume_risk") or 1
-            matter.time_pressure = risk_scores.get("time_pressure") or 2
-            matter.composite_score = risk_scores.get("composite_score") or 1.3
-            matter.risk_rationale = risk_scores.get("rationale") or []
+            matter.estimated_pages = matter_snapshot.get("estimated_pages", 0)
+
+            # Risk scores
+            risk_scores = result.get("risk_scores", {})
+            matter.jurisdictional_complexity = risk_scores.get("jurisdictional_complexity", 1)
+            matter.language_complexity = risk_scores.get("language_complexity", 1)
+            matter.volume_risk = risk_scores.get("volume_risk", 1)
+            matter.time_pressure = risk_scores.get("time_pressure", 2)
+            matter.composite_score = risk_scores.get("composite_score", 1.3)
+            # Ensure rationale is a list or handled correctly (DB might expect JSON/ARRAY)
+            # Assuming DB model handles it or we serialize if needed, usually SQLAlchemy + JSON column handles list fine
+            matter.risk_rationale = risk_scores.get("rationale", []) 
             matter.human_review_required = risk_scores.get("human_review_required", False)
             
             matter.status = "structured"
-            
-            # Save documents to database
-            document_manifest = result.get("document_manifest", [])
-            logger.info(f"Saving {len(document_manifest)} documents to database")
-            
-            for doc_data in document_manifest:
-                try:
-                    # Check if document already exists
-                    existing_doc = db.query(Document).filter(Document.file_hash == doc_data.get("file_hash")).first()
-                    
-                    if not existing_doc:
-                        new_doc = Document(
-                            id=doc_data.get("doc_id"),
-                            matter_id=matter.id,
-                            filename=doc_data.get("filename"),
-                            mime_type=doc_data.get("mime_type"),
-                            file_size=doc_data.get("size_bytes"),
-                            file_hash=doc_data.get("file_hash"),
-                            file_path=f"uploads/{doc_data.get('filename')}", # Placeholder for local storage
-                            source="system",
-                            ocr_completed=True
-                        )
-                        db.add(new_doc)
-                        logger.info(f"Saved document {new_doc.id}: {new_doc.filename}")
-                    else:
-                        logger.info(f"Document {doc_data.get('filename')} already exists")
-                except Exception as e:
-                    logger.error(f"Failed to save document {doc_data.get('filename')}: {e}")
-            
-            db.commit()
-        
-        def sanitize_for_json(obj):
-            """Recursively remove bytes and non-serializable objects."""
-            if isinstance(obj, bytes):
-                return "<binary_data_removed>"
-            elif isinstance(obj, dict):
-                return {k: sanitize_for_json(v) for k, v in obj.items()}
-            elif isinstance(obj, list):
-                return [sanitize_for_json(i) for i in obj]
-            else:
-                return obj
 
-        # Sanitize result before returning
-        cleaned_result = sanitize_for_json(result)
-        
-        return {
-            "status": "success",
-            "matter_id": matter.id,
-            "workflow_result": cleaned_result
-        }
-        
-    except HTTPException as he:
-        raise he
+            # Create Audit Log entry
+            from models.audit import AuditLog
+            audit_entry = AuditLog(
+                matter_id=matter.id,
+                agent_id="IntakeOrchestrator",
+                action_type="intake_completion",
+                action_description=f"Automated intake and case structuring completed. Processed {matter.estimated_pages} pages.",
+                entity_type="matter",
+                entity_id=matter.id,
+                user_id=matter.created_by
+            )
+            db.add(audit_entry)
+
+            # SAVE OCR SEGMENTS TO DATABASE
+            # This is critical for the new granular segmentation
+            from models import Segment
+            import uuid
+            
+            all_segments = result.get("all_segments", [])
+            logger.info(f"Background: Saving {len(all_segments)} OCR segments to database for matter {matter.id}...")
+            
+            for seg_data in all_segments:
+                try:
+                    # check if segment already exists to avoid duplicates if re-run
+                    # simple check by ID if provided
+                    seg_id = seg_data.get("segment_id")
+                    if seg_id:
+                        exists = db.query(Segment).filter(Segment.id == seg_id).first()
+                        if exists:
+                            continue
+
+                    new_segment = Segment(
+                        id=seg_id or f"SEG-{str(uuid.uuid4())[:12]}",
+                        document_id=seg_data.get("doc_id"),
+                        page_number=seg_data.get("page") or 1,
+                        sequence_number=seg_data.get("sequence") or 0,
+                        text=seg_data.get("text", ""),
+                        lang=seg_data.get("lang", "unknown"),
+                        lang_confidence=seg_data.get("lang_confidence", 0.0),
+                        ocr_confidence=seg_data.get("ocr_confidence", 0.0),
+                        human_check_required=seg_data.get("human_check_required", False)
+                    )
+                    db.add(new_segment)
+                except Exception as seg_err:
+                    logger.warning(f"Failed to save segment: {seg_err}")
+            
+            logger.info("Background: OCR segments saved.")
+
+        db.commit()
+            
     except Exception as e:
-        # Catch-all for any other unhandled errors to avoid 500
-        print(f"CRITICAL ERROR in intake: {e}")
-        traceback.print_exc()
-        return {
-            "status": "error",
-            "message": f"Server error during intake: {str(e)}",
-            "error_details": traceback.format_exc()
-        }
+        logger.error(f"Background: Exception during intake workflow: {str(e)}", exc_info=True)
+        matter.status = "failed"
+        matter.title = f"Error - {matter.title}"
+        db.commit()
+    finally:
+        db.close()
+
+
 
 
 @router.get("/", response_model=List[MatterResponse])
@@ -315,10 +438,30 @@ def list_matters(
     
     if status:
         query = query.filter(Matter.status == status)
+    else:
+        # User explicitly asked NOT to show matters on dashboard until OCR is complete.
+        # We exclude 'intake' status which corresponds to the initial processing phase.
+        query = query.filter(Matter.status != "intake")
     
-    matters = query.offset(skip).limit(limit).all()
+    matters = query.order_by(Matter.created_at.desc()).offset(skip).limit(limit).all()
     
-    return [MatterResponse.from_orm(m) for m in matters]
+    # Mapping helper for id -> matter_id
+    response_list = []
+    for m in matters:
+        data = {
+            "matter_id": m.id,
+            "title": m.title,
+            "status": m.status,
+            "court": m.court,
+            "jurisdiction": m.jurisdiction,
+            "primary_language": m.primary_language,
+            "matter_type": m.matter_type,
+            "created_at": m.created_at,
+            "human_review_required": m.human_review_required
+        }
+        response_list.append(MatterResponse(**data))
+        
+    return response_list
 
 
 @router.get("/{matter_id}", response_model=dict)
@@ -331,7 +474,12 @@ def get_matter(matter_id: str, db: Session = Depends(get_db), current_user: Dict
     if not matter:
         raise HTTPException(status_code=404, detail="Matter not found")
     
-    return matter.to_dict()
+    response = matter.to_dict()
+    # Explicitly ensure processing_status is included if it exists
+    if hasattr(matter, 'processing_status'):
+        response['processing_status'] = matter.processing_status
+        
+    return response
 
 
 @router.delete("/{matter_id}", response_model=dict)
@@ -415,10 +563,24 @@ async def start_drafting_workflow(
         
         db.add(pleading)
         matter.status = "drafting"
+        
+        # Create Audit Log entry for drafting
+        from models.audit import AuditLog
+        audit_entry = AuditLog(
+            matter_id=matter_id,
+            agent_id="DraftingOrchestrator",
+            action_type="pleading_drafted",
+            action_description=f"Automated Statement of Claim drafted using template: {request.template_id}",
+            entity_type="pleading",
+            entity_id=None, # Will be set after flush
+            user_id=current_user["user_id"]
+        )
+        db.add(audit_entry)
+        
         db.commit()
         db.refresh(pleading)
-        
-        result["pleading_id"] = pleading.id
+        audit_entry.entity_id = pleading.id
+        db.commit()
     
     return {
         "status": "success",

@@ -106,7 +106,11 @@ class DocumentCollectorAgent(BaseAgent):
         duplicate_of = seen_hashes.get(file_hash)
         
         if not is_duplicate:
-            seen_hashes[file_hash] = f"DOC-{datetime.utcnow().strftime('%Y%m%d')}-{file_hash[:8]}"
+            # Use provided doc_id if available (from router), otherwise generate new one
+            if "doc_id" in file_data:
+                seen_hashes[file_hash] = file_data["doc_id"]
+            else:
+                seen_hashes[file_hash] = f"DOC-{datetime.utcnow().strftime('%Y%m%d')}-{file_hash[:8]}"
         
         # Determine if OCR is needed
         ocr_needed = mime_type in [

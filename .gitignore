@@ -115,6 +115,22 @@ backend/FAILURE.txt
 backend/PERFORMANCE_RESULTS.txt
 backend/dependencies.py
 
+# Additional cleanup patterns
+backend/manual_intake_script.py
+backend/check_*.py
+backend/inject_*.py
+backend/grant_*.py
+backend/reset_*.py
+backend/re_ocr*.py
+backend/terminal_*.py
+backend/final_*.py
+backend/ocr_report*.txt
+backend/upload_result*.txt
+backend/server_log.txt
+backend/perf_*.txt
+backend/perf_*.py
+backend/tessdata_bkp/
+
 # Jupyter Notebook
 .ipynb_checkpoints
 *.ipynb

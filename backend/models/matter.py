@@ -59,6 +59,9 @@ class Matter(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     created_by = Column(String)
     
+    # Progress Tracking
+    processing_status = Column(String, default="Initializing...")  # Real-time status update
+    
     # Relationships
     documents = relationship("Document", back_populates="matter", cascade="all, delete-orphan")
     pleadings = relationship("Pleading", back_populates="matter", cascade="all, delete-orphan")
@@ -95,6 +98,8 @@ class Matter(Base):
             },
             "human_review_required": self.human_review_required,
             "reviewer_id": self.reviewer_id,
+            "review_notes": self.review_notes,
+            "processing_status": self.processing_status,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None
         }

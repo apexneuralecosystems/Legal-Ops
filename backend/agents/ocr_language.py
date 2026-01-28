@@ -5,6 +5,7 @@ from agents.base_agent import BaseAgent
 from typing import Dict, Any, List, Optional
 import io
 import os
+import asyncio
 from config import settings
 import logging
 
@@ -57,16 +58,17 @@ class OCRLanguageAgent(BaseAgent):
         await self.validate_input(inputs, ["doc_id", "file_content", "mime_type"])
         
         doc_id = inputs["doc_id"]
+        matter_id = inputs.get("matter_id")
         file_content = inputs["file_content"]
         mime_type = inputs["mime_type"]
         
         segments = []
         actual_page_count = 1  # Default for non-PDFs
         
-        logger.info(f"DEBUG: Processing doc {doc_id}, mime={mime_type}, size={len(file_content)}")
+        logger.info(f"DEBUG: Processing doc {doc_id}, matter={matter_id}, mime={mime_type}")
         
         if mime_type == "application/pdf":
-            segments, actual_page_count = await self._process_pdf_with_page_count(doc_id, file_content)
+            segments, actual_page_count = await self._process_pdf_with_page_count(doc_id, file_content, matter_id=matter_id)
         elif mime_type.startswith("image/"):
             segments = await self._process_image(doc_id, file_content, page=1)
         else:
@@ -100,61 +102,88 @@ class OCRLanguageAgent(BaseAgent):
             human_review_required=avg_lang_conf < 0.7
         )
     
-    async def _process_pdf_with_page_count(self, doc_id: str, pdf_content: bytes) -> tuple:
-        """Process PDF file with text extraction fallback to OCR. Returns (segments, page_count)."""
+    async def _process_pdf_with_page_count(self, doc_id: str, pdf_content: bytes, matter_id: str = None) -> tuple:
+        """Process PDF file page-by-page with Google Vision API. Returns (segments, page_count)."""
         segments = []
         actual_page_count = 1
         
-        # Try text extraction first (faster and doesn't need Poppler)
+        # PRIMARY METHOD: Google Vision API (fast, reliable OCR)
         try:
-            from pypdf import PdfReader
-            pdf_reader = PdfReader(io.BytesIO(pdf_content))
-            actual_page_count = len(pdf_reader.pages)  # Get actual page count
-            full_text = ""
-            for i, page in enumerate(pdf_reader.pages, 1):
-                text = page.extract_text()
-                if text:
-                    full_text += text + "\n"
+            from services.vision_ocr_service import get_vision_ocr_service
+            import fitz  # PyMuPDF
             
-            if full_text.strip():
-                logger.info(f"Successfully extracted text from PDF {doc_id} without OCR. Length: {len(full_text)}, Pages: {actual_page_count}")
-                segments = await self._segment_text(doc_id, full_text, page=1, ocr_confidence=1.0)
-                return segments, actual_page_count
-            else:
-                logger.warning(f"PDF text extraction returned empty string for {doc_id}")
-                
-        except Exception as e:
-            logger.warning(f"Text extraction failed, falling back to OCR: {e}")
-
-        try:
-            # Convert PDF to images using PyMuPDF (no Poppler needed)
-            import fitz
+            vision_service = get_vision_ocr_service()
+            
+            # Open PDF with PyMuPDF to get page count
             doc = fitz.open(stream=pdf_content, filetype="pdf")
             actual_page_count = len(doc)
-            
-            for page_num in range(1, actual_page_count + 1):
-                page = doc.load_page(page_num - 1)
-                pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
-                image_data = pix.tobytes("png")
-                page_segments = await self._process_image(doc_id, image_data, page=page_num)
-                segments.extend(page_segments)
             doc.close()
-        
+            
+            logger.info(f"Vision OCR: Processing {actual_page_count} pages for doc {doc_id}")
+            
+            # Progress callback for DB updates
+            async def update_db_status(page_done, total):
+                if not matter_id:
+                    return
+                try:
+                    from database import SessionLocal
+                    from models import Matter
+                    from sqlalchemy import update
+                    db = SessionLocal()
+                    stmt = update(Matter).where(Matter.id == matter_id).values(
+                        processing_status=f"OCR reading pages {page_done}/{total}..."
+                    )
+                    db.execute(stmt)
+                    db.commit()
+                    db.close()
+                except Exception as e:
+                    logger.warning(f"Failed to update progress: {e}")
+            
+            # Extract text from all pages using Vision API
+            page_results, actual_page_count = await vision_service.extract_text_from_pdf(
+                pdf_content,
+                max_concurrent=8,
+                progress_callback=update_db_status
+            )
+            
+            # Convert page results to segments
+            for page_result in page_results:
+                page_num = page_result["page"]
+                page_text = page_result.get("text", "")
+                confidence = page_result.get("confidence", 0.95)
+                
+                if page_text and not page_result.get("error"):
+                    logger.info(f"Page {page_num} extracted: {len(page_text)} chars")
+                    page_segs = await self._segment_text(doc_id, page_text, page=page_num, ocr_confidence=confidence)
+                    segments.extend(page_segs)
+                else:
+                    logger.warning(f"Page {page_num} failed or empty: {page_result.get('error', 'No text')}")
+            
+            logger.info(f"Vision OCR: Completed {len(segments)} segments from {actual_page_count} pages")
+            return segments, actual_page_count
+
         except Exception as e:
-            logger.error(f"Error processing PDF with OCR: {e}")
-            # Return empty segments with error flag
-            segments.append({
-                "segment_id": f"SEG-{doc_id}-error",
-                "doc_id": doc_id,
-                "page": 1,
-                "text": f"[OCR ERROR: {str(e)}]",
-                "lang": "unknown",
-                "lang_confidence": 0.0,
-                "ocr_confidence": 0.0,
-                "error": True
-            })
-        
-        return segments, actual_page_count
+            logger.warning(f"Vision API OCR failed: {e}. Falling back to pypdf.")
+            
+            # FALLBACK 1: Try pypdf (pure python, good for text PDFs)
+            try:
+                import io
+                from pypdf import PdfReader
+                
+                reader = PdfReader(io.BytesIO(pdf_content))
+                full_segments = []
+                for i, page in enumerate(reader.pages):
+                     text = page.extract_text() or ""
+                     if text.strip():
+                         page_segments = await self._segment_text(doc_id, text, page=i+1)
+                         full_segments.extend(page_segments)
+                
+                if full_segments:
+                    logger.info(f"Recovered {len(full_segments)} segments using pypdf fallback.")
+                    return full_segments, len(reader.pages)
+            except Exception as pypdf_err:
+                logger.warning(f"pypdf fallback failed: {pypdf_err}")
+                return [], 0
     
     async def _process_image(
         self,
@@ -162,76 +191,65 @@ class OCRLanguageAgent(BaseAgent):
         image_content: Any,
         page: int
     ) -> List[Dict[str, Any]]:
-        """Process image with OCR."""
-        try:
-            from PIL import Image
-        except ImportError:
-            logger.error("PIL (Pillow) not installed. OCR requires PIL.")
-            return [{"error": "PIL not installed"}]
-        
-        # If image_content is bytes, convert to PIL Image
+        """Process image with Google Vision API OCR."""
+        # Ensure we have bytes
         if isinstance(image_content, bytes):
-            image = Image.open(io.BytesIO(image_content))
+            image_bytes = image_content
         else:
-            image = image_content
-        
-        try:
+            # Convert PIL Image to bytes
             try:
-                import pytesseract
-            except ImportError:
+                from PIL import Image
+                import io as _io
+                buffer = _io.BytesIO()
+                image_content.save(buffer, format='PNG')
+                image_bytes = buffer.getvalue()
+            except Exception as e:
+                logger.error(f"Failed to convert image to bytes: {e}")
                 return [{
                     "segment_id": f"SEG-{doc_id}-p{page}-error",
                     "doc_id": doc_id,
                     "page": page,
-                    "text": "[OCR ERROR: pytesseract not installed. Please install it to use OCR features.]",
+                    "text": f"[OCR ERROR: Failed to convert image: {e}]",
                     "lang": "unknown",
                     "lang_confidence": 0.0,
                     "ocr_confidence": 0.0,
                     "error": True
                 }]
-
-            # Configure Tesseract
-            if settings.TESSERACT_CMD:
-                pytesseract.pytesseract.tesseract_cmd = settings.TESSERACT_CMD
-                
-            # Configure local tessdata if it exists
-            local_tessdata = os.path.join(settings.BASE_DIR, "tessdata")
-            config = ""
-            if os.path.exists(local_tessdata):
-                config = f'--tessdata-dir "{local_tessdata}"'
+        
+        try:
+            # Use Google Vision API
+            from services.vision_ocr_service import get_vision_ocr_service
             
-            # Perform OCR with confidence data
-            ocr_data = pytesseract.image_to_data(
-                image,
-                lang=settings.OCR_LANGUAGES,
-                config=config,
-                output_type=pytesseract.Output.DICT
-            )
+            vision_service = get_vision_ocr_service()
+            text, confidence = await vision_service.extract_text_from_image(image_bytes)
             
-            # Extract text with confidence
-            text_parts = []
-            confidences = []
+            if not text:
+                logger.warning(f"Vision OCR returned empty text for image {doc_id}")
+                return [{
+                    "segment_id": f"SEG-{doc_id}-p{page}-empty",
+                    "doc_id": doc_id,
+                    "page": page,
+                    "text": "[No text detected in image]",
+                    "lang": "unknown",
+                    "lang_confidence": 0.0,
+                    "ocr_confidence": 0.0,
+                    "error": False
+                }]
             
-            for i, text in enumerate(ocr_data['text']):
-                if text.strip():
-                    text_parts.append(text)
-                    confidences.append(int(ocr_data['conf'][i]))
-            
-            full_text = ' '.join(text_parts)
-            avg_confidence = sum(confidences) / len(confidences) if confidences else 0.0
+            logger.info(f"Vision OCR extracted {len(text)} chars with {confidence:.2%} confidence")
             
             # Segment the text
             segments = await self._segment_text(
                 doc_id,
-                full_text,
+                text,
                 page,
-                ocr_confidence=avg_confidence / 100.0
+                ocr_confidence=confidence
             )
             
             return segments
         
         except Exception as e:
-            print(f"Error in OCR: {e}")
+            logger.error(f"Vision OCR error: {e}")
             return [{
                 "segment_id": f"SEG-{doc_id}-p{page}-error",
                 "doc_id": doc_id,
@@ -264,17 +282,33 @@ class OCRLanguageAgent(BaseAgent):
         """
         segments = []
         
-        # Simple sentence segmentation (split by periods, newlines)
+        # Use legal-aware sentence splitting instead of naive period splitting
+        # This preserves citations like "S.30", "No. 123", "[2024] 1 MLJ 456"
         sentences = []
         logger.info(f"DEBUG: Segmenting text of length {len(text)}")
-        for line in text.split('\n'):
-            line = line.strip()
-            if line:
-                # Split by period but keep the period
-                parts = line.split('.')
-                for part in parts:
-                    if part.strip():
-                        sentences.append(part.strip() + '.')
+        
+        try:
+            from services.ocr_post_processor import get_ocr_post_processor
+            post_processor = get_ocr_post_processor()
+            sentences = post_processor.split_sentences_legal(text)
+            logger.info(f"DEBUG: Legal-aware split produced {len(sentences)} sentences")
+        except ImportError:
+            # Fallback to improved splitting if post-processor not available
+            logger.warning("Post-processor not available, using improved fallback")
+            for line in text.split('\n'):
+                line = line.strip()
+                if line:
+                    # Improved: Don't split on abbreviations
+                    import re
+                    # Protect common abbreviations
+                    protected = line
+                    protected = re.sub(r'\b(No|Dr|Mr|Mrs|Ms|vs|v|S|Art|Sdn|Bhd)\.', r'\1〈DOT〉', protected)
+                    # Split on sentence-ending punctuation
+                    parts = re.split(r'(?<=[.!?])\s+(?=[A-Z])', protected)
+                    for part in parts:
+                        part = part.replace('〈DOT〉', '.').strip()
+                        if part:
+                            sentences.append(part)
         
         logger.info(f"DEBUG: Found {len(sentences)} sentences")
         
@@ -311,8 +345,15 @@ class OCRLanguageAgent(BaseAgent):
                 lang = 'en'  # Default to English if library missing or failure
                 lang_confidence = 0.5
             
-            # Merge adjacent sentences of same language
-            if lang == current_lang and current_text:
+            # Merge adjacent sentences of same language ONLY if they are short fragments
+            # This ensures granularity (sentence-level) while avoiding tiny noise segments
+            should_merge = (
+                lang == current_lang and 
+                current_text and 
+                (len(' '.join(current_text)) < 150 or len(sentence) < 50)
+            )
+            
+            if should_merge:
                 current_text.append(sentence)
             else:
                 # Save previous segment

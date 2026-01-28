@@ -278,6 +278,173 @@ Return ONLY the extracted text, no explanations."""
             logger.error(f"PDF vision extraction error: {e}")
             return f"[PDF extraction failed: {str(e)}]"
 
+    async def extract_pdf_content_from_bytes(self, pdf_bytes: bytes, filename: str = "document.pdf") -> str:
+        """
+        Extract text from PDF bytes using Vision API (OpenRouter/Gemini).
+        
+        Args:
+            pdf_bytes: PDF content as bytes
+            filename: Original filename (for logging/mime type)
+            
+        Returns:
+            Extracted text content with page markers if possible
+        """
+        import base64
+        
+        try:
+            # Base64 encode the content
+            content_b64 = base64.b64encode(pdf_bytes).decode('utf-8')
+            
+            # Determine mime type
+            mime_type = "application/pdf"
+            if filename.lower().endswith(".png"):
+                mime_type = "image/png"
+            elif filename.lower().endswith((".jpg", ".jpeg")):
+                mime_type = "image/jpeg"
+            
+            # Prepare content parts
+            content_parts = [
+                {
+                    "type": "text",
+                    "text": """Extract ALL text content from this document/image.
+Include headings, paragraphs, lists, tables, and any other text.
+If it's a scanned document, use OCR to read the text.
+Return ONLY the extracted text, no explanations or formatting notes.
+If you cannot read the document, explain why."""
+                }
+            ]
+            
+            # Add image or file part
+            if mime_type.startswith("image/"):
+                content_parts.append({
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:{mime_type};base64,{content_b64}"
+                    }
+                })
+            else:
+                content_parts.append({
+                    "type": "file",
+                    "file": {
+                        "filename": filename,
+                        "file_data": f"data:{mime_type};base64,{content_b64}"
+                    }
+                })
+            
+            # Use OpenRouter with vision-capable model
+            if self._openrouter_client:
+                logger.info(f"Extracting content via OpenRouter Vision API: {filename} ({mime_type})")
+                
+                # Use safe wrapper
+                response = self._safe_api_call(
+                    self._openrouter_client.chat.completions.create,
+                    model=settings.OPENROUTER_MODEL,  # Use configured model (default: gpt-4o-mini)
+                    messages=[
+                        {
+                            "role": "user", 
+                            "content": content_parts
+                        }
+                    ],
+                    max_tokens=8000,
+                    extra_headers={
+                        "HTTP-Referer": settings.FRONTEND_URL or "https://legalops.apexneural.cloud",
+                        "X-Title": "Legal-Ops PDF Extractor"
+                    }
+                )
+                if not response.choices or len(response.choices) == 0:
+                    logger.warning(f"OpenRouter returned no choices for PDF: {filename}")
+                    return "[Error: LLM returned empty response]"
+
+                # Safe access
+                choice = response.choices[0]
+                if not choice.message or not choice.message.content:
+                     logger.warning(f"OpenRouter returned empty content for PDF: {filename}")
+                     return "[Error: LLM returned no content]"
+
+                return choice.message.content
+            
+            # Fallback to Gemini if OpenRouter not available
+            elif self._gemini_model:
+                import google.generativeai as genai
+                
+                # Gemini doesn't support bytes upload directly via generate_content easily for PDFs usually
+                # Need to use upload_file which requires a path.
+                # We can write to temp file
+                import tempfile
+                import os
+                
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                    tmp.write(pdf_bytes)
+                    tmp_path = tmp.name
+                
+                try:
+                    uploaded_file = genai.upload_file(tmp_path, mime_type="application/pdf")
+                    
+                    prompt = """Extract ALL text content from this PDF document. 
+Include headings, paragraphs, lists, tables, and any other text.
+Use formatting '--- PAGE [NUMBER] ---' to separate pages if the document has multiple pages.
+Return ONLY the extracted text, no explanations."""
+
+                    response = self._gemini_model.generate_content([prompt, uploaded_file])
+                    
+                    try:
+                        genai.delete_file(uploaded_file.name)
+                    except:
+                        pass
+                    
+                    return response.text
+                finally:
+                    if os.path.exists(tmp_path):
+                        os.unlink(tmp_path)
+            
+            return "[No vision-capable model available]"
+            
+        except Exception as e:
+            # Fallback to Gemini on specific errors or if OpenRouter fails generally
+            error_str = str(e).lower()
+            if "invalid value" in error_str or "does not support file content" in error_str or "400" in error_str:
+                 logger.warning(f"OpenRouter rejected PDF (unsupported model/type?): {e}. Falling back to Gemini.")
+                 
+                 if self._gemini_model:
+                     return await self._extract_via_gemini(pdf_bytes, filename)
+            
+            logger.error(f"PDF vision extraction error: {e}")
+            return f"[PDF extraction failed: {str(e)}]"
+
+    async def _extract_via_gemini(self, pdf_bytes, filename):
+        """Helper to upload and extract via Gemini."""
+        try:
+            import google.generativeai as genai
+            import tempfile
+            import os
+            
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                tmp.write(pdf_bytes)
+                tmp_path = tmp.name
+                
+            try:
+                uploaded_file = genai.upload_file(tmp_path, mime_type="application/pdf")
+                
+                prompt = """Extract ALL text content from this PDF document. 
+                Include headings, paragraphs, lists, tables, and any other text.
+                Use formatting '--- PAGE [NUMBER] ---' to separate pages if the document has multiple pages.
+                Return ONLY the extracted text, no explanations."""
+
+                response = self._gemini_model.generate_content([prompt, uploaded_file])
+                
+                try:
+                    genai.delete_file(uploaded_file.name)
+                except:
+                    pass
+                
+                return response.text
+            finally:
+                if os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
+        except Exception as gemini_err:
+             logger.error(f"Gemini fallback failed: {gemini_err}")
+             return f"[Gemini fallback failed: {gemini_err}]"
+
 
 def get_llm_service() -> LLMService:
     """

@@ -97,13 +97,12 @@ class Settings(BaseSettings):
     
     # OCR Configuration
     OCR_ENGINE: str = "auto"  # auto, tesseract, pymupdf, or google_vision
-    TESSERACT_CMD: str = ""  # Auto-detect if empty
+    TESSERACT_CMD: str = r"C:\Program Files\Tesseract-OCR\tesseract.exe"  # Updated to confirmed path
     OCR_LANGUAGES: str = "eng+msa"  # English + Malay
-    GOOGLE_VISION_API_KEY: str = ""  # For cloud OCR fallback
+    GOOGLE_VISION_API_KEY: str = "AIzaSyAR7DF8h0yGVKKxJP45jBZXr9J3ncu4uec"  # Google Vision OCR API key
     
     # Legal Database
-    CASELAW_DB_TYPE: str = "commonlii"
-    USE_COMMONLII: bool = False
+    CASELAW_DB_TYPE: str = "lexis"
     CASELAW_API_URL: str = ""
     CASELAW_API_KEY: str = ""
     

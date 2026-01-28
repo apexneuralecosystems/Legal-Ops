@@ -1,7 +1,7 @@
 """
 Segment model - Text segments with language tags and translations.
 """
-from sqlalchemy import Column, String, Integer, Float, DateTime, ForeignKey, Text
+from sqlalchemy import Column, String, Integer, Float, DateTime, ForeignKey, Text, Boolean
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import uuid
@@ -42,8 +42,8 @@ class Segment(Base):
     alignment_score = Column(Float, nullable=True)  # 0.0-1.0
     
     # Flags
-    human_check_required = Column(Integer, default=False)
-    flagged_for_review = Column(Integer, default=False)
+    human_check_required = Column(Boolean, default=False)
+    flagged_for_review = Column(Boolean, default=False)
     review_notes = Column(Text, nullable=True)
     
     # Metadata
@@ -68,6 +68,6 @@ class Segment(Base):
             "translation_literal": self.translation_literal,
             "translation_idiomatic": self.translation_idiomatic,
             "alignment_score": self.alignment_score,
-            "human_check_required": bool(self.human_check_required),
-            "flagged_for_review": bool(self.flagged_for_review)
+            "human_check_required": self.human_check_required,
+            "flagged_for_review": self.flagged_for_review
         }

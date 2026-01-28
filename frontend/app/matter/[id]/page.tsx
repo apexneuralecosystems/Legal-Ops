@@ -3,8 +3,10 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
-import { ArrowLeft, FileText, Calendar, Users, AlertCircle, CheckCircle2, Download, Trash2, Target, AlertTriangle, Zap, Lightbulb, Loader2, Sparkles, Shield, Scale, Search, Package } from 'lucide-react'
+import { ArrowLeft, FileText, Calendar, Users, AlertCircle, CheckCircle2, Download, Trash2, Target, AlertTriangle, Zap, Lightbulb, Loader2, Sparkles, Shield, Scale, Search, Package, MessageSquare, Bot, X } from 'lucide-react'
 import Link from 'next/link'
+import ParalegalChat from '@/components/ParalegalChat'
+import { motion, AnimatePresence } from 'framer-motion'
 
 import { api } from '@/lib/api'
 
@@ -12,6 +14,7 @@ export default function MatterDetailPage() {
     const params = useParams()
     const router = useRouter()
     const matterId = params.id as string
+    const [showParalegalChat, setShowParalegalChat] = useState(false)
 
     const [matter, setMatter] = useState<any>(null)
     const [documents, setDocuments] = useState<any[]>([])
@@ -20,6 +23,10 @@ export default function MatterDetailPage() {
     const [analyzingStrength, setAnalyzingStrength] = useState(false)
 
     useEffect(() => {
+        if (matterId === 'undefined') {
+            router.push('/dashboard')
+            return
+        }
         if (matterId) {
             loadData()
         }
@@ -146,6 +153,13 @@ export default function MatterDetailPage() {
                                 <Scale className="w-4 h-4" />
                                 Drafting
                             </Link>
+                            <button
+                                onClick={() => setShowParalegalChat(true)}
+                                className="px-5 py-2.5 bg-[#D4A853] hover:bg-[#B08D3C] text-white font-bold rounded-lg transition-colors shadow-lg shadow-[var(--gold-primary)]/20 border-2 border-[var(--gold-primary)] flex items-center gap-2 text-sm"
+                            >
+                                <MessageSquare className="w-4 h-4" />
+                                Doc Chat
+                            </button>
                             <Link
                                 href={`/research?matterId=${matterId}`}
                                 className="px-5 py-2.5 border border-[var(--border-secondary)] text-[var(--text-secondary)] rounded-xl font-medium hover:border-[var(--neon-cyan)] hover:text-[var(--neon-cyan)] transition-all flex items-center gap-2 text-sm"
@@ -174,42 +188,67 @@ export default function MatterDetailPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div className="lg:col-span-2 space-y-6">
                         <div className="card p-6 animate-slide-up stagger-1">
-                            <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4 flex items-center gap-2">
+                            <h2 className="text-xl font-bold text-black mb-4 flex items-center gap-2">
                                 <Shield className="w-5 h-5 text-[var(--neon-cyan)]" />
                                 Matter Information
                             </h2>
 
                             <div className="grid grid-cols-2 gap-6">
-                                <div className="p-3 rounded-lg bg-[var(--bg-tertiary)]">
+                                <div className="p-3 rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors">
                                     <label className="text-xs font-medium text-[var(--text-tertiary)] block mb-1">Court</label>
                                     <p className="text-[var(--text-primary)] font-medium">{matter.court || 'Not specified'}</p>
                                 </div>
-                                <div className="p-3 rounded-lg bg-[var(--bg-tertiary)]">
+                                <div className="p-3 rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors">
                                     <label className="text-xs font-medium text-[var(--text-tertiary)] block mb-1">Jurisdiction</label>
                                     <p className="text-[var(--text-primary)] font-medium capitalize">{matter.jurisdiction || 'Not specified'}</p>
                                 </div>
-                                <div className="p-3 rounded-lg bg-[var(--bg-tertiary)]">
+                                <div className="p-3 rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors">
                                     <label className="text-xs font-medium text-[var(--text-tertiary)] block mb-1">Primary Language</label>
                                     <p className="text-[var(--text-primary)] font-medium uppercase">{matter.primary_language || 'MS'}</p>
                                 </div>
-                                <div className="p-3 rounded-lg bg-[var(--bg-tertiary)]">
+                                <div className="p-3 rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors">
                                     <label className="text-xs font-medium text-[var(--text-tertiary)] block mb-1">Estimated Pages</label>
                                     <p className="text-[var(--text-primary)] font-medium">{matter.estimated_pages || 'TBD'}</p>
                                 </div>
                             </div>
                         </div>
 
+                        {matter.key_dates && matter.key_dates.length > 0 && (
+                            <div className="card p-6 animate-slide-up stagger-2">
+                                <div className="flex items-center gap-2 mb-4">
+                                    <Calendar className="w-5 h-5 text-[var(--neon-orange)]" />
+                                    <h2 className="text-xl font-bold text-black">Key Timeline</h2>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {matter.key_dates.map((date: any, idx: number) => (
+                                        <div key={idx} className="flex items-center gap-4 p-3 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)] hover:border-[var(--neon-orange)]/30 transition-all shadow-sm">
+                                            <div className="flex flex-col items-center justify-center w-12 h-12 rounded-lg bg-[var(--neon-orange)]/10 text-[var(--neon-orange)] flex-shrink-0">
+                                                <span className="text-[10px] font-bold uppercase">{date.date ? new Date(date.date).toLocaleString('en-US', { month: 'short' }) : '---'}</span>
+                                                <span className="text-lg font-black leading-none">{date.date ? new Date(date.date).getDate() : '--'}</span>
+                                            </div>
+                                            <div className="flex-1 overflow-hidden">
+                                                <p className="font-bold text-[var(--text-primary)] text-sm truncate">
+                                                    {date.type ? date.type.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) : 'Event'}
+                                                </p>
+                                                <p className="text-xs text-[var(--text-secondary)] truncate">{date.description || 'No details available'}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         {matter.parties && matter.parties.length > 0 && (
                             <div className="card p-6 animate-slide-up stagger-2">
                                 <div className="flex items-center gap-2 mb-4">
                                     <Users className="w-5 h-5 text-[var(--neon-purple)]" />
-                                    <h2 className="text-xl font-bold text-[var(--text-primary)]">Parties</h2>
+                                    <h2 className="text-xl font-bold text-black">Parties</h2>
                                 </div>
                                 <div className="space-y-3">
                                     {matter.parties.map((party: any, idx: number) => (
-                                        <div key={idx} className="border-l-2 border-[var(--neon-purple)] pl-4 py-2">
-                                            <p className="font-medium text-[var(--text-primary)] capitalize">{party.role || 'Party'}</p>
-                                            <p className="text-sm text-[var(--text-secondary)]">{party.name || 'Name not specified'}</p>
+                                        <div key={idx} className="border-l-4 border-[var(--neon-purple)] pl-4 py-2 bg-[var(--bg-tertiary)]/50 rounded-r-lg">
+                                            <p className="text-[10px] font-bold text-[var(--neon-purple)] uppercase tracking-wider mb-1">{party.role || 'Party'}</p>
+                                            <p className="font-bold text-[var(--text-primary)]">{party.name || 'Name not specified'}</p>
                                         </div>
                                     ))}
                                 </div>
@@ -218,20 +257,88 @@ export default function MatterDetailPage() {
 
                         {matter.issues && matter.issues.length > 0 && (
                             <div className="card p-6 animate-slide-up stagger-3">
-                                <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4 flex items-center gap-2">
+                                <h2 className="text-xl font-bold text-black mb-4 flex items-center gap-2">
                                     <Zap className="w-5 h-5 text-[var(--neon-orange)]" />
                                     Legal Issues
                                 </h2>
-                                <div className="space-y-3">
+                                <div className="space-y-4">
                                     {matter.issues.map((issue: any, idx: number) => (
-                                        <div key={idx} className="flex items-start gap-3 p-3 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]">
-                                            <CheckCircle2 className="w-5 h-5 text-[var(--neon-green)] mt-0.5 flex-shrink-0" />
-                                            <div className="flex-1">
-                                                <p className="text-[var(--text-primary)]">{issue.text_en || issue.text_ms || issue.text || 'Issue'}</p>
-                                                {issue.confidence && (
-                                                    <p className="text-xs text-[var(--text-tertiary)] mt-1">Confidence: {Math.round(issue.confidence * 100)}%</p>
+                                        <div key={idx} className="p-4 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)] hover:border-[var(--neon-orange)]/30 transition-all group">
+                                            <div className="flex items-start gap-3 mb-2">
+                                                <div className="w-6 h-6 rounded-full bg-[var(--neon-green)]/10 flex items-center justify-center flex-shrink-0 mt-0.5 group-hover:bg-[var(--neon-green)]/20 transition-colors">
+                                                    <CheckCircle2 className="w-4 h-4 text-[var(--neon-green)]" />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <p className="text-[var(--text-primary)] font-semibold leading-relaxed">
+                                                        {issue.text_en || issue.text_ms || issue.text || 'Issue'}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            {(issue.legal_basis || issue.grounds) && (
+                                                <div className="ml-9 mt-3 space-y-2.5 pt-3 border-t border-[var(--border-primary)]/50">
+                                                    {issue.legal_basis && (
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="p-1 rounded bg-[var(--neon-purple)]/10">
+                                                                <Scale className="w-3 h-3 text-[var(--neon-purple)]" />
+                                                            </div>
+                                                            <span className="text-[10px] font-bold text-[var(--neon-purple)] uppercase tracking-wider">Legal Basis:</span>
+                                                            <span className="text-xs text-[var(--text-secondary)] font-medium">{issue.legal_basis}</span>
+                                                        </div>
+                                                    )}
+                                                    {issue.grounds && (
+                                                        <div className="flex items-start gap-2">
+                                                            <div className="p-1 rounded bg-[var(--neon-cyan)]/10 mt-0.5">
+                                                                <FileText className="w-3 h-3 text-[var(--neon-cyan)]" />
+                                                            </div>
+                                                            <div className="flex-1">
+                                                                <span className="text-[10px] font-bold text-[var(--neon-cyan)] uppercase tracking-wider block mb-0.5">Grounds & Context:</span>
+                                                                <p className="text-xs text-[var(--text-secondary)] italic leading-relaxed">{issue.grounds}</p>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {issue.confidence && (
+                                                <div className="mt-3 ml-9 flex items-center gap-2 text-[10px]">
+                                                    <span className="px-2 py-0.5 rounded-full bg-black/5 text-[var(--text-tertiary)] font-mono border border-black/5">
+                                                        AI Confidence: {Math.round(issue.confidence * 100)}%
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {matter.requested_remedies && matter.requested_remedies.length > 0 && (
+                            <div className="card p-6 animate-slide-up stagger-3">
+                                <h2 className="text-xl font-bold text-black mb-4 flex items-center gap-2">
+                                    <Scale className="w-5 h-5 text-[var(--gold-primary)]" />
+                                    Prayers / Relief Sought
+                                </h2>
+                                <div className="space-y-3">
+                                    {matter.requested_remedies.map((remedy: any, idx: number) => (
+                                        <div key={idx} className="p-4 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)] hover:border-[var(--gold-primary)]/30 transition-all group">
+                                            <div className="flex items-start gap-3 mb-1">
+                                                <div className="w-2 h-2 rounded-full bg-[var(--gold-primary)] mt-2 flex-shrink-0 shadow-[0_0_10px_rgba(212,168,83,0.5)] group-hover:scale-125 transition-transform" />
+                                                <div className="flex-1">
+                                                    <p className="text-[var(--text-primary)] font-medium">{remedy.text_en || remedy.text || remedy}</p>
+                                                </div>
+                                                {remedy.amount && (
+                                                    <span className="px-2 py-1 bg-[var(--gold-primary)] text-white text-[10px] font-bold rounded-md shadow-sm">
+                                                        {remedy.amount}
+                                                    </span>
                                                 )}
                                             </div>
+                                            {remedy.legal_basis && (
+                                                <div className="ml-5 mt-2 flex items-center gap-2 pt-2 border-t border-[var(--border-primary)]/30">
+                                                    <span className="text-[9px] font-black text-[var(--text-tertiary)] uppercase tracking-widest">Authority:</span>
+                                                    <span className="text-[11px] text-[var(--text-secondary)] italic font-serif">{remedy.legal_basis}</span>
+                                                </div>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
@@ -241,7 +348,7 @@ export default function MatterDetailPage() {
                         <div className="card p-6 animate-slide-up stagger-4">
                             <div className="flex items-center gap-2 mb-4">
                                 <FileText className="w-5 h-5 text-[var(--neon-cyan)]" />
-                                <h2 className="text-xl font-bold text-[var(--text-primary)]">Documents</h2>
+                                <h2 className="text-xl font-bold text-black">Documents</h2>
                                 <span className="px-2 py-0.5 bg-[var(--neon-cyan)]/10 text-[var(--neon-cyan)] text-xs font-semibold rounded-full">{documents.length}</span>
                             </div>
 
@@ -261,7 +368,7 @@ export default function MatterDetailPage() {
                                                     <FileText className="w-5 h-5 text-white" />
                                                 </div>
                                                 <div>
-                                                    <p className="font-medium text-[var(--text-primary)] text-sm">{doc.filename}</p>
+                                                    <p className="font-medium text-black text-sm">{doc.filename}</p>
                                                     <p className="text-xs text-[var(--text-tertiary)]">
                                                         {doc.file_size ? `${Math.round(doc.file_size / 1024)} KB` : 'Unknown size'}
                                                     </p>
@@ -281,7 +388,7 @@ export default function MatterDetailPage() {
                         <div className="card p-6 animate-slide-up stagger-1">
                             <div className="flex items-center gap-2 mb-4">
                                 <AlertCircle className="w-5 h-5 text-[var(--neon-red)]" />
-                                <h2 className="text-xl font-bold text-[var(--text-primary)]">Risk Assessment</h2>
+                                <h2 className="text-xl font-bold text-black">Risk Assessment</h2>
                             </div>
 
                             <div className="space-y-4">
@@ -336,7 +443,7 @@ export default function MatterDetailPage() {
                         <div className="card p-6 animate-slide-up stagger-2">
                             <div className="flex items-center gap-2 mb-4">
                                 <Target className="w-5 h-5 text-[var(--neon-purple)]" />
-                                <h2 className="text-xl font-bold text-[var(--text-primary)]">Case Strength</h2>
+                                <h2 className="text-xl font-bold text-black">Case Strength</h2>
                             </div>
 
                             {!caseStrength ? (
@@ -431,31 +538,49 @@ export default function MatterDetailPage() {
                                 </div>
                             )}
                         </div>
-
-                        {matter.key_dates && matter.key_dates.length > 0 && (
-                            <div className="card p-6 animate-slide-up stagger-3">
-                                <div className="flex items-center gap-2 mb-4">
-                                    <Calendar className="w-5 h-5 text-[var(--neon-orange)]" />
-                                    <h2 className="text-xl font-bold text-[var(--text-primary)]">Key Dates</h2>
-                                </div>
-                                <div className="space-y-3">
-                                    {matter.key_dates.map((date: any, idx: number) => (
-                                        <div key={idx} className="flex items-start gap-3">
-                                            <div className="w-2 h-2 rounded-full bg-[var(--neon-orange)] mt-2 flex-shrink-0" />
-                                            <div>
-                                                <p className="font-medium text-[var(--text-primary)] capitalize text-sm">
-                                                    {date.type ? date.type.replace(/_/g, ' ') : 'Date'}
-                                                </p>
-                                                <p className="text-xs text-[var(--text-secondary)]">{date.date || 'Date not specified'}</p>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
                     </div>
                 </div>
             </main>
-        </div>
+
+            {/* Doc Chat Slide-over */}
+            <AnimatePresence>
+                {
+                    showParalegalChat && (
+                        <>
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 0.5 }}
+                                exit={{ opacity: 0 }}
+                                onClick={() => setShowParalegalChat(false)}
+                                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
+                            />
+                            <motion.div
+                                initial={{ x: "100%" }}
+                                animate={{ x: 0 }}
+                                exit={{ x: "100%" }}
+                                transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                                className="fixed top-0 right-0 h-full w-full md:w-[600px] bg-[#0d1117] border-l border-[var(--border-primary)] z-50 shadow-2xl flex flex-col"
+                            >
+                                <div className="p-4 border-b border-[var(--border-light)] flex justify-between items-center bg-[var(--bg-secondary)]">
+                                    <h3 className="font-bold flex items-center gap-2 text-[var(--gold-primary)]">
+                                        <Bot className="w-5 h-5" />
+                                        Contextual Doc Chat
+                                    </h3>
+                                    <button
+                                        onClick={() => setShowParalegalChat(false)}
+                                        className="p-2 hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors text-[var(--text-secondary)]"
+                                    >
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                </div>
+                                <div className="flex-1 p-0 overflow-hidden bg-[var(--bg-primary)]">
+                                    <ParalegalChat matterId={matterId} />
+                                </div>
+                            </motion.div>
+                        </>
+                    )
+                }
+            </AnimatePresence >
+        </div >
     )
 }
