@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     
     # Base directory (backend folder)
     BASE_DIR: str = os.path.dirname(os.path.abspath(__file__))
+    VERSION: str = "1.0.1"  # Bump to force Docker rebuild
     
     # Database
     DATABASE_URL: str

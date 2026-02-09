@@ -110,9 +110,9 @@ async def lifespan(app: FastAPI):
 
 # Create FastAPI app with lifespan
 app = FastAPI(
-    title="Malaysian Legal AI Agent API",
-    description="Multi-agent system for legal document processing with bilingual support (Malay/English)",
-    version="1.0.0",
+    title="Legal-Ops Backend Agent",
+    description="Backend agent for legal research and drafting",
+    version=settings.VERSION,
     lifespan=lifespan
 )
 
