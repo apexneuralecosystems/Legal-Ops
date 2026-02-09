@@ -32,6 +32,6 @@ if ! wget -q -O /dev/null http://127.0.0.1:3000/ 2>/dev/null; then
     exit 1
 fi
 
-# Start Nginx on port 3001
-echo "Starting Nginx on port 3001..."
+# Start Nginx on port 8006
+echo "Starting Nginx on port 8006..."
 exec nginx -g "daemon off;"

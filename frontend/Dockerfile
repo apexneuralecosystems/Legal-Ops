@@ -35,6 +35,9 @@ RUN npm run build
 # Stage 3: Production runtime
 FROM node:20-alpine AS runner
 
+# Install nginx
+RUN apk add --no-cache nginx
+
 WORKDIR /app
 
 ENV NODE_ENV=production
@@ -49,17 +52,30 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 
+# Copy Nginx configuration and entrypoint
+COPY nginx.conf /etc/nginx/nginx.conf
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+
+# Install dos2unix to fix Windows line endings and set permissions
+RUN apk add --no-cache dos2unix && \
+    dos2unix /app/docker-entrypoint.sh && \
+    chmod +x /app/docker-entrypoint.sh
+
 # Change ownership
-RUN chown -R nextjs:nodejs /app
+RUN chown -R nextjs:nodejs /app && \
+    mkdir -p /var/log/nginx /var/lib/nginx /tmp/client_temp /tmp/proxy_temp && \
+    chown -R nextjs:nodejs /var/log/nginx /var/lib/nginx /tmp && \
+    touch /tmp/nginx.pid && \
+    chown nextjs:nodejs /tmp/nginx.pid
 
 USER nextjs
 
-ENV PORT=${PORT:-3001}
-EXPOSE ${PORT}
+ENV PORT=8006
+EXPOSE 8006
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD wget -q --spider http://localhost:${PORT}/ || exit 1
+    CMD wget -q --spider http://localhost:8006/health || exit 1
 
-# Start production server
-CMD ["node", "server.js"]
+# Use entrypoint script to start both Next.js and Nginx
+ENTRYPOINT ["/app/docker-entrypoint.sh"]

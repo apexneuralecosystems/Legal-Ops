@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 
-// Get backend URL from environment variable, fallback to localhost for local dev
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8091';
+// Get backend URL from environment variable, fallback to internal container URL for SSR
+const BACKEND_URL = process.env.BACKEND_URL || process.env.INTERNAL_API_URL || 'http://localhost:8091';
 
 const nextConfig = {
     output: 'standalone', // Enable for Docker deployment
