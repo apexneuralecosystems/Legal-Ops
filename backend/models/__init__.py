@@ -10,6 +10,10 @@ from models.audit import AuditLog
 from models.auth import User
 from models.usage import UserUsage
 from models.ocr_models import OCRDocument, OCRPage, OCRChunk, OCRProcessingLog
+from models.chat import ChatMessage, CaseLearning
+from models.case_intelligence import CaseEntity, CaseRelationship
+from models.case_insights import CaseInsight, CaseMetric
+from models.cross_case_learning import CasePattern, CaseOutcome, CaseSimilarity
 
 __all__ = [
     "Matter",
@@ -24,4 +28,13 @@ __all__ = [
     "OCRPage",
     "OCRChunk",
     "OCRProcessingLog",
+    "ChatMessage",
+    "CaseLearning",
+    "CaseEntity",
+    "CaseRelationship",
+    "CaseInsight",
+    "CaseMetric",
+    "CasePattern",
+    "CaseOutcome",
+    "CaseSimilarity",
 ]

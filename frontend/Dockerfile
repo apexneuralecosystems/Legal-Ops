@@ -1,66 +1,65 @@
 # ============================================
 # Legal-Ops Frontend Dockerfile
 # ============================================
-# Multi-stage build for Next.js with Nginx
+# Multi-stage build for Next.js production
 
 # Stage 1: Dependencies
 FROM node:20-alpine AS deps
 RUN apk add --no-cache libc6-compat
 
 WORKDIR /app
-
-# Copy package files
 COPY package.json package-lock.json* ./
-
-# Install dependencies
-RUN npm ci
+RUN npm ci --prefer-offline --no-audit
 
 # Stage 2: Builder
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy dependencies from deps stage
+# Copy dependencies
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Set build-time environment variables
-ARG NEXT_PUBLIC_API_URL=https://legalops-api.apexneural.cloud
-ARG NEXT_PUBLIC_APP_URL=https://legalops.apexneural.cloud
+# Build arguments
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_APP_URL
 
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
-ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8091}
+ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:8006}
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
 
-# Build the application
+# Build the app
 RUN npm run build
 
-# Stage 3: Production with Nginx
-FROM nginx:alpine AS runner
-
-# Install Node.js for Next.js server
-RUN apk add --no-cache nodejs npm wget
+# Stage 3: Production runtime
+FROM node:20-alpine AS runner
 
 WORKDIR /app
 
-# Copy nginx configuration
-COPY nginx.conf /etc/nginx/nginx.conf
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
 
-# Copy built application from builder
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S nextjs -u 1001
+
+# Copy built app and dependencies
+COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public
 
-# Copy entrypoint script
-COPY docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
+# Change ownership
+RUN chown -R nextjs:nodejs /app
 
-# Expose port 3001
-EXPOSE 3001
+USER nextjs
+
+ENV PORT=${PORT:-3001}
+EXPOSE ${PORT}
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:3001/ || exit 1
+    CMD wget -q --spider http://localhost:${PORT}/ || exit 1
 
-# Start with entrypoint script
-ENTRYPOINT ["/docker-entrypoint.sh"]
+# Start production server
+CMD ["node", "server.js"]

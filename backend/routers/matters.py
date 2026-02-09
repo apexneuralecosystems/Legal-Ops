@@ -170,25 +170,61 @@ async def start_intake_workflow(
         file_data = []
         if files:
             # Import dependencies for background tasks and hashing
+            # Import pipeline
             try:
+                from services.enhanced_ocr_pipeline import get_enhanced_ocr_pipeline
+                from services.ocr_embedding_service import embed_pending_chunks
                 from services.rag_service import get_rag_service
                 import hashlib
                 from datetime import datetime
             except ImportError:
                 pass
 
-            async def run_ingestion(filepath: str, m_id: str):
+            async def run_ingestion(filepath: str, m_id: str, doc_id: str, doc_filename: str, creator_id: str):
                 try:
-                    rag = get_rag_service()
-                    logger.info(f"Background Ingestion for: {filepath} (Matter: {m_id})")
-                    # Ingest
-                    await rag.ingest_document(filepath, matter_id=m_id)
+                    is_pdf = filepath.lower().endswith(".pdf")
                     
-                    # Update OCR status in DB? Ideally yes, but tricky with async independent session.
-                    # For now, RAG completion is enough for chat.
+                    if is_pdf:
+                        logger.info(f"Starting Enhanced OCR Pipeline for {filepath} (Matter: {m_id})")
+                        pipeline = get_enhanced_ocr_pipeline()
+                        
+                        # Read file bytes for OCR
+                        async with aiofiles.open(filepath, "rb") as f:
+                            file_bytes = await f.read()
+                            
+                        # Callback for progress logging
+                        async def ocr_progress(step, detail):
+                            logger.info(f"Intake OCR [{step}]: {detail}")
+                            
+                        result = await pipeline.process_document(
+                            file_content=file_bytes,
+                            filename=doc_filename,
+                            matter_id=m_id,
+                            file_path=filepath, # Used for metadata/fallback
+                            created_by=creator_id,
+                            progress_callback=ocr_progress,
+                            document_id=doc_id
+                        )
+                        
+                        # Embed the generated chunks
+                        await embed_pending_chunks(document_id=result.get("document_id"))
+                        logger.info(f"OCR & Embedding complete for {doc_id}")
+                        
+                    else:
+                        # Fallback for non-PDFs (e.g. DOCX) directly to RAG
+                        rag = get_rag_service()
+                        logger.info(f"Direct RAG Ingestion for: {filepath} (Matter: {m_id})")
+                        await rag.ingest_document(filepath, matter_id=m_id)
                     
                 except Exception as e:
-                    logger.error(f"Background ingestion failed for {filepath}: {e}")
+                    logger.error(f"Background ingestion failed for {filepath}: {e}", exc_info=True)
+                    # Try fallback RAG just in case OCR failed completely
+                    try:
+                        rag = get_rag_service()
+                        await rag.ingest_document(filepath, matter_id=m_id)
+                        logger.info(f"Fallback RAG ingestion succeeded for {filepath}")
+                    except Exception as fallback_err:
+                        logger.error(f"Fallback RAG ingestion also failed for {filepath}: {fallback_err}", exc_info=True)
 
             for file in files:
                 content = await file.read()
@@ -221,7 +257,8 @@ async def start_intake_workflow(
                         file_hash=sha256_hash,
                         file_path=f"uploads/{safe_filename}",
                         source="intake_upload",
-                        ocr_completed=True # Triggered via background task
+                        ocr_needed=True,  # Set to True for PDFs and images
+                        ocr_completed=False # Set to False initially, pipeline will update it
                     )
                     db.add(new_doc)
                     db.flush() # Flush to get ID if needed, commit handled later or now
@@ -234,7 +271,7 @@ async def start_intake_workflow(
                     continue # Skip this file and move on
 
                 # RAG INGESTION: Moved to background task to prevent timeouts
-                # save_path is passed to background task via file_data
+                background_tasks.add_task(run_ingestion, save_path, matter.id, doc_id, safe_filename, matter.created_by)
                 
                 file_data.append({
                     "filename": file.filename,
@@ -397,7 +434,8 @@ async def _process_intake_background(matter_id: str, files_data: List[Dict], con
                         lang=seg_data.get("lang", "unknown"),
                         lang_confidence=seg_data.get("lang_confidence", 0.0),
                         ocr_confidence=seg_data.get("ocr_confidence", 0.0),
-                        human_check_required=seg_data.get("human_check_required", False)
+                        human_check_required=seg_data.get("human_check_required", False),
+                        section_ref=seg_data.get("section_ref")
                     )
                     db.add(new_segment)
                 except Exception as seg_err:
@@ -416,6 +454,58 @@ async def _process_intake_background(matter_id: str, files_data: List[Dict], con
         db.close()
 
 
+
+
+@router.get("/stats", response_model=dict)
+def get_matters_stats(
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_user_sync)
+):
+    """
+    Get aggregated statistics for the dashboard.
+    
+    Returns:
+        - totalMatters: Total number of matters
+        - activeMatters: Matters in drafting/research/structured status
+        - urgentDeadlines: Matters requiring human review
+        - completedMatters: Matters with 'filed' or 'completed' status
+    """
+    user_id = current_user["user_id"]
+    
+    # Total matters (excluding intake)
+    total_matters = db.query(Matter).filter(
+        Matter.created_by == user_id,
+        Matter.status != "intake"
+    ).count()
+    
+    # Active matters
+    active_statuses = ['drafting', 'research', 'structured', 'ready']
+    active_matters = db.query(Matter).filter(
+        Matter.created_by == user_id,
+        Matter.status.in_(active_statuses)
+    ).count()
+    
+    # Urgent deadlines (human review required)
+    urgent_deadlines = db.query(Matter).filter(
+        Matter.created_by == user_id,
+        Matter.human_review_required == True,
+        Matter.status != "intake"
+    ).count()
+    
+    # Completed matters
+    completed_statuses = ['filed', 'completed']
+    completed_matters = db.query(Matter).filter(
+        Matter.created_by == user_id,
+        Matter.status.in_(completed_statuses)
+    ).count()
+    
+    return {
+        "totalMatters": total_matters,
+        "activeMatters": active_matters,
+        "urgentDeadlines": urgent_deadlines,
+        "completedMatters": completed_matters,
+        "overdueItems": 0  # Placeholder for future implementation
+    }
 
 
 @router.get("/", response_model=List[MatterResponse])
@@ -685,23 +775,6 @@ def get_parallel_view(matter_id: str, db: Session = Depends(get_db), current_use
         "matter_id": matter_id,
         "parallel_segments": parallel_data
     }
-
-
-
-
-
-@router.get("/{matter_id}/documents", response_model=List[Dict[str, Any]])
-def get_matter_documents(matter_id: str, db: Session = Depends(get_db), current_user: Dict[str, Any] = Depends(get_current_user_sync)):
-    """
-    Get all documents for a specific matter.
-    """
-    matter = db.query(Matter).filter(Matter.id == matter_id, Matter.created_by == current_user["user_id"]).first()
-    if not matter:
-        raise HTTPException(status_code=404, detail="Matter not found")
-        
-    documents = db.query(Document).filter(Document.matter_id == matter_id).all()
-    
-    return [doc.to_dict() for doc in documents]
 
 
 # Evidence Workflow Endpoints

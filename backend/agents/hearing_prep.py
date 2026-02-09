@@ -67,7 +67,8 @@ class HearingPrepAgent(BaseAgent):
         logger.info(f"HearingPrepAgent: Starting with {len(pleadings)} pleadings, {len(cases)} cases, {len(issues)} issues")
         
         # Create hearing bundle
-        bundle = self._create_hearing_bundle(matter, pleadings, cases)
+        evidence_packet = inputs.get("evidence_packet", {})
+        bundle = self._create_hearing_bundle(matter, pleadings, cases, evidence_packet)
         
         # Run LLM generations in parallel
         # import asyncio  <-- moved to top level or assumed available, but good to keep if local import needed
@@ -105,7 +106,8 @@ class HearingPrepAgent(BaseAgent):
         self,
         matter: Dict[str, Any],
         pleadings: List[Dict],
-        cases: List[Dict]
+        cases: List[Dict],
+        evidence_packet: Dict[str, Any] = None
     ) -> Dict[str, Any]:
         """Create tabbed hearing bundle structure."""
         
@@ -132,7 +134,7 @@ class HearingPrepAgent(BaseAgent):
             "items": pleading_items
         })
         
-        # Tab 2: Submissions
+        # Tab 2: Written Submissions
         tabs.append({
             "tab": "2",
             "section": "Written Submissions",
@@ -144,9 +146,38 @@ class HearingPrepAgent(BaseAgent):
                 }
             ]
         })
+
+        # Tab 3: Exhibits & Annexures (NEW)
+        # Pull items from evidence_packet if available, else use a placeholder
+        exhibit_items = []
+        if evidence_packet and "index_json" in evidence_packet:
+            index_items = evidence_packet["index_json"].get("items", [])
+            # Filter for documents (not pleadings which are already in Tab 1)
+            exhibit_items = [
+                {
+                    "description": item.get("description", "Exhibit"),
+                    "language": item.get("language", "unknown"),
+                    "tab_ref": item.get("tab", "B1")
+                }
+                for item in index_items if item.get("type") == "document"
+            ]
         
-        # Tab 3: Authorities
-        # Safe filtering with None checks
+        if not exhibit_items:
+            exhibit_items = [
+                {
+                    "description": "Exhibit bundle (awaiting selection)",
+                    "language": "N/A",
+                    "tab_ref": "B1"
+                }
+            ]
+
+        tabs.append({
+            "tab": "3",
+            "section": "Exhibits & Annexures",
+            "items": exhibit_items
+        })
+        
+        # Tab 4: Authorities (Renumbered from 3)
         binding_cases = [c for c in cases if c.get("weight") == "binding" or c.get("binding") == True] if cases else []
         persuasive_cases = [c for c in cases if c.get("weight") == "persuasive" or (c.get("binding") == False and c not in binding_cases)] if cases else []
         
@@ -165,7 +196,6 @@ class HearingPrepAgent(BaseAgent):
                 "pages": "TBD"
             })
         
-        # Add placeholder if no authorities
         if not authority_items:
             authority_items = [
                 {
@@ -176,14 +206,14 @@ class HearingPrepAgent(BaseAgent):
             ]
         
         tabs.append({
-            "tab": "3",
+            "tab": "4",
             "section": "Bundle of Authorities",
             "items": authority_items
         })
         
-        # Tab 4: Translations
+        # Tab 5: Translations (Renumbered from 4)
         tabs.append({
-            "tab": "4",
+            "tab": "5",
             "section": "Certified Translations",
             "items": [
                 {

@@ -455,16 +455,26 @@ class OrchestrationController:
         self,
         cases: List[Dict],
         issues: List[Dict],
-        query: Optional[str] = None
+        query: Optional[str] = None,
+        user_id: Optional[str] = None,
+        db_session = None,
+        matter_id: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Run only the argument builder step."""
+        """
+        Run only the argument builder step.
+        
+        ⭐ PHASE 2: Now includes Knowledge Base enrichment when matter_id and db_session provided.
+        """
         
         # Manually invoke the node logic
         state = {
             "cases": cases,
             "issues_selected": issues,
             "query": query,
-            "workflow_status": "started"
+            "user_id": user_id,
+            "workflow_status": "started",
+            "db_session": db_session,  # ⭐ NEW: Pass db_session
+            "matter_id": matter_id  # ⭐ NEW: Pass matter_id for KB comparison
         }
         
         try:
@@ -500,6 +510,12 @@ class OrchestrationController:
             if matter:
                 matter_snapshot = matter.to_dict()
                 issues = matter.issues or []
+            
+            # Fetch documents linked to this matter if not provided in inputs
+            if not documents:
+                db_docs = db.query(Document).filter(Document.matter_id == matter_id).all()
+                documents = [d.to_dict() for d in db_docs]
+                logger.info(f"Fetched {len(documents)} documents from DB for matter {matter_id}")
             
             pleadings = db.query(Pleading).filter(Pleading.matter_id == matter_id).all()
             pleadings_data = [p.to_dict() for p in pleadings]
@@ -771,11 +787,17 @@ class OrchestrationController:
         return state
     
     async def _build_argument_node(self, state: WorkflowState) -> WorkflowState:
-        """Build argument node."""
+        """
+        Build argument node with Knowledge Base enrichment.
+        
+        ⭐ PHASE 2: Now passes db_session and matter_id for KB insights.
+        """
         # Safely get cases and issues, ensuring they're lists
         cases = state.get("cases", [])
         issues = state.get("issues_selected", [])
         query = state.get("query")
+        db_session = state.get("db_session")  # ⭐ NEW: Get db_session from state
+        matter_id = state.get("matter_id")  # ⭐ NEW: Get matter_id from state
         
         # Ensure they're actually lists, not None
         if cases is None:
@@ -786,9 +808,16 @@ class OrchestrationController:
         result = await self.argument_builder_agent.process({
             "cases": cases,
             "issues": issues,
-            "query": query
+            "query": query,
+            "db_session": db_session,  # ⭐ NEW: Pass to ArgumentBuilder
+            "matter_id": matter_id  # ⭐ NEW: Pass to ArgumentBuilder
         })
         state["argument_memo"] = result["data"]
+        
+        # ⭐ NEW: Store KB insights in state for frontend access
+        if "kb_insights" in result.get("data", {}):
+            state["kb_insights"] = result["data"]["kb_insights"]
+        
         return state
     
     # Evidence workflow nodes

@@ -28,12 +28,12 @@ async def embed_pending_chunks(
     
     rag_service = get_rag_service()
     
-    if not rag_service._vector_store:
+    if not getattr(rag_service, "_embedding_function", None):
         logger.error("Vector store not initialized.")
         return {"embedded_count": 0, "error": "Vector store not initialized"}
     
     try:
-        from langchain.schema import Document as LCDocument
+        from langchain_core.documents import Document as LCDocument
         
         pipeline = get_enhanced_ocr_pipeline()
         
@@ -47,37 +47,58 @@ async def embed_pending_chunks(
         logger.info(f"Embedding {len(chunks)} chunks from ocr_chunks table")
         
         # Convert to LangChain documents
-        lc_docs = []
-        chunk_ids = []
+        matter_docs = {}
+        matter_chunk_ids = {}
         
         for chunk in chunks:
+            metadata = chunk["metadata"]
+            matter_id = metadata["matter_id"]
             lc_doc = LCDocument(
                 page_content=chunk["text"],
                 metadata={
                     "chunk_id": chunk["id"],
                     "chunk_id_str": chunk["chunk_id_str"],
-                    "document_id": chunk["metadata"]["document_id"],
-                    "matter_id": chunk["metadata"]["matter_id"],
-                    "source": chunk["metadata"]["filename"],
-                    "page_start": chunk["metadata"]["source_page_start"],
-                    "page_end": chunk["metadata"]["source_page_end"],
-                    "chunk_type": chunk["metadata"]["chunk_type"],
+                    "document_id": metadata["document_id"],
+                    "matter_id": matter_id,
+                    "source": metadata["filename"],
+                    "page_start": metadata["source_page_start"],
+                    "page_end": metadata["source_page_end"],
+                    "chunk_type": metadata["chunk_type"],
                 }
             )
-            lc_docs.append(lc_doc)
-            chunk_ids.append(chunk["id"])
+            if matter_id not in matter_docs:
+                matter_docs[matter_id] = []
+                matter_chunk_ids[matter_id] = []
+            matter_docs[matter_id].append(lc_doc)
+            matter_chunk_ids[matter_id].append(chunk["id"])
         
-        # Add to vector store
-        rag_service._vector_store.add_documents(documents=lc_docs)
+        total_embedded = 0
+        all_chunk_ids = []
         
-        # Mark as embedded
-        await pipeline.mark_chunks_embedded(chunk_ids)
+        for matter_id, docs in matter_docs.items():
+            try:
+                store = rag_service._get_vector_store(matter_id)
+                if not store:
+                    error_msg = f"Vector store not initialized for matter {matter_id}"
+                    logger.error(error_msg)
+                    continue
+                
+                logger.info(f"Embedding {len(docs)} chunks for matter {matter_id}")
+                store.add_documents(documents=docs)
+                total_embedded += len(docs)
+                all_chunk_ids.extend(matter_chunk_ids[matter_id])
+                logger.info(f"Successfully embedded {len(docs)} chunks for matter {matter_id}")
+            except Exception as embed_err:
+                logger.error(f"Failed to embed chunks for matter {matter_id}: {embed_err}", exc_info=True)
         
-        logger.info(f"Successfully embedded {len(chunks)} chunks")
+        if all_chunk_ids:
+            await pipeline.mark_chunks_embedded(all_chunk_ids)
+        
+        logger.info(f"Successfully embedded {total_embedded} chunks into {len(matter_docs)} matter collections")
         
         return {
-            "embedded_count": len(chunks),
-            "chunk_ids": chunk_ids
+            "embedded_count": total_embedded,
+            "chunk_ids": all_chunk_ids
         }
         
     except Exception as e:

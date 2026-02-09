@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -53,29 +53,26 @@ export default function PricingPage() {
     const isPro = usageStatus?.has_paid && usageStatus?.subscription_status === 'active'
 
     return (
-        <div className="min-h-screen bg-white">
+        <div className="min-h-screen bg-[var(--bg-primary)]">
             {/* Header */}
-            <nav className="bg-black text-white px-6 md:px-12 py-5">
-                <div className="max-w-7xl mx-auto flex items-center justify-between">
+            <header className="px-10 py-8 border-b border-[var(--border)] flex items-center justify-between sticky top-0 bg-[var(--bg-primary)]/90 backdrop-blur z-50">
+                <div className="flex items-center gap-4">
                     <Link href="/" className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
-                            <Scale className="w-5 h-5 text-black" />
+                        <div className="w-10 h-10 bg-[var(--bg-secondary)] rounded-lg flex items-center justify-center">
+                            <Scale className="w-5 h-5 text-white" />
                         </div>
                         <span className="text-xl font-bold tracking-tight">LEGALOPS</span>
                     </Link>
-                    <Link href="/dashboard" className="text-gray-300 hover:text-white transition-colors">
-                        ← Back to Dashboard
-                    </Link>
                 </div>
-            </nav>
+            </header>
 
             <div className="container mx-auto px-4 py-16">
                 {/* Header */}
                 <div className="text-center mb-16">
-                    <h1 className="text-5xl font-black text-black mb-4">
+                    <h1 className="text-5xl font-black text-white mb-4">
                         Unlock <span className="text-[#D4A853]">Unlimited</span> Access
                     </h1>
-                    <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+                    <p className="text-xl text-slate-400 max-w-2xl mx-auto">
                         Get unlimited access to all Legal-Ops AI workflows and supercharge your legal practice
                     </p>
                 </div>
@@ -83,31 +80,31 @@ export default function PricingPage() {
                 {/* Pricing Cards */}
                 <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
                     {/* Free Tier */}
-                    <div className="bg-white border-2 border-gray-200 rounded-2xl p-8">
+                    <div className="bg-[var(--bg-secondary)] border-2 border-[#D4A853]/20 rounded-2xl p-8">
                         <div className="mb-6">
-                            <h3 className="text-2xl font-bold text-black">Free Trial</h3>
+                            <h3 className="text-2xl font-bold text-white">Free Trial</h3>
                             <p className="text-gray-500 mt-2">Get started with limited access</p>
                         </div>
 
                         <div className="mb-6">
-                            <span className="text-4xl font-black text-black">$0</span>
+                            <span className="text-4xl font-black text-white">$0</span>
                             <span className="text-gray-500">/forever</span>
                         </div>
 
                         <ul className="space-y-3 mb-8">
-                            <li className="flex items-center text-gray-700">
+                            <li className="flex items-center text-slate-300">
                                 <Check className="w-5 h-5 text-green-600 mr-3" />
                                 1 free Intake workflow
                             </li>
-                            <li className="flex items-center text-gray-700">
+                            <li className="flex items-center text-slate-300">
                                 <Check className="w-5 h-5 text-green-600 mr-3" />
                                 1 free Drafting workflow
                             </li>
-                            <li className="flex items-center text-gray-700">
+                            <li className="flex items-center text-slate-300">
                                 <Check className="w-5 h-5 text-green-600 mr-3" />
                                 1 free Evidence workflow
                             </li>
-                            <li className="flex items-center text-gray-700">
+                            <li className="flex items-center text-slate-300">
                                 <Check className="w-5 h-5 text-green-600 mr-3" />
                                 1 free Research workflow
                             </li>
@@ -115,7 +112,7 @@ export default function PricingPage() {
 
                         <button
                             disabled
-                            className="w-full py-3 px-6 rounded-xl bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
+                            className="w-full py-3 px-6 rounded-xl bg-[var(--bg-tertiary)] text-gray-400 cursor-not-allowed border border-[#D4A853]/20"
                         >
                             Current Plan
                         </button>
@@ -123,7 +120,7 @@ export default function PricingPage() {
 
                     {/* Pro Tier */}
                     <div className="bg-black text-white rounded-2xl p-8 relative overflow-hidden">
-                        <div className="absolute top-0 right-0 bg-[#D4A853] text-black text-sm font-bold px-4 py-1 rounded-bl-xl flex items-center gap-1">
+                        <div className="absolute top-0 right-0 bg-[#D4A853] text-white text-sm font-bold px-4 py-1 rounded-bl-xl flex items-center gap-1">
                             <Sparkles className="w-3 h-3" />
                             RECOMMENDED
                         </div>
@@ -174,7 +171,7 @@ export default function PricingPage() {
                                 ? 'bg-green-600 text-white cursor-not-allowed'
                                 : isProcessing
                                     ? 'bg-gray-600 text-white cursor-wait'
-                                    : 'bg-white text-black hover:bg-gray-100'
+                                    : 'bg-[var(--bg-secondary)] text-white hover:bg-[var(--bg-tertiary)]'
                                 }`}
                         >
                             {isPro ? '✓ Already Subscribed' : isProcessing ? 'Processing...' : 'Subscribe Now'}
@@ -185,12 +182,12 @@ export default function PricingPage() {
                 {/* Usage Status (if authenticated) */}
                 {isAuthenticated && usageStatus && (
                     <div className="mt-16 max-w-4xl mx-auto">
-                        <h2 className="text-2xl font-bold text-black mb-6 text-center">Your Current Usage</h2>
+                        <h2 className="text-2xl font-bold text-white mb-6 text-center">Your Current Usage</h2>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                             {Object.entries(usageStatus.usage).map(([workflow, data]) => (
-                                <div key={workflow} className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-center">
+                                <div key={workflow} className="bg-slate-950 border border-[#D4A853]/20 rounded-xl p-4 text-center">
                                     <div className="text-gray-500 capitalize mb-2">{workflow}</div>
-                                    <div className="text-2xl font-bold text-black">
+                                    <div className="text-2xl font-bold text-white">
                                         {data.used} / {data.limit === 'unlimited' ? '∞' : data.limit}
                                     </div>
                                     <div className="text-sm text-gray-400">
@@ -207,14 +204,14 @@ export default function PricingPage() {
             <footer className="bg-black text-white py-8 px-6 mt-16">
                 <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-white rounded flex items-center justify-center">
-                            <Scale className="w-4 h-4 text-black" />
+                        <div className="w-8 h-8 bg-[var(--bg-secondary)] rounded flex items-center justify-center">
+                            <Scale className="w-4 h-4 text-white" />
                         </div>
                         <span className="text-lg font-bold">LEGALOPS</span>
                     </div>
                     <span className="text-gray-500 text-sm">© 2026 LegalOps AI. All rights reserved.</span>
                 </div>
             </footer>
-        </div>
+        </div >
     )
 }

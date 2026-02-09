@@ -76,13 +76,14 @@ services:
       ACCESS_TOKEN_EXPIRE_MINUTES: 30
 
       # CORS
-      CORS_ORIGINS: ${CORS_ORIGINS:-https://legalops.apexneural.cloud,http://localhost:3001,http://frontend:3001}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://legalops.apexneural.cloud,http://localhost:3001,http://localhost:8006}
       CORS_ALLOW_ALL: ${CORS_ALLOW_ALL:-false}
       FRONTEND_URL: ${FRONTEND_URL:-https://legalops.apexneural.cloud}
 
       # Server
-      BACKEND_PORT: 8091
+      BACKEND_PORT: ${BACKEND_PORT:-8091}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      PORT: ${BACKEND_PORT:-8091}
 
       # OCR
       OCR_ENGINE: auto
@@ -127,10 +128,14 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
+      # Public URL for client-side fetches (Browser -> Backend Public URL)
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://legalops-api.apexneural.cloud}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://legalops.apexneural.cloud}
+      # Internal URL for SSR fetches (Next.js Node Server -> Backend Docker Container)
+      INTERNAL_API_URL: http://backend:8091
+      PORT: ${FRONTEND_PORT:-3001}
     ports:
-      - "${FRONTEND_PORT:-3001}:3001"
+      - "${FRONTEND_PORT:-8006}:3001"
     depends_on:
       backend:
         condition: service_healthy

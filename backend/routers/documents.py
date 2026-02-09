@@ -82,7 +82,6 @@ def validate_file_extension(filename: str) -> bool:
 
 
 @router.get("/", response_model=list)
-@router.get("/", response_model=list)
 def list_documents(
     skip: int = 0,
     limit: int = 50,
@@ -147,6 +146,12 @@ async def upload_document(
         if not matter:
             logger.error(f"Matter {matter_id} not found during upload")
             raise HTTPException(status_code=404, detail="Matter not found")
+        try:
+            from services.rag_service import get_rag_service
+            rag = get_rag_service()
+            rag._get_vector_store(matter_id)
+        except Exception as e:
+            logger.warning(f"Failed to initialize vector store for matter {matter_id}: {e}")
     else:
         logger.warning(f"Uploading file '{file.filename}' without matter_id")
 
@@ -187,36 +192,89 @@ async def upload_document(
     
     # TRIGGER FULL INTAKE / RAG INGESTION
     try:
-        async def run_detailed_intake(filepath: str, m_id: str, doc_obj: Any):
+        async def run_detailed_intake(filepath: str, m_id: str, doc_id: str, doc_original_name: str, doc_filename: str, creator_id: str):
             logger.info(f"Starting Background Intake for {filepath} (Matter: {m_id})")
             
-            # 1. RAG Ingestion
-            from services.rag_service import get_rag_service
-            rag = get_rag_service()
-            await rag.ingest_document(filepath, matter_id=m_id)
+            is_pdf = filepath.lower().endswith(".pdf")
+
+            if is_pdf:
+                try:
+                    from services.enhanced_ocr_pipeline import get_enhanced_ocr_pipeline
+                    from services.ocr_embedding_service import embed_pending_chunks
+                    pipeline = get_enhanced_ocr_pipeline()
+                    # Use aiofiles if possible for async, but pipeline takes bytes.
+                    # Standard open is blocking but fast for small files. Pipeline is async.
+                    # Let's use aiofiles to be consistent with other fixes
+                    import aiofiles
+                    async with aiofiles.open(filepath, "rb") as f:
+                        file_bytes = await f.read()
+
+                    async def ocr_progress(step, detail):
+                        logger.info(f"OCR pipeline [{step}] {detail}")
+                        
+                    result = await pipeline.process_document(
+                        file_content=file_bytes,
+                        filename=doc_original_name or doc_filename,
+                        matter_id=m_id,
+                        file_path=filepath,
+                        created_by=creator_id,
+                        progress_callback=ocr_progress,
+                        document_id=doc_id
+                    )
+                    await embed_pending_chunks(document_id=result.get("document_id"))
+                except Exception as e:
+                    logger.error(f"Enhanced OCR pipeline failed for {filepath}: {e}")
+                    from services.rag_service import get_rag_service
+                    rag = get_rag_service()
+                    await rag.ingest_document(filepath, matter_id=m_id)
+            else:
+                from services.rag_service import get_rag_service
+                rag = get_rag_service()
+                await rag.ingest_document(filepath, matter_id=m_id)
             
             # 2. If it's a matter document, re-run orchestrator to update dashboard (Legal Issues, Parties, etc.)
             if m_id and m_id != "general":
                 from orchestrator.controller import OrchestrationController
                 from routers.matters import _process_intake_background
                 
-                controller = OrchestrationController()
-                # We need files_data format
-                files_data = [{
-                    "filename": doc_obj.original_filename,
-                    "content": None, # Use file_path instead of content to save memory
-                    "mime_type": doc_obj.mime_type,
-                    "doc_id": doc_obj.id,
-                    "file_path": filepath
-                }]
-                
                 # Use the background helper from matters.py to update DB
                 # Note: This will potentially re-read all docs or just add this one 
                 # depending on how _process_intake_background is implemented.
                 # For now, let's just trigger it.
+                # Pass explicit ID instead of object if needed? 
+                # _process_intake_background signature is: (matter_id: str, files: List[dict], connector_type: str, metadata: dict)
+                # It doesn't take ORM objects, it takes dictionaries (files_data).
+                
+                # Check how files_data is constructed.
+                # Original code:
+                # files_data = [{
+                #     "filename": doc_obj.original_filename,
+                #     "content": None, 
+                #     "mime_type": doc_obj.mime_type,
+                #     "doc_id": doc_obj.id,
+                #     "file_path": filepath
+                # }]
+                # doc_obj CANNOT be accessed here if session closed.
+                # Using passed primitives:
+                files_data = [{
+                    "filename": doc_original_name,
+                    "content": None, 
+                    "mime_type": "application/pdf" if is_pdf else "application/octet-stream", # Approximate or need to pass mime too?
+                    "doc_id": doc_id,
+                    "file_path": filepath
+                }]
+                
                 background_tasks.add_task(_process_intake_background, m_id, files_data, "upload", {})
 
-        background_tasks.add_task(run_detailed_intake, file_path, matter_id if matter_id else "general", document)
+        background_tasks.add_task(
+            run_detailed_intake, 
+            file_path, 
+            matter_id, 
+            document.id, 
+            document.original_filename, 
+            document.filename, 
+            current_user["user_id"]
+        )
         
     except Exception as ingestion_err:
         logger.error(f"Failed to queue intake task: {ingestion_err}")

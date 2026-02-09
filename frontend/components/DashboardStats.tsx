@@ -1,99 +1,58 @@
 'use client'
 
-import { TrendingUp, TrendingDown, Briefcase, Activity, CheckCircle2, AlertCircle, Zap, Clock } from 'lucide-react'
+import { LucideIcon, TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { motion } from 'framer-motion'
 
-interface DashboardStatsProps {
-    stats: {
-        totalMatters: number
-        activeMatters: number
-        urgentDeadlines: number
-        aiTasksProcessing: number
-        completedToday: number
-        overdueItems: number
-    }
+export interface StatCardItem {
+    label: string
+    value: string | number
+    icon: LucideIcon
+    trend?: string
+    trendUp?: boolean | null // true=up, false=down, null=neutral
+    color?: string
 }
 
-export default function DashboardStats({ stats }: DashboardStatsProps) {
-    const cards = [
-        {
-            title: 'Total Matters',
-            value: stats.totalMatters,
-            change: null,
-            changeLabel: '',
-            icon: Briefcase,
-            accent: true
-        },
-        {
-            title: 'Active Operations',
-            value: stats.activeMatters,
-            change: null,
-            changeLabel: '',
-            icon: Activity,
-            accent: false
-        },
-        {
-            title: 'Urgent Deadlines',
-            value: stats.urgentDeadlines,
-            change: null,
-            changeLabel: '',
-            icon: AlertCircle,
-            accent: false
-        },
-        {
-            title: 'AI Processing',
-            value: stats.aiTasksProcessing,
-            change: null,
-            changeLabel: '',
-            icon: Zap,
-            accent: true
-        },
-        {
-            title: 'Completed Today',
-            value: stats.completedToday,
-            change: null,
-            changeLabel: '',
-            icon: CheckCircle2,
-            accent: false
-        },
-        {
-            title: 'Overdue Items',
-            value: stats.overdueItems,
-            change: null,
-            changeLabel: '',
-            icon: Clock,
-            accent: false
-        }
-    ]
+interface DashboardStatsProps {
+    items: StatCardItem[]
+}
 
+export default function DashboardStats({ items }: DashboardStatsProps) {
     return (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {cards.map((card) => {
-                const Icon = card.icon
-                const isPositive = card.change && card.change > 0
-                const isNegative = card.change && card.change < 0
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {items.map((card, index) => (
+                <motion.div
+                    key={card.label}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="group relative p-6 bg-gradient-to-br from-[#121212] to-[#1A1A1A] border border-[#333] hover:border-[#C9A24D]/30 rounded-lg transition-all duration-300"
+                >
+                    {/* Hover Glow */}
+                    <div className="absolute inset-0 bg-[#C9A24D]/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg" />
 
-                return (
-                    <div
-                        key={card.title}
-                        className="bg-white border border-gray-200 rounded-xl p-4 hover:border-[#D4A853]/50 hover:shadow-lg transition-all group"
-                    >
-                        <div className="flex items-center justify-between mb-3">
-                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center bg-[var(--gold-primary)]`}>
-                                <Icon className="w-5 h-5 text-white" />
-                            </div>
+                    <div className="relative flex justify-between items-start mb-4">
+                        <h3 className="text-[10px] font-bold text-[#9A9A9A] uppercase tracking-[0.2em]">
+                            {card.label}
+                        </h3>
+                        <card.icon className="w-4 h-4 text-[#525252] group-hover:text-[#C9A24D] transition-colors" />
+                    </div>
+
+                    <div className="relative flex items-center justify-between">
+                        <div className={`text-3xl font-sans font-semibold ${card.color || 'text-[#EAEAEA]'} tracking-tight tabular-nums`}>
+                            {card.value}
                         </div>
-                        <p className="text-2xl font-bold text-black mb-1">{card.value}</p>
-                        <p className="text-xs text-gray-500 mb-2">{card.title}</p>
-                        {card.change !== null && (
-                            <div className={`flex items-center gap-1 text-xs ${isPositive ? 'text-[#D4A853]' : isNegative ? 'text-gray-400' : 'text-gray-600'}`}>
-                                {isPositive ? <TrendingUp className="w-3 h-3" /> : isNegative ? <TrendingDown className="w-3 h-3" /> : null}
-                                <span>{card.change > 0 ? '+' : ''}{card.change}</span>
-                                <span className="text-gray-600">{card.changeLabel}</span>
+
+                        {card.trend && (
+                            <div className={`flex items-center gap-1 text-[10px] font-medium ${card.trendUp === true ? 'text-emerald-500' : card.trendUp === false ? 'text-[#C9A24D]' : 'text-[#737373]'}`}>
+                                {card.trend}
+                                {card.trendUp === true && <TrendingUp className="w-3 h-3" />}
+                                {card.trendUp === false && <TrendingDown className="w-3 h-3" />}
+                                {card.trendUp === null && <Minus className="w-3 h-3" />}
                             </div>
                         )}
                     </div>
-                )
-            })}
+                </motion.div>
+            ))}
         </div>
     )
 }

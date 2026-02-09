@@ -1,9 +1,25 @@
-'use client'
+﻿'use client'
 
 import { useState, Suspense, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
-import { Scale, Loader2, CheckCircle2, AlertCircle, FileText, Sparkles, Zap, Check, BookOpen, PenTool } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { 
+    Scale, 
+    Loader2, 
+    CheckCircle2, 
+    AlertCircle, 
+    FileText, 
+    Sparkles, 
+    Zap, 
+    Check, 
+    BookOpen, 
+    PenTool,
+    ChevronRight,
+    Search,
+    Gavel,
+    ScrollText
+} from 'lucide-react'
 import { api } from '@/lib/api'
 import Sidebar from '@/components/Sidebar'
 import WorkflowProgress, { WorkflowStep } from '@/components/WorkflowProgress'
@@ -21,10 +37,10 @@ function DraftingContent() {
     // Streaming state
     const [streamStatus, setStreamStatus] = useState<'idle' | 'running' | 'completed' | 'error'>('idle');
     const [workflowSteps, setWorkflowSteps] = useState<WorkflowStep[]>([
-        { id: 'plan_issues', label: 'Plan Strategy', status: 'waiting' },
-        { id: 'select_template', label: 'Select Template', status: 'waiting' },
-        { id: 'draft_content', label: 'Draft Content', status: 'waiting' },
-        { id: 'qa_check', label: 'Quality Check', status: 'waiting' },
+        { id: 'plan_issues', label: 'Strategic Planning', status: 'waiting' },
+        { id: 'select_template', label: 'Template Selection', status: 'waiting' },
+        { id: 'draft_content', label: 'Archival Synthesis', status: 'waiting' },
+        { id: 'qa_check', label: 'Verification', status: 'waiting' },
     ]);
     const [generatedPleading, setGeneratedPleading] = useState<any>(null);
 
@@ -41,8 +57,8 @@ function DraftingContent() {
     }, [searchParams])
 
     const templates = [
-        { id: 'TPL-HighCourt-MS-v2', name: 'High Court Statement of Claim (Malay)', language: 'ms', gradient: 'from-[var(--neon-orange)] to-[var(--neon-red)]' },
-        { id: 'TPL-HighCourt-EN-v2', name: 'High Court Statement of Claim (English)', language: 'en', gradient: 'from-[var(--neon-cyan)] to-[var(--neon-blue)]' },
+        { id: 'TPL-HighCourt-MS-v2', name: 'High Court Statement of Claim', langName: 'Bahasa Malaysia', language: 'ms' },
+        { id: 'TPL-HighCourt-EN-v2', name: 'High Court Statement of Claim', langName: 'English', language: 'en' },
     ]
 
     const matterIssues = matter?.issues || []
@@ -103,44 +119,19 @@ function DraftingContent() {
                 })
             });
 
-            // DEBUG: Check what we sent
-            const token = localStorage.getItem('access_token');
-            console.log("Drafting Stream - Token used:", token ? token.substring(0, 10) + "..." : "NULL");
-            if (!token) {
-                alert("You are not logged in. Please log in again.");
-                router.push('/login');
-                return;
-            }
-
-            if (response.status === 401) {
-                console.error("401 Unauthorized - Token rejected by backend.");
-                alert("Session expired or invalid. Please log in again.");
-                // router.push('/login'); // Optional auto-redirect
-            }
-
             if (!response.ok) throw new Error('Failed to start workflow');
 
-            // Read stream with proper SSE buffering
             const reader = response.body?.getReader();
             const decoder = new TextDecoder();
-
             if (!reader) return;
 
-            let buffer = ''; // Buffer for incomplete data
-
+            let buffer = '';
             while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
-
-                // Append new data to buffer
                 buffer += decoder.decode(value, { stream: true });
-
-                // Process complete SSE messages (ending with \n\n)
                 const messages = buffer.split('\n\n');
-
-                // Keep the last incomplete message in buffer
                 buffer = messages.pop() || '';
-
                 for (const message of messages) {
                     if (message.startsWith('data: ')) {
                         try {
@@ -148,19 +139,9 @@ function DraftingContent() {
                             const data = JSON.parse(jsonStr);
                             handleStreamEvent(data);
                         } catch (e) {
-                            console.error('Error parsing SSE:', e, 'Raw:', message.slice(0, 200));
+                            console.error('Error parsing SSE:', e);
                         }
                     }
-                }
-            }
-
-            // Process any remaining buffered data
-            if (buffer.startsWith('data: ')) {
-                try {
-                    const data = JSON.parse(buffer.slice(6));
-                    handleStreamEvent(data);
-                } catch (e) {
-                    console.error('Error parsing final SSE:', e);
                 }
             }
         } catch (error) {
@@ -170,17 +151,9 @@ function DraftingContent() {
     };
 
     const handleStreamEvent = (event: any) => {
-        // DEBUG: Log every event received
-        console.log("Drafting Stream Event:", event);
-
-        if (event.type === 'status') {
-            // Optional: Show global status toast
-        }
-        else if (event.type === 'progress') {
+        if (event.type === 'progress') {
             const stepIdRaw = event.step;
-            // Map backend node names to frontend step IDs
-            let stepId = 'draft_content'; // Default fallback
-
+            let stepId = 'draft_content';
             if (stepIdRaw === 'plan_issues') stepId = 'plan_issues';
             else if (stepIdRaw === 'select_template') stepId = 'select_template';
             else if (stepIdRaw === 'draft_malay' || stepIdRaw === 'draft_english') stepId = 'draft_content';
@@ -189,280 +162,309 @@ function DraftingContent() {
             setWorkflowSteps(prev => {
                 const newSteps = [...prev];
                 const stepIndex = newSteps.findIndex(s => s.id === stepId);
-
                 if (stepIndex !== -1) {
-                    // Mark previous as completed
-                    for (let i = 0; i < stepIndex; i++) {
-                        newSteps[i].status = 'completed';
-                    }
-                    // Set current as active
+                    for (let i = 0; i < stepIndex; i++) newSteps[i].status = 'completed';
                     newSteps[stepIndex].status = 'active';
                     newSteps[stepIndex].message = event.message;
                 }
-
                 return newSteps;
             });
         }
         else if (event.type === 'result') {
-            console.log("FINAL RESULT DATA:", JSON.stringify(event.data, null, 2));
             setGeneratedPleading(event.data);
             setStreamStatus('completed');
             setWorkflowSteps(prev => prev.map(s => ({ ...s, status: 'completed' })));
         }
         else if (event.type === 'error') {
-            console.error("Workflow Error:", event.message);
             setStreamStatus('error');
         }
     };
 
-    // Helper to extract pleading content with multiple fallback paths
     const getPleadingContent = (data: any): string => {
-        if (!data) {
-            console.error("getPleadingContent: data is null/undefined");
-            return '';
-        }
-
-        // Extensive debug logging
-        console.log("=== PLEADING EXTRACTION DEBUG ===");
-        console.log("Top-level keys:", Object.keys(data));
-        console.log("pleading_ms exists?", !!data.pleading_ms);
-        console.log("pleading_ms type:", typeof data.pleading_ms);
-        if (data.pleading_ms) {
-            console.log("pleading_ms keys:", Object.keys(data.pleading_ms));
-            console.log("pleading_ms_text exists?", !!data.pleading_ms.pleading_ms_text);
-            console.log("pleading_ms_text length:", data.pleading_ms.pleading_ms_text?.length || 0);
-        }
-
-        // Try all possible paths
+        if (!data) return '';
         const paths = [
             data?.pleading_ms?.pleading_ms_text,
             data?.pleading_en?.pleading_en_text,
             data?.workflow_result?.pleading_ms?.pleading_ms_text,
             data?.workflow_result?.pleading_en?.pleading_en_text,
-            // Direct text fields
             data?.pleading_ms_text,
             data?.pleading_en_text,
-            // If data itself is the text
             typeof data === 'string' ? data : null,
         ];
-
-        for (let i = 0; i < paths.length; i++) {
-            const path = paths[i];
-            if (path && typeof path === 'string' && path.length > 0) {
-                console.log(`✅ Found content at path index ${i}, length: ${path.length}`);
-                return path;
-            }
+        for (const path of paths) {
+            if (path && typeof path === 'string' && path.length > 0) return path;
         }
-
-        // EMERGENCY FALLBACK: Show raw data keys if nothing found
-        console.error("❌ No pleading content found! Raw data:", JSON.stringify(data, null, 2).substring(0, 500));
-        return `[DEBUG] No pleading text extracted. Keys available: ${Object.keys(data).join(', ')}. Check browser console.`;
+        return `[ARCHIVE ERROR] No content found. Available keys: ${Object.keys(data).join(', ')}`;
     };
 
     if (!matterId) {
         return (
-            <div className="flex min-h-screen bg-[var(--bg-primary)]">
+            <div className="flex min-h-screen bg-[#0A0A0A] font-serif">
                 <Sidebar />
-                <main className="flex-1 p-8 flex items-center justify-center">
-                    <div className="card p-12 text-center max-w-md">
-                        <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[var(--neon-orange)]/10 flex items-center justify-center">
-                            <AlertCircle className="w-8 h-8 text-[var(--neon-orange)]" />
-                        </div>
-                        <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">No Matter Selected</h2>
-                        <p className="text-[var(--text-secondary)] mb-6">Please select a matter from the dashboard to start drafting.</p>
+                <main className="flex-1 p-8 flex items-center justify-center relative overflow-hidden">
+                    <div className="absolute inset-0 bg-[url('/grain.png')] opacity-[0.03] pointer-events-none"></div>
+                    <motion.div 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="max-w-md w-full bg-[#1A1A1A] border border-[#D4A853]/20 p-12 text-center"
+                    >
+                        <AlertCircle className="w-12 h-12 text-[#D4A853] mx-auto mb-6" />
+                        <h2 className="text-2xl font-bold text-white mb-4 tracking-tight font-serif uppercase">Registry Access Required</h2>
+                        <p className="text-gray-400 mb-8 leading-relaxed">Please select a matter from the Executive Dashboard to proceed with the drafting workflow.</p>
                         <button
                             onClick={() => router.push('/dashboard')}
-                            className="inline-flex items-center gap-2 px-6 py-3 bg-black hover:bg-gray-900 text-[var(--gold-primary)] font-bold rounded-lg transition-colors shadow-lg border-2 border-[var(--gold-primary)]"
+                            className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-[#D4A853] hover:bg-[#B88A3E] text-white font-bold transition-all duration-300 shadow-xl"
                         >
-                            <Sparkles className="w-5 h-5" />
-                            Go to Dashboard
+                            <Gavel className="w-5 h-5" />
+                            Return to Registry
                         </button>
-                    </div>
+                    </motion.div>
                 </main>
             </div>
         )
     }
 
     return (
-        <div className="flex min-h-screen bg-[var(--bg-primary)]">
+        <div className="flex min-h-screen bg-[#0A0A0A] text-white selection:bg-[#D4A853]/30">
             <Sidebar />
-            <main className="flex-1 p-8 relative">
-                <div className="absolute top-0 right-0 w-96 h-96 bg-[var(--neon-pink)] opacity-5 blur-[120px] rounded-full pointer-events-none"></div>
-                <div className="absolute bottom-0 left-1/4 w-64 h-64 bg-[var(--neon-purple)] opacity-5 blur-[100px] rounded-full pointer-events-none"></div>
-
-                <div className="mb-10 animate-fade-in">
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="w-12 h-12 rounded-lg bg-[var(--gold-primary)] flex items-center justify-center">
-                            <Scale className="w-6 h-6 text-white" />
+            <main className="flex-1 p-8 relative overflow-hidden">
+                {/* Archival Background Elements */}
+                <div className="absolute inset-0 bg-[url('/grain.png')] opacity-[0.03] pointer-events-none"></div>
+                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#D4A853] opacity-[0.02] blur-[150px] rounded-full pointer-events-none"></div>
+                
+                <header className="mb-12 relative z-10">
+                    <div className="flex items-center gap-6">
+                        <div className="w-16 h-16 bg-[#1A1A1A] border border-[#D4A853]/40 flex items-center justify-center shadow-2xl">
+                            <ScrollText className="w-8 h-8 text-[#D4A853]" />
                         </div>
                         <div>
-                            <h1 className="text-4xl font-bold text-black">Drafting Workflow</h1>
-                            <p className="text-[var(--text-secondary)] mt-1">Generate bilingual legal pleadings with AI</p>
+                            <div className="flex items-center gap-3 text-[#D4A853] text-xs font-bold tracking-[0.3em] uppercase mb-1">
+                                <span className="w-8 h-[1px] bg-[#D4A853]"></span>
+                                Automated Legal Drafting
+                                <span className="w-8 h-[1px] bg-[#D4A853]"></span>
+                            </div>
+                            <h1 className="text-5xl font-black text-white tracking-tighter uppercase font-serif italic">
+                                Drafting <span className="text-[#D4A853] not-italic">Chambers</span>
+                            </h1>
                         </div>
                     </div>
-                    <div className="cyber-line mt-6"></div>
-                </div>
+                </header>
 
-                <div className="grid lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
-                    {/* Left Column: Configuration */}
-                    <div className="lg:col-span-1 space-y-6">
+                <div className="grid lg:grid-cols-12 gap-10 max-w-7xl mx-auto items-start">
+                    {/* Left Panel: Archives & Selections */}
+                    <div className="lg:col-span-4 space-y-8">
+                        
+                        {/* Status Hub */}
+                        <AnimatePresence>
+                            {streamStatus !== 'idle' && (
+                                <motion.div 
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: 'auto' }}
+                                    className="bg-[#141414] border border-[#D4A853]/20 overflow-hidden"
+                                >
+                                    <WorkflowProgress steps={workflowSteps} overallStatus={streamStatus} />
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
 
-                        {/* Progress Stepper */}
-                        {streamStatus !== 'idle' && (
-                            <WorkflowProgress steps={workflowSteps} overallStatus={streamStatus} />
-                        )}
-
-                        <div className="card p-6 animate-slide-up">
-                            <h2 className="text-lg font-bold text-[var(--text-primary)] mb-4 flex items-center gap-2">
-                                <FileText className="w-5 h-5 text-[var(--neon-cyan)]" />
-                                Template
-                            </h2>
-                            <div className="space-y-3">
+                        {/* Template Selection */}
+                        <section className="bg-[#141414] border border-[#D4A853]/10 p-6 flex flex-col gap-6 shadow-2xl">
+                            <div className="flex items-center justify-between border-b border-[#D4A853]/20 pb-4">
+                                <h2 className="text-sm font-black uppercase tracking-widest text-[#D4A853] flex items-center gap-2">
+                                    <FileText className="w-4 h-4" />
+                                    Protocol Selection
+                                </h2>
+                            </div>
+                            <div className="grid gap-4">
                                 {templates.map(template => (
                                     <button
                                         key={template.id}
                                         onClick={() => setSelectedTemplate(template.id)}
-                                        className={`w-full text-left p-4 rounded-xl border-2 transition-all duration-300 ${selectedTemplate === template.id
-                                            ? 'border-[var(--neon-purple)] bg-[var(--neon-purple)]/5'
-                                            : 'border-[var(--border-primary)] hover:border-[var(--border-secondary)] bg-[var(--bg-tertiary)]'
-                                            }`}
+                                        className={`group relative text-left p-5 transition-all duration-300 border ${
+                                            selectedTemplate === template.id 
+                                            ? 'bg-[#1A1A1A] border-[#D4A853] shadow-[0_0_20px_rgba(212,168,83,0.1)]' 
+                                            : 'bg-transparent border-[#D4A853]/10 hover:border-[#D4A853]/40'
+                                        }`}
                                     >
-                                        <div className="flex items-center gap-3">
-                                            <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${template.gradient} flex items-center justify-center`}>
-                                                <FileText className="w-5 h-5 text-white" />
-                                            </div>
-                                            <div className="flex-1">
-                                                <div className={`font-medium ${selectedTemplate === template.id ? 'text-[var(--neon-purple)]' : 'text-[var(--text-primary)]'}`}>
-                                                    {template.name}
+                                        <div className="flex items-center justify-between">
+                                            <div className="space-y-1">
+                                                <div className={`text-xs font-bold tracking-widest uppercase ${selectedTemplate === template.id ? 'text-[#D4A853]' : 'text-gray-500Group-hover:text-gray-300'}`}>
+                                                    {template.langName}
                                                 </div>
-                                                <div className="text-xs text-[var(--text-tertiary)]">
-                                                    {template.language === 'ms' ? 'Bahasa Malaysia' : 'English'}
+                                                <div className="text-lg font-serif font-bold text-white leading-tight">
+                                                    {template.name}
                                                 </div>
                                             </div>
                                             {selectedTemplate === template.id && (
-                                                <div className="w-3 h-3 bg-[var(--neon-green)] rounded-full"></div>
+                                                <CheckCircle2 className="w-5 h-5 text-[#D4A853]" />
                                             )}
                                         </div>
                                     </button>
                                 ))}
                             </div>
-                        </div>
+                        </section>
 
-                        <div className="card p-6 animate-slide-up stagger-1">
-                            <h2 className="text-lg font-bold text-[var(--text-primary)] mb-4 flex items-center gap-2">
-                                <Zap className="w-5 h-5 text-[var(--neon-orange)]" />
-                                Issues ({selectedIssues.length})
-                            </h2>
-                            <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                        {/* Legal Issues Archive */}
+                        <section className="bg-[#141414] border border-[#D4A853]/10 p-6 shadow-2xl">
+                             <div className="flex items-center justify-between border-b border-[#D4A853]/20 pb-4 mb-6">
+                                <h2 className="text-sm font-black uppercase tracking-widest text-[#D4A853] flex items-center gap-2">
+                                    <Zap className="w-4 h-4" />
+                                    Legal Merits Archive
+                                </h2>
+                                <span className="bg-[#D4A853]/10 text-[#D4A853] px-2 py-0.5 text-[10px] font-bold border border-[#D4A853]/30">
+                                    {selectedIssues.length} SELECTED
+                                </span>
+                            </div>
+                            <div className="space-y-3 max-h-56 overflow-y-auto pr-2 custom-scrollbar">
                                 {displayIssues.map((issue: any) => (
-                                    <label
+                                    <button
                                         key={issue.id}
-                                        className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${selectedIssues.find(i => i.id === issue.id)
-                                            ? 'border-[var(--neon-orange)] bg-[var(--neon-orange)]/5'
-                                            : 'border-[var(--border-primary)] hover:border-[var(--border-secondary)] bg-[var(--bg-tertiary)]'
-                                            }`}
+                                        onClick={() => toggleIssue(issue)}
+                                        className={`w-full text-left p-4 transition-all border ${
+                                            selectedIssues.find(i => i.id === issue.id)
+                                            ? 'bg-[#1A1A1A] border-[#D4A853]'
+                                            : 'bg-transparent border-[#D4A853]/05 hover:border-[#D4A853]/20 hover:bg-slate-900/05'
+                                        }`}
                                     >
-                                        <div className="relative flex items-center mt-1">
-                                            <input
-                                                type="checkbox"
-                                                checked={!!selectedIssues.find(i => i.id === issue.id)}
-                                                onChange={() => toggleIssue(issue)}
-                                                className="peer sr-only"
-                                            />
-                                            <div className="w-4 h-4 border-2 border-[var(--text-tertiary)] rounded flex items-center justify-center peer-checked:border-[var(--neon-orange)] peer-checked:bg-[var(--neon-orange)] transition-all">
-                                                <Check className="w-3 h-3 text-white opacity-0 peer-checked:opacity-100" />
+                                        <div className="flex items-start gap-3">
+                                            <div className={`mt-1 w-4 h-4 border flex items-center justify-center transition-colors ${
+                                                selectedIssues.find(i => i.id === issue.id) ? 'bg-[#D4A853] border-[#D4A853]' : 'border-[#D4A853]/40'
+                                            }`}>
+                                                {selectedIssues.find(i => i.id === issue.id) && <Check className="w-3 h-3 text-white" />}
+                                            </div>
+                                            <div className={`text-sm leading-relaxed ${selectedIssues.find(i => i.id === issue.id) ? 'text-white font-medium' : 'text-gray-400 group-hover:text-gray-200'}`}>
+                                                {issue.title}
                                             </div>
                                         </div>
-                                        <div className="font-medium text-sm text-[var(--text-primary)]">{issue.title}</div>
-                                    </label>
+                                    </button>
                                 ))}
                             </div>
-                        </div>
+                        </section>
 
-                        <div className="card p-6 animate-slide-up stagger-2">
-                            <h2 className="text-lg font-bold text-[var(--text-primary)] mb-4 flex items-center gap-2">
-                                <Sparkles className="w-5 h-5 text-[var(--neon-pink)]" />
-                                Prayers ({selectedPrayers.length})
-                            </h2>
-                            <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                        {/* Prayers & Remedies */}
+                        <section className="bg-[#141414] border border-[#D4A853]/10 p-6 shadow-2xl">
+                             <div className="flex items-center justify-between border-b border-[#D4A853]/20 pb-4 mb-6">
+                                <h2 className="text-sm font-black uppercase tracking-widest text-[#D4A853] flex items-center gap-2">
+                                    <Sparkles className="w-4 h-4" />
+                                    Prayer Registry
+                                </h2>
+                             </div>
+                             <div className="space-y-3 max-h-56 overflow-y-auto pr-2 custom-scrollbar">
                                 {displayPrayers.map((prayer: any, idx: number) => (
-                                    <label
+                                    <button
                                         key={idx}
-                                        className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${selectedPrayers.find(p => p.text_en === prayer.text_en)
-                                            ? 'border-[var(--neon-pink)] bg-[var(--neon-pink)]/5'
-                                            : 'border-[var(--border-primary)] hover:border-[var(--border-secondary)] bg-[var(--bg-tertiary)]'
-                                            }`}
+                                        onClick={() => togglePrayer(prayer)}
+                                        className={`w-full text-left p-4 transition-all border ${
+                                            selectedPrayers.find(p => p.text_en === prayer.text_en)
+                                            ? 'bg-[#1A1A1A] border-[#D4A853]'
+                                            : 'bg-transparent border-[#D4A853]/05 hover:border-[#D4A853]/20 hover:bg-slate-900/05'
+                                        }`}
                                     >
-                                        <input
-                                            type="checkbox"
-                                            checked={!!selectedPrayers.find(p => p.text_en === prayer.text_en)}
-                                            onChange={() => togglePrayer(prayer)}
-                                            className="mt-1 accent-[var(--neon-pink)]"
-                                        />
-                                        <div className="text-sm text-[var(--text-primary)]">{prayer.text_en}</div>
-                                    </label>
+                                        <div className="flex items-start gap-3">
+                                            <div className={`mt-1 w-4 h-4 border flex items-center justify-center transition-colors ${
+                                                selectedPrayers.find(p => p.text_en === prayer.text_en) ? 'bg-[#D4A853] border-[#D4A853]' : 'border-[#D4A853]/40'
+                                            }`}>
+                                                {selectedPrayers.find(p => p.text_en === prayer.text_en) && <Check className="w-3 h-3 text-white" />}
+                                            </div>
+                                            <div className={`text-sm ${selectedPrayers.find(p => p.text_en === prayer.text_en) ? 'text-white' : 'text-gray-400 group-hover:text-gray-200'}`}>
+                                                {prayer.text_en}
+                                            </div>
+                                        </div>
+                                    </button>
                                 ))}
                             </div>
-                        </div>
+                        </section>
 
+                        {/* Executive Action */}
                         <button
                             onClick={startDraftingStream}
                             disabled={selectedIssues.length === 0 || streamStatus === 'running'}
-                            className={`w-full btn-primary py-4 flex items-center justify-center gap-2 animate-slide-up stagger-3 ${(selectedIssues.length === 0 || streamStatus === 'running') ? 'opacity-50 cursor-not-allowed' : ''
-                                }`}
+                            className={`group relative w-full overflow-hidden p-5 bg-[#D4A853] text-white font-black uppercase tracking-widest transition-all duration-500 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[#B88A3E] ${
+                                streamStatus === 'running' ? 'animate-pulse' : ''
+                            }`}
                         >
-                            {streamStatus === 'running' ? (
-                                <>
-                                    <Loader2 className="w-5 h-5 animate-spin" />
-                                    Drafting...
-                                </>
-                            ) : (
-                                <>
-                                    <Scale className="w-5 h-5" />
-                                    Generate Pleading
-                                </>
-                            )}
+                            <div className="relative z-10 flex items-center justify-center gap-3">
+                                {streamStatus === 'running' ? (
+                                    <>
+                                        <Loader2 className="w-5 h-5 animate-spin" />
+                                        <span>Synthesis in Progress...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Gavel className="w-5 h-5" />
+                                        <span>Authorize Generation</span>
+                                    </>
+                                )}
+                            </div>
                         </button>
                     </div>
 
-                    {/* Right Column: Preview */}
-                    <div className="lg:col-span-2">
-                        <div className="card p-6 h-full animate-slide-up stagger-2 flex flex-col">
-                            <h2 className="text-lg font-bold text-[var(--text-primary)] mb-6 flex items-center gap-2 justify-between">
-                                <div className="flex items-center gap-2">
-                                    <BookOpen className="w-5 h-5 text-[var(--neon-purple)]" />
-                                    Draft Preview
-                                </div>
-                                {generatedPleading && (
-                                    <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/10 text-green-500 text-xs font-medium border border-green-500/20">
-                                        <CheckCircle2 className="w-3 h-3" />
-                                        Completed
+                    {/* Right Panel: The Manuscript */}
+                    <div className="lg:col-span-8 flex flex-col gap-6">
+                        <section className="bg-[#141414] border border-[#D4A853]/20 p-8 h-full min-h-[800px] flex flex-col relative shadow-2xl">
+                             <div className="flex items-center justify-between border-b border-[#D4A853]/30 pb-6 mb-8">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 bg-black border border-[#D4A853]/40 flex items-center justify-center">
+                                        <BookOpen className="w-5 h-5 text-[#D4A853]" />
                                     </div>
-                                )}
-                            </h2>
-
-                            <div className="flex-1 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)] overflow-hidden relative">
-                                {generatedPleading ? (
-                                    <div className="absolute inset-0 overflow-y-auto custom-scrollbar bg-white p-8">
-                                        <StructuredDocument
-                                            content={getPleadingContent(generatedPleading)}
-                                        />
-                                    </div>
-                                ) : (
-                                    <div className="h-full flex flex-col items-center justify-center text-[var(--text-tertiary)] space-y-4">
-                                        <div className="w-20 h-20 rounded-full bg-[var(--bg-secondary)] flex items-center justify-center border border-[var(--border-primary)]">
-                                            <PenTool className="w-10 h-10 opacity-50" />
+                                    <div>
+                                        <h2 className="text-xl font-bold font-serif text-white tracking-tight uppercase">Bilingual Manuscript</h2>
+                                        <div className="flex items-center gap-2 text-[10px] text-[#D4A853] font-bold tracking-widest mt-1 uppercase">
+                                            <span className="w-2 h-2 bg-[#D4A853] animate-pulse"></span>
+                                            High Fidelity Drafting Output
                                         </div>
-                                        <div className="text-center">
-                                            <p className="font-medium text-lg">Ready to Draft</p>
-                                            <p className="text-sm opacity-60 max-w-xs mx-auto mt-2">
-                                                Select a template, legal issues, and desired remedies to generate your pleading.
+                                    </div>
+                                </div>
+                                
+                                {generatedPleading && (
+                                    <motion.div 
+                                        initial={{ opacity: 0, scale: 0.9 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        className="flex items-center gap-2 px-4 py-2 border border-[#D4A853]/30 bg-[#D4A853]/5 text-[#D4A853] text-xs font-black tracking-widest uppercase"
+                                    >
+                                        <CheckCircle2 className="w-4 h-4" />
+                                        Verified Output
+                                    </motion.div>
+                                )}
+                             </div>
+
+                             <div className="flex-1 rounded-xl border border-[#D4A853]/05 bg-black/40 overflow-hidden relative">
+                                {generatedPleading ? (
+                                    <motion.div 
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        key={generatedPleading.id || 'result'}
+                                        className="h-full"
+                                    >
+                                        <div className="absolute inset-0 overflow-y-auto custom-scrollbar p-10 bg-slate-900">
+                                            <StructuredDocument
+                                                content={getPleadingContent(generatedPleading)}
+                                            />
+                                        </div>
+                                    </motion.div>
+                                ) : (
+                                    <div className="h-full flex flex-col items-center justify-center text-center space-y-8 p-12">
+                                        <div className="relative">
+                                            <div className="absolute inset-0 bg-[#D4A853]/20 blur-3xl rounded-full"></div>
+                                            <div className="relative w-32 h-32 bg-[#0A0A0A] border-[0.5px] border-[#D4A853]/30 flex items-center justify-center shadow-inner">
+                                                <PenTool className="w-12 h-12 text-[#D4A853]/40" />
+                                            </div>
+                                        </div>
+                                        <div className="max-w-md">
+                                            <h3 className="text-2xl font-bold font-serif text-white mb-4 uppercase tracking-tighter">Awaiting Authorization</h3>
+                                            <p className="text-gray-500 leading-relaxed font-serif italic text-lg opacity-80">
+                                                Select the case merits and drafting protocol from the sidebar to initialize the archival synthesis engine.
                                             </p>
                                         </div>
+                                        <div className="flex gap-4 opacity-30 grayscale pointer-events-none">
+                                            <div className="h-[1px] w-20 bg-[#D4A853]"></div>
+                                            <div className="h-[1px] w-4 bg-[#D4A853]"></div>
+                                            <div className="h-[1px] w-20 bg-[#D4A853]"></div>
+                                        </div>
                                     </div>
                                 )}
-                            </div>
-                        </div>
+                             </div>
+                        </section>
                     </div>
                 </div>
             </main>
@@ -473,10 +475,10 @@ function DraftingContent() {
 export default function DraftingPage() {
     return (
         <Suspense fallback={
-            <div className="flex min-h-screen bg-[var(--bg-primary)]">
+            <div className="flex min-h-screen bg-[#0A0A0A]">
                 <Sidebar />
                 <main className="flex-1 p-8 flex items-center justify-center">
-                    <Loader2 className="w-8 h-8 animate-spin text-[var(--neon-cyan)]" />
+                    <Loader2 className="w-12 h-12 animate-spin text-[#D4A853]" />
                 </main>
             </div>
         }>

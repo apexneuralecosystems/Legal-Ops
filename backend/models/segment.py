@@ -23,6 +23,7 @@ class Segment(Base):
     # Segment location
     page_number = Column(Integer)
     sequence_number = Column(Integer)  # order within page
+    section_ref = Column(String, nullable=True)  # Section header (e.g. "Section 12.3")
     
     # Original text
     text = Column(Text, nullable=False)

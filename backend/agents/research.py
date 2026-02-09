@@ -125,6 +125,7 @@ class ResearchAgent(BaseAgent):
         if filters is None: 
             filters = {}
         force_refresh = inputs.get("force_refresh", False)
+        user_id = inputs.get("user_id")  # Get user_id for cookie lookup
         
         # Jurisdiction defaults to Malaysia
         jurisdiction = filters.get("jurisdiction", "Malaysia")
@@ -136,11 +137,22 @@ class ResearchAgent(BaseAgent):
         if not force_refresh:
             cached_result = await self._get_cached_result(cache_key)
             if cached_result:
-                logger.info(f"⚡ Cache HIT for: '{query[:50]}...'")
-                # Add cache indicator
-                cached_result["cached"] = True
-                cached_result["cache_key"] = cache_key
-                return cached_result
+                # Don't serve cached empty results — they may be from transient failures
+                cached_cases = cached_result.get("data", {}).get("cases", [])
+                if cached_cases:
+                    logger.info(f"⚡ Cache HIT for: '{query[:50]}...' ({len(cached_cases)} cases)")
+                    cached_result["cached"] = True
+                    cached_result["cache_key"] = cache_key
+                    return cached_result
+                else:
+                    logger.warning(f"⚠️ Cache HIT but empty results — ignoring stale cache, doing live search")
+                    # Delete stale empty cache entry
+                    try:
+                        redis_client = await self._get_redis()
+                        if redis_client:
+                            await redis_client.delete(cache_key)
+                    except Exception:
+                        pass
         else:
             logger.info(f"🔄 Force refresh requested - skipping cache")
         
@@ -157,7 +169,8 @@ class ResearchAgent(BaseAgent):
             results = await self.lexis_scraper.search(
                 query=query,
                 country=jurisdiction,
-                filters=filters  # Pass all filters
+                filters=filters,  # Pass all filters
+                user_id=user_id  # Pass user_id for cookie lookup
             )
             
             search_duration = (datetime.now() - search_start).total_seconds()
@@ -200,8 +213,12 @@ class ResearchAgent(BaseAgent):
         output["cached"] = False
         output["cache_key"] = cache_key
         
-        # Store in cache for future requests
-        await self._set_cached_result(cache_key, output)
+        # Only cache results that actually contain cases
+        # Never cache empty results — they may be from transient failures
+        if results:
+            await self._set_cached_result(cache_key, output)
+        else:
+            logger.warning(f"⚠️ Skipping cache for empty results (query: '{query[:50]}...') — may be a transient failure")
         
         return output
     
