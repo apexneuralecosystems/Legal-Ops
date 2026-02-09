@@ -684,7 +684,7 @@ function ResearchContent() {
 
                                                 const sections = content.split('## PART').filter((s: string) => s.trim());
 
-                                                return sections.map((section, idx) => {
+                                                return sections.map((section: string, idx: number) => {
                                                     const titleLine = section.split('\n')[0].trim();
                                                     const title = titleLine.replace(/^[A-Z]\s+—\s+/, ''); // Remove "A — " prefix
 
@@ -733,7 +733,7 @@ function ResearchContent() {
                                                             ? argumentMutation.data.argument_memo.issue_memo_en
                                                             : argumentMutation.data.argument_memo.issue_memo_ms;
 
-                                                        return content.split('## PART').filter(s => s.trim()).map((section, idx) => {
+                                                        return content.split('## PART').filter((s: string) => s.trim()).map((section: string, idx: number) => {
                                                             const fullSection = `## PART${section}`;
                                                             return (
                                                                 <section key={idx} id={`section-${idx}`} className="scroll-mt-8">
