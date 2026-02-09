@@ -175,9 +175,14 @@ async def health_check():
     """Health check endpoint."""
     return {
         "status": "healthy",
-        "service": "Malaysian Legal AI Agent",
-        "version": "1.0.0"
+        "service": "Legal-Ops Backend Agent",
+        "version": settings.VERSION,
+        "deploy_id": "2026-02-10-00-40"
     }
+
+@app.get("/version-debug")
+async def version_debug():
+    return {"version": settings.VERSION, "deploy_id": "2026-02-10-00-40", "status": "verified"}
 
 # ═══════════════════════════════════════════════════════════════
 # Global CORS Preflight Handler
