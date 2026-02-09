@@ -135,7 +135,7 @@ services:
       INTERNAL_API_URL: http://backend:8091
       PORT: ${FRONTEND_PORT:-3001}
     ports:
-      - "${FRONTEND_PORT:-8006}:3001"
+      - "${FRONTEND_PORT:-8006}:${FRONTEND_PORT:-3001}"
     depends_on:
       backend:
         condition: service_healthy
