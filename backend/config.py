@@ -119,7 +119,7 @@ class Settings(BaseSettings):
     
     # CORS - Set via env variable for your deployment
     # Example: CORS_ORIGINS=https://yourdomain.com,https://api.yourdomain.com
-    CORS_ORIGINS: str | List[str] = "https://legalops.apexneural.cloud,http://localhost:3001,http://localhost:3000"
+    CORS_ORIGINS: str | List[str] = "https://legalops.apexneural.cloud,https://www.legalops.apexneural.cloud,http://localhost:3000,http://127.0.0.1:3000,http://localhost:8006,http://127.0.0.1:8006,http://localhost:8007,http://127.0.0.1:8007"
     CORS_ALLOW_ALL: bool = False  # Set True for development only, False for production
     
     # Logging
