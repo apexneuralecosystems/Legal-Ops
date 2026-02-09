@@ -9,8 +9,13 @@ from config import settings
 from database import init_db, Base
 import logging
 import sys
-import os
 import asyncio
+import os
+import certifi
+
+# Force use of valid certifi bundle, overriding any system-wide PostgreSQL/Conda paths
+os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
+os.environ["SSL_CERT_FILE"] = certifi.where()
 
 # Fix for Playwright on Windows (Asyncio Loop Policy)
 if sys.platform == 'win32':

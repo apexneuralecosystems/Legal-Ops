@@ -74,12 +74,18 @@ class CaseStructuringAgent(BaseAgent):
             logger.info(f"CaseStructuring: Text preview (first 500 chars): {full_text_en[:500]}")
         
         # Use LLM to extract structured information
+        # INCREASED LIMIT: 500,000 chars approx 150+ pages to handle multiple docs
         extraction_prompt = self._create_extraction_prompt(full_text_en, full_text_ms)
         
         logger.info(f"CaseStructuring: Calling LLM for extraction...")
         response_text = await self.llm.generate(extraction_prompt)
-        logger.info(f"CaseStructuring: LLM response length: {len(response_text)} chars")
-        logger.info(f"CaseStructuring: LLM response preview: {response_text[:500] if len(response_text) > 500 else response_text}")
+        
+        logger.info("\n" + "-"*40)
+        logger.info("CASE STRUCTURING - AI EXTRACTION PREVIEW")
+        logger.info(f"Length: {len(response_text)} chars")
+        logger.info("-" * 20)
+        logger.info(response_text[:1000] if len(response_text) > 1000 else response_text)
+        logger.info("-" * 40 + "\n")
         
         extracted_data = self._parse_llm_response(response_text)
         logger.info(f"CaseStructuring: Extracted data: {extracted_data}")
@@ -114,14 +120,22 @@ class CaseStructuringAgent(BaseAgent):
     
     def _create_extraction_prompt(self, text_en: str, text_ms: str) -> str:
         """Create prompt for LLM extraction."""
-        return f"""You are a Malaysian legal AI assistant. Extract structured information from the following legal documents.
+        return f"""You are a Malaysian legal AI assistant. Your task is to extract structured information from the following legal documents with HIGH ACCURACY and DETAIL.
+
 Current Date: {datetime.utcnow().strftime('%Y-%m-%d')}
 
-English Text:
-{text_en[:20000]}  # Limit to first 20000 chars
+INSTRUCTIONS:
+1. Analyze ALL provided text from all documents.
+2. Extract DETAILED legal issues. Do not summarize into one line if there are distinct points.
+3. Look specifically for "triable issues", "grounds for defense", "grounds for stay of execution", and procedural irregularities.
+4. Extract the specific "Prayers" or "Relief Sought" (word for word if possible).
+5. Identify all parties and their roles accurately.
 
-Malay Text:
-{text_ms[:20000]}
+English Text (Combined):
+{text_en[:500000]}
+
+Malay Text (Combined):
+{text_ms[:500000]}
 
 Extract and return a JSON object with the following structure:
 {{
@@ -146,14 +160,18 @@ Extract and return a JSON object with the following structure:
     "issues": [
         {{
             "id": "ISS-1",
-            "text_en": "Issue in English",
-            "text_ms": "Issue in Malay",
+            "text_en": "Detailed legal issue in English (e.g., 'Whether the Defences of D1 and D2 raise any triable issue to resist Summary Judgment')",
+            "text_ms": "Detailed legal issue in Malay",
+            "legal_basis": "Statutory or common law authority (e.g., 'Order 14 Rules of Court 2012')",
+            "grounds": "Factual basis for this issue from the document",
             "confidence": 0.0-1.0
         }}
     ],
     "requested_remedies": [
         {{
-            "text": "Remedy description",
+            "text": "Specific prayer or relief sought (e.g., 'Damages in the sum of RM50,000')",
+            "legal_basis": "Authority for this remedy",
+            "amount": "Numerical value if mentioned",
             "confidence": 0.0-1.0
         }}
     ]

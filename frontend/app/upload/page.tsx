@@ -14,6 +14,10 @@ export default function UploadPage() {
     const [dragActive, setDragActive] = useState(false)
 
     const uploadMutation = useMutation({
+        onMutate: () => {
+            setProcessingStep("Preparing document for AI...")
+            setContextDetails("Sending files to server...")
+        },
         mutationFn: async () => {
             const formData = new FormData()
             files.forEach((file) => {
@@ -25,14 +29,66 @@ export default function UploadPage() {
             return api.startIntakeWorkflow(formData)
         },
         onSuccess: (data) => {
-            console.log('Intake workflow started successfully:', data)
-            router.push(`/matter/${data.matter_id}`)
+            console.log('Intake workflow response:', data)
+            // Backend now returns 'processing' for background tasks, or 'success' for immediate results
+            if (data && data.matter_id && (data.status === 'success' || data.status === 'processing')) {
+                // If it's processing, we POLL until it's done
+                if (data.status === 'processing' || data.workflow_status === 'processing') {
+                    setProcessingStep("Analyzing document with AI...")
+                    setContextDetails("This may take 1-2 minutes for large files...")
+                    pollForCompletion(data.matter_id)
+                } else {
+                    router.push(`/matter/${data.matter_id}`)
+                }
+            } else {
+                console.error('Missing matter_id in success response:', data)
+                alert('Intake started but matter ID was not received. Please check the dashboard.')
+            }
         },
         onError: (error: any) => {
             console.error('Intake workflow failed:', error)
+            setProcessingStep(null) // Clear loading state
             alert(`Error starting intake workflow: ${error.message || 'Unknown error'}`)
         },
     })
+
+    const [processingStep, setProcessingStep] = useState<string | null>(null)
+    const [contextDetails, setContextDetails] = useState<string | null>(null)
+
+    const pollForCompletion = async (matterId: string) => {
+        const checkStatus = async () => {
+            try {
+                // Use central API client instead of manual fetch to benefit from auth interceptors
+                const matter = await api.getMatter(matterId)
+                if (matter) {
+                    console.log("Polling status:", matter.status)
+
+                    // Update progress message if available
+                    if (matter.processing_status && matter.status !== 'failed') {
+                        setProcessingStep(matter.processing_status)
+                    }
+
+                    if (matter.status === 'structured' || matter.status === 'active' || matter.status === 'ready') {
+                        router.push(`/matter/${matterId}`)
+                        return true // Done
+                    } else if (matter.status === 'failed') {
+                        alert("Processing failed. Please try again.")
+                        setProcessingStep(null)
+                        return true // Done (failed)
+                    }
+                }
+            } catch (e) {
+                console.error("Polling error:", e)
+            }
+            return false // Keep polling
+        }
+
+        // Poll every 3 seconds
+        const interval = setInterval(async () => {
+            const done = await checkStatus()
+            if (done) clearInterval(interval)
+        }, 3000)
+    }
 
     const handleDrag = (e: React.DragEvent) => {
         e.preventDefault()
@@ -275,7 +331,38 @@ export default function UploadPage() {
                         </div>
                     </div>
                 </div>
-            </main>
-        </div>
+
+                {/* Processing Overlay */}
+                {processingStep && (
+                    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center animate-fade-in">
+                        <div className="bg-[var(--bg-secondary)] border border-[var(--neon-cyan)] p-8 rounded-2xl max-w-md w-full text-center shadow-2xl shadow-[var(--neon-cyan)]/20 relative overflow-hidden">
+                            <div className="absolute inset-0 bg-gradient-to-br from-[var(--neon-cyan)]/5 to-[var(--neon-purple)]/5 animate-pulse"></div>
+
+                            <div className="relative z-10">
+                                <div className="w-20 h-20 mx-auto mb-6 relative">
+                                    <div className="absolute inset-0 border-4 border-[var(--neon-cyan)]/30 rounded-full animate-ping"></div>
+                                    <div className="absolute inset-0 border-4 border-t-[var(--neon-cyan)] border-r-[var(--neon-purple)] border-b-[var(--neon-cyan)] border-l-[var(--neon-purple)] rounded-full animate-spin"></div>
+                                    <div className="absolute inset-2 bg-[var(--bg-tertiary)] rounded-full flex items-center justify-center">
+                                        <Sparkles className="w-8 h-8 text-[var(--gold-primary)] animate-pulse" />
+                                    </div>
+                                </div>
+
+                                <h3 className="text-2xl font-bold text-white mb-2">{processingStep}</h3>
+                                {contextDetails && (
+                                    <p className="text-[var(--text-secondary)] mb-6">{contextDetails}</p>
+                                )}
+
+                                <div className="w-full bg-[var(--bg-tertiary)] h-2 rounded-full overflow-hidden">
+                                    <div className="h-full bg-gradient-to-r from-[var(--neon-cyan)] via-[var(--neon-purple)] to-[var(--neon-cyan)] w-[200%] animate-shimmer"></div>
+                                </div>
+                                <p className="text-xs text-[var(--text-tertiary)] mt-4">
+                                    Please do not close this window.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </main >
+        </div >
     )
 }

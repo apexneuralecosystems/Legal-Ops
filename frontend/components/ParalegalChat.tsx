@@ -3,6 +3,8 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Send, User, Bot, Paperclip, X, Sparkles, Loader2 } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 interface Message {
     id: string
@@ -12,12 +14,18 @@ interface Message {
     isStreaming?: boolean
 }
 
-export default function ParalegalChat() {
+interface ParalegalChatProps {
+    matterId?: string
+}
+
+export default function ParalegalChat({ matterId }: ParalegalChatProps) {
     const [messages, setMessages] = useState<Message[]>([
         {
             id: 'welcome',
             role: 'assistant',
-            content: "Hello. I am your AI Doc Chat Assistant. I can assist you with quick research, document summaries, or drafting tasks. How can I help you today?",
+            content: matterId
+                ? "Hello. I am your Case Assistant. I have read the files for this matter. You can ask me anything about them."
+                : "Hello. I am your AI Doc Chat Assistant. I can assist you with quick research or document summaries. How can I help you today?",
             timestamp: new Date()
         }
     ])
@@ -25,6 +33,8 @@ export default function ParalegalChat() {
     const [isStreaming, setIsStreaming] = useState(false)
     const [attachedFiles, setAttachedFiles] = useState<any[]>([])
     const [isUploading, setIsUploading] = useState(false)
+    const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([])
+    const [loadingQuestions, setLoadingQuestions] = useState(false)
 
     const messagesEndRef = useRef<HTMLDivElement>(null)
     const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -39,6 +49,38 @@ export default function ParalegalChat() {
         scrollToBottom()
     }, [messages])
 
+    // Fetch suggested questions when matterId is present
+    useEffect(() => {
+        if (matterId) {
+            fetchSuggestedQuestions()
+        }
+    }, [matterId])
+
+    const fetchSuggestedQuestions = async () => {
+        setLoadingQuestions(true)
+        try {
+            const token = localStorage.getItem('access_token')
+            const res = await fetch(`/api/paralegal/suggested-questions/${matterId}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+            if (res.ok) {
+                const data = await res.json()
+                setSuggestedQuestions(data.suggested_questions || [])
+            }
+        } catch (error) {
+            console.error('Failed to fetch suggested questions:', error)
+        } finally {
+            setLoadingQuestions(false)
+        }
+    }
+
+    const handleSuggestedClick = (question: string) => {
+        setInput(question)
+        inputRef.current?.focus()
+    }
+
     // Handle File Selection
     const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files.length > 0) {
@@ -52,6 +94,8 @@ export default function ParalegalChat() {
         setIsUploading(true)
         const formData = new FormData()
         formData.append('file', file)
+        // Pass matterId if available, else generic
+        formData.append('matter_id', matterId || 'general')
 
         try {
             const token = localStorage.getItem('access_token')
@@ -117,7 +161,8 @@ export default function ParalegalChat() {
                 },
                 body: JSON.stringify({
                     message: userMsg.content,
-                    context_files: contextFiles
+                    context_files: contextFiles,
+                    matter_id: matterId // Pass context to backend
                 })
             })
 
@@ -208,8 +253,14 @@ export default function ParalegalChat() {
                             ? 'bg-[#D4A853] text-black border border-[#D4A853] rounded-tr-sm shadow-lg font-medium'
                             : 'bg-white text-gray-800 border border-gray-200 rounded-tl-sm shadow-md'
                             }`}>
-                            <div className={`prose prose-sm max-w-none leading-relaxed whitespace-pre-wrap ${msg.role === 'user' ? 'text-black' : 'text-gray-800'}`}>
-                                {msg.content}
+                            <div className={`prose prose-sm max-w-none leading-relaxed ${msg.role === 'user' ? 'text-black whitespace-pre-wrap' : 'text-gray-800 prose-headings:text-gray-900 prose-strong:text-gray-900 prose-table:text-sm'}`}>
+                                {msg.role === 'assistant' ? (
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                        {msg.content}
+                                    </ReactMarkdown>
+                                ) : (
+                                    msg.content
+                                )}
                                 {msg.isStreaming && (
                                     <span className="inline-block w-1.5 h-4 ml-1 align-middle bg-[var(--gold-primary)] animate-pulse" />
                                 )}
@@ -219,6 +270,31 @@ export default function ParalegalChat() {
                 ))}
                 <div ref={messagesEndRef} />
             </div>
+
+            {/* Suggested Questions */}
+            {suggestedQuestions.length > 0 && messages.length <= 1 && (
+                <div className="px-4 py-3 bg-[var(--bg-tertiary)] border-t border-[var(--border-light)]">
+                    <p className="text-xs text-[var(--text-tertiary)] mb-2">💡 Suggested questions:</p>
+                    <div className="flex flex-wrap gap-2">
+                        {suggestedQuestions.map((q, i) => (
+                            <button
+                                key={i}
+                                onClick={() => handleSuggestedClick(q)}
+                                className="px-3 py-1.5 text-xs bg-[var(--bg-card)] border border-[var(--border-light)] rounded-full hover:border-[var(--gold-primary)] hover:text-[var(--gold-primary)] transition-colors text-[var(--text-secondary)] text-left max-w-xs truncate"
+                                title={q}
+                            >
+                                {q.length > 50 ? q.substring(0, 50) + '...' : q}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+            {loadingQuestions && (
+                <div className="px-4 py-2 text-xs text-[var(--text-tertiary)]">
+                    <Loader2 size={12} className="inline animate-spin mr-2" />
+                    Generating suggested questions...
+                </div>
+            )}
 
             {/* Input Area */}
             <div className="p-4 bg-[var(--bg-card)] border-t border-[var(--border-light)] relative z-20">

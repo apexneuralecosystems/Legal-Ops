@@ -56,8 +56,8 @@ class WorkflowState(TypedDict, total=False):
     filters: Dict[str, Any]
     cases: List[Dict]
     argument_memo: Dict[str, Any]
-    data_source: str  # "commonlii" or other real source
-    live_data: bool  # True if from CommonLII
+    data_source: str  # "lexis" or "legislation"
+    live_data: bool  # True if from real external source
     
     # Evidence workflow state
     documents: List[Dict]
@@ -229,10 +229,35 @@ class OrchestrationController:
         }
         
         try:
+            import time
+            start_time = time.time()
             logger.info(f"Starting intake workflow for matter {matter_id} with {len(files)} files")
+            
             result = await self.intake_workflow.ainvoke(initial_state)
+            
+            end_time = time.time()
+            total_time = end_time - start_time
             result["workflow_status"] = "completed"
-            logger.info(f"Intake workflow completed successfully for matter {matter_id}")
+            
+            # RICH SUMMARY LOGGING (User requested benchmark-style visibility)
+            total_pages = result.get("total_page_count", 0)
+            segments_count = len(result.get("all_segments", []))
+            
+            logger.info("\n" + "="*60)
+            logger.info(f"INTAKE WORKFLOW SUCCESSFUL - {matter_id}")
+            logger.info(f"- Total Time: {total_time:.2f}s ({total_time/60:.2f}m)")
+            logger.info(f"- Total Pages: {total_pages}")
+            logger.info(f"- Data Segments: {segments_count}")
+            
+            # Preview of extracted data if available
+            snapshot = result.get("matter_snapshot", {})
+            if snapshot:
+                logger.info(f"- Case Title: {snapshot.get('title')}")
+                logger.info(f"- Court/Juris: {snapshot.get('court')} ({snapshot.get('jurisdiction')})")
+                logger.info(f"- Key Issues: {len(snapshot.get('issues', []))}")
+            
+            logger.info("="*60 + "\n")
+            
             return result
         except Exception as e:
             logger.error(f"Intake workflow FAILED for matter {matter_id}: {str(e)}", exc_info=True)
@@ -544,6 +569,7 @@ class OrchestrationController:
             # Prepare input for OCR agent
             ocr_input = {
                 "doc_id": doc["doc_id"],
+                "matter_id": state.get("matter_id"),
                 "file_content": doc.get("file_content"),
                 "mime_type": doc["mime_type"]
             }
@@ -738,8 +764,8 @@ class OrchestrationController:
         data = result.get("data", {})
         state["cases"] = data.get("cases", [])
         
-        # Pass through CommonLII integration metadata
-        state["data_source"] = data.get("data_source", "commonlii")
+        # Pass through integration metadata
+        state["data_source"] = data.get("data_source", "lexis")
         state["live_data"] = data.get("live_data", False)
         
         return state

@@ -136,9 +136,10 @@ async def paralegal_chat(
     current_user: Dict[str, Any] = Depends(get_current_user_sync)
 ):
     """
-    Stream chat response from Paralegal AI using RAG.
+    Stream chat response from Paralegal AI using multi-tool research + automatic cross-examination.
     """
-    from services.rag_service import get_rag_service
+    from agents.legal_research_agent import get_legal_research_agent
+    from agents.devils_advocate_agent import get_devils_advocate_agent
     
     async def response_generator():
         try:
@@ -146,34 +147,61 @@ async def paralegal_chat(
             yield f"data: {json.dumps({'type': 'status', 'content': 'Analyzing query...'})}\n\n"
             await asyncio.sleep(0.1)
             
-            # 2. Call RAG Service
-            rag = get_rag_service()
-            yield f"data: {json.dumps({'type': 'status', 'content': 'Searching documents & legal databases...'})}\n\n"
+            # 2. Call Legal Research Agent (multi-tool)
+            research_agent = get_legal_research_agent()
+            yield f"data: {json.dumps({'type': 'status', 'content': 'Searching documents, Lexis & legislation...'})}\n\n"
             
-            result = await rag.query(
-                query_text=request.message,
+            research_result = await research_agent.research(
+                query=request.message,
                 matter_id=request.matter_id,
-                context_files=request.context_files
+                context=", ".join(request.context_files) if request.context_files else None
             )
             
-            # 3. Stream Answer (Simulated typing of the full response for UX)
-            answer = result.get("answer", "")
-            method = result.get("method", "rag")
-            sources = result.get("sources", [])
+            answer = research_result.get("answer", "")
+            sources = research_result.get("sources", [])
+            tools_used = research_result.get("tools_used", [])
             
-            # Helper to stream words
+            # 3. Stream the main answer
+            yield f"data: {json.dumps({'type': 'status', 'content': 'Generating legal analysis...'})}\n\n"
+            
+            # Stream words for UX
             words = answer.split(" ")
             for word in words:
-                await asyncio.sleep(0.02) # Fast typing
+                await asyncio.sleep(0.015)
                 yield f"data: {json.dumps({'type': 'token', 'content': word + ' '})}\n\n"
             
-            # 4. Stream Sources/Context Info
+            # 4. Stream sources
             if sources:
-                source_text = "\n\n**Sources:**\n" + "\n".join([f"- {s}" for s in sources])
+                source_text = "\n\n**📚 Sources Used:**\n"
+                for src in sources:
+                    tool_name = src.get("tool", "unknown")
+                    source_text += f"- *{tool_name}*: {src.get('result', '')[:100]}...\n"
                 yield f"data: {json.dumps({'type': 'token', 'content': source_text})}\n\n"
             
-            if method == "web_search":
-                 yield f"data: {json.dumps({'type': 'status', 'content': 'Used Firecrawl Web Search'})}\n\n"
+            if tools_used:
+                tools_text = f"\n*Tools: {', '.join(tools_used)}*\n"
+                yield f"data: {json.dumps({'type': 'token', 'content': tools_text})}\n\n"
+            
+            # 5. AUTOMATIC: Devil's Advocate Analysis
+            yield f"data: {json.dumps({'type': 'status', 'content': '🔴 Running Devil\'s Advocate cross-examination...'})}\n\n"
+            
+            devil = get_devils_advocate_agent()
+            devil_result = await devil.analyze(
+                legal_position=answer,
+                case_context=request.message,
+                document_summary=", ".join(request.context_files) if request.context_files else None
+            )
+            
+            challenge = devil_result.get("challenge", "")
+            
+            if challenge and not challenge.startswith("["):
+                yield f"data: {json.dumps({'type': 'token', 'content': '\n\n---\n\n'})}\n\n"
+                
+                # Stream the devil's advocate analysis
+                challenge_words = challenge.split(" ")
+                for word in challenge_words:
+                    await asyncio.sleep(0.01)
+                    yield f"data: {json.dumps({'type': 'token', 'content': word + ' '})}\n\n"
             
             # Final message
             yield f"data: {json.dumps({'type': 'done', 'content': ''})}\n\n"
@@ -183,3 +211,129 @@ async def paralegal_chat(
             yield f"data: {json.dumps({'type': 'error', 'content': str(e)})}\n\n"
 
     return StreamingResponse(response_generator(), media_type="text/event-stream")
+
+
+@router.get("/suggested-questions/{matter_id}")
+async def get_suggested_questions(
+    matter_id: str,
+    db: Session = Depends(get_db),
+    current_user: Dict[str, Any] = Depends(get_current_user_sync)
+):
+    """
+    Generate context-aware suggested questions based on the matter's documents.
+    Called when Doc Chat is opened.
+    """
+    from services.rag_service import get_rag_service
+    from services.llm_service import LLMService
+    
+    try:
+        # 1. Verify matter exists and user has access
+        matter = db.query(Matter).filter(
+            Matter.id == matter_id,
+            Matter.created_by == current_user["user_id"]
+        ).first()
+        
+        if not matter:
+            raise HTTPException(status_code=404, detail="Matter not found")
+        
+        # 2. Get document summaries from RAG
+        rag = get_rag_service()
+        context_summary = ""
+        
+        try:
+            # Query RAG for a general summary of the matter
+            if rag._vector_store:
+                docs = rag._vector_store.similarity_search(
+                    f"Summary of legal issues in matter {matter_id}",
+                    k=5,
+                    filter={"matter_id": matter_id} if hasattr(rag._vector_store, 'filter') else None
+                )
+                context_summary = "\n".join([d.page_content[:300] for d in docs])
+        except Exception as rag_err:
+            logger.warning(f"RAG fetch for suggested questions failed: {rag_err}")
+        
+        # 3. Use matter metadata as fallback/supplement
+        matter_context = f"""
+Case Title: {matter.title or 'Untitled'}
+Parties: {json.dumps(matter.parties) if matter.parties else 'Not specified'}
+Legal Issues: {json.dumps(matter.issues) if matter.issues else 'Not specified'}
+Key Dates: {json.dumps(matter.key_dates) if matter.key_dates else 'Not specified'}
+"""
+        
+        # 4. Generate suggested questions using LLM
+        llm = LLMService()
+        prompt = f"""Based on the following case context, generate 5 insightful legal questions that a lawyer might want answered about this case.
+
+CASE CONTEXT:
+{matter_context}
+
+DOCUMENT EXCERPTS:
+{context_summary[:1500] if context_summary else 'No documents processed yet.'}
+
+Generate exactly 5 questions in JSON format:
+[
+  "Question 1?",
+  "Question 2?",
+  "Question 3?",
+  "Question 4?",
+  "Question 5?"
+]
+
+Focus on:
+- Key legal issues
+- Potential risks
+- Evidence requirements
+- Procedural matters
+- Strategic considerations
+
+Return ONLY the JSON array, no other text."""
+
+        response = await llm.generate(prompt, temperature=0.7, max_tokens=500)
+        
+        # Parse the response
+        try:
+            # Try to extract JSON from the response
+            import re
+            json_match = re.search(r'\[.*\]', response, re.DOTALL)
+            if json_match:
+                questions = json.loads(json_match.group())
+            else:
+                # Fallback default questions
+                questions = [
+                    f"What are the key legal issues in {matter.title or 'this case'}?",
+                    "What evidence do we need to strengthen our position?",
+                    "What are the potential defenses the opposing party might raise?",
+                    "What are the key dates and deadlines I should be aware of?",
+                    "What is the likelihood of success in this case?"
+                ]
+        except json.JSONDecodeError:
+            questions = [
+                f"What are the key legal issues in {matter.title or 'this case'}?",
+                "What evidence do we need to strengthen our position?",
+                "What are the potential defenses the opposing party might raise?",
+                "What are the key dates and deadlines I should be aware of?",
+                "What is the likelihood of success in this case?"
+            ]
+        
+        return {
+            "matter_id": matter_id,
+            "matter_title": matter.title,
+            "suggested_questions": questions[:5]  # Ensure max 5
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Suggested questions error: {e}")
+        # Return default questions on error
+        return {
+            "matter_id": matter_id,
+            "matter_title": None,
+            "suggested_questions": [
+                "What are the key legal issues in this case?",
+                "What evidence is available to support our claims?",
+                "What are the potential weaknesses in our position?",
+                "What deadlines or limitation periods apply?",
+                "What remedies can we seek?"
+            ]
+        }
