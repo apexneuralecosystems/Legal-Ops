@@ -682,7 +682,7 @@ function ResearchContent() {
                                                     ? argumentMutation.data.argument_memo.issue_memo_en
                                                     : argumentMutation.data.argument_memo.issue_memo_ms;
 
-                                                const sections = content.split('## PART').filter(s => s.trim());
+                                                const sections = content.split('## PART').filter((s: string) => s.trim());
 
                                                 return sections.map((section, idx) => {
                                                     const titleLine = section.split('\n')[0].trim();
