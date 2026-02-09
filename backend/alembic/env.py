@@ -16,13 +16,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import settings
 from database import Base
 from apex.models import User, Subscription, PaymentOrder
-from models.matter import Matter
-from models.document import Document
-from models.pleading import Pleading
-from models.segment import Segment
-from models.research import ResearchCase
-from models.audit import AuditLog
-from models.usage import UserUsage
+from models import (
+    Matter, Document, Pleading, Segment, ResearchCase, 
+    AuditLog, UserUsage, OCRDocument, OCRPage, OCRChunk, OCRProcessingLog
+)
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
