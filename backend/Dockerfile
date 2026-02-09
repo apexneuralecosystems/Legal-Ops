@@ -22,8 +22,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy and install Python dependencies
 COPY requirements.txt .
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 RUN pip install --upgrade pip && \
-    pip install --user -r requirements.txt
+    pip install -r requirements.txt
 
 # Stage 2: Runtime
 FROM python:3.12-slim
@@ -31,7 +33,7 @@ FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app \
-    PIP_NO_CACHE_DIR=1
+    PATH="/opt/venv/bin:$PATH"
 
 WORKDIR /app
 
@@ -48,10 +50,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean
 
 # Copy Python dependencies from builder
-COPY --from=builder /root/.local /root/.local
-
-# Set PATH for user-installed packages
-ENV PATH=/root/.local/bin:$PATH
+COPY --from=builder /opt/venv /opt/venv
 
 # Copy application code
 COPY . .
@@ -69,7 +68,9 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:${PORT:-8091}/health || exit 1
 
 # Non-root user for security
-RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+RUN useradd -m -u 1000 appuser && \
+    chown -R appuser:appuser /app && \
+    chown -R appuser:appuser /opt/venv
 
 # Copy startup script
 COPY scripts/start.sh /app/start.sh
