@@ -733,7 +733,7 @@ function ResearchContent() {
                                                             ? argumentMutation.data.argument_memo.issue_memo_en
                                                             : argumentMutation.data.argument_memo.issue_memo_ms;
 
-                                                        return content.split('## PART').filter((s: string) => s.trim()).map((section, idx) => {
+                                                        return content.split('## PART').filter((s: string) => s.trim()).map((section: string, idx: number) => {
                                                             const fullSection = `## PART${section}`;
                                                             return (
                                                                 <section key={idx} id={`section-${idx}`} className="scroll-mt-8">
