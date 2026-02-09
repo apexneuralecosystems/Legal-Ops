@@ -684,7 +684,7 @@ function ResearchContent() {
 
                                                 const sections = content.split('## PART').filter((s: string) => s.trim());
 
-                                                return sections.map((section, idx) => {
+                                                return sections.map((section: string, idx: number) => {
                                                     const titleLine = section.split('\n')[0].trim();
                                                     const title = titleLine.replace(/^[A-Z]\s+—\s+/, ''); // Remove "A — " prefix
 
