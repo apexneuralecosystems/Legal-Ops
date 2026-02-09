@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -66,7 +66,7 @@ function ResetPasswordForm() {
         return (
             <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
                 <div className="w-full max-w-md">
-                    <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-8 border border-white/20 text-center">
+                    <div className="bg-slate-900/10 backdrop-blur-xl rounded-2xl p-8 border border-white/20 text-center">
                         <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
                             <AlertCircle className="w-8 h-8 text-red-400" />
                         </div>
@@ -90,7 +90,7 @@ function ResetPasswordForm() {
         return (
             <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
                 <div className="w-full max-w-md">
-                    <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-8 border border-white/20 text-center">
+                    <div className="bg-slate-900/10 backdrop-blur-xl rounded-2xl p-8 border border-white/20 text-center">
                         <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
                             <CheckCircle className="w-8 h-8 text-green-400" />
                         </div>
@@ -111,7 +111,7 @@ function ResetPasswordForm() {
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
             <div className="w-full max-w-md">
-                <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-8 border border-white/20">
+                <div className="bg-slate-900/10 backdrop-blur-xl rounded-2xl p-8 border border-white/20">
                     <Link
                         href="/login"
                         className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-6"
@@ -144,7 +144,7 @@ function ResetPasswordForm() {
                                     type={showPassword ? 'text' : 'password'}
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full pl-10 pr-12 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                    className="w-full pl-10 pr-12 py-3 bg-slate-900/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                                     placeholder="••••••••"
                                     required
                                     minLength={8}
@@ -169,7 +169,7 @@ function ResetPasswordForm() {
                                     type={showPassword ? 'text' : 'password'}
                                     value={confirmPassword}
                                     onChange={(e) => setConfirmPassword(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                    className="w-full pl-10 pr-4 py-3 bg-slate-900/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                                     placeholder="••••••••"
                                     required
                                 />

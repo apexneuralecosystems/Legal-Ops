@@ -105,6 +105,70 @@ export interface ResearchResponse {
     data_source: 'commonlii' | 'mock'
 }
 
+// Phase 2: Knowledge Base Insights
+export interface KBInsights {
+    kb_available: boolean
+    similar_matters_count: number
+    success_patterns?: Array<{
+        description: string
+        confidence: number
+        frequency: number
+        pattern_type?: string
+    }>
+    risk_factors?: Array<{
+        description: string
+        severity: string
+        frequency?: number
+    }>
+    outcome_prediction?: {
+        predicted_outcome: string
+        confidence: number
+        reasoning?: string
+    }
+    strategic_recommendations?: string[]
+    similar_matters?: any[]
+    additional_cases?: any[]
+    insights?: any
+}
+
+// Phase 3: Cache Statistics
+export interface CacheStatistics {
+    cache_hits: number
+    total_cases: number
+    time_saved: number
+    cache_hit_rate?: number
+}
+
+// Argument Building Response
+export interface ArgumentResponse {
+    status: string
+    argument_memo: {
+        issue_memo_en: string
+        issue_memo_ms: string
+        suggested_wording?: Array<{
+            wording_en: string
+            wording_ms: string
+            binding_authorities?: string[]
+        }>
+    }
+    matter_id?: string
+    cases_used: number
+    issues_addressed: number
+    
+    // Phase 2: Knowledge Base
+    kb_insights?: KBInsights
+    kb_available?: boolean
+    similar_matters_count?: number
+    
+    // Phase 1: Full Judgments
+    used_full_judgments?: boolean
+    full_judgment_count?: number
+    total_judgment_words?: number
+    
+    // Phase 3: Caching
+    cache_statistics?: CacheStatistics
+}
+
 // Drafting types
 export interface DraftingWorkflowInput {
     template_id: string
@@ -154,3 +218,62 @@ export interface PaginatedResponse<T> {
     per_page: number
     total_pages: number
 }
+
+// ==========================================
+// Cookie Authentication Types
+// ==========================================
+
+/**
+ * Lexis cookie structure from browser export
+ */
+export interface LexisCookie {
+    name: string
+    value: string
+    domain?: string
+    path?: string
+    httpOnly?: boolean
+    secure?: boolean
+    expirationDate?: number
+}
+
+/**
+ * Cookie validation request payload
+ */
+export interface CookieValidationRequest {
+    cookies: LexisCookie[]
+}
+
+/**
+ * Cookie validation response
+ */
+export interface CookieValidationResponse {
+    valid: boolean
+    message: string
+    estimated_expiry?: string
+}
+
+/**
+ * Cookie save response
+ */
+export interface CookieSaveResponse {
+    success: boolean
+    message: string
+    auth_method: 'um_library' | 'cookies'
+    expires_at?: string
+}
+
+/**
+ * Cookie status response (from /status endpoint)
+ */
+export interface CookieStatusResponse {
+    auth_method: 'um_library' | 'cookies'
+    has_cookies: boolean
+    expires_at?: string
+    is_expired?: boolean
+    status: 'active' | 'expired' | 'using_default'
+}
+
+/**
+ * User authentication method preference
+ */
+export type AuthMethod = 'um_library' | 'cookies'

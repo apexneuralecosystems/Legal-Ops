@@ -12,7 +12,9 @@ import json
 import asyncio
 import os
 import aiofiles
+from datetime import datetime
 from config import settings
+from dependencies import get_current_user
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -38,6 +40,8 @@ class ChatRequest(BaseModel):
     conversation_id: Optional[str] = None
     matter_id: Optional[str] = None
     context_files: List[str] = []
+    mode: Optional[str] = None
+    enable_devil: bool = True
 
 @router.post("/upload")
 async def upload_context_file(
@@ -133,75 +137,145 @@ async def upload_context_file(
 async def paralegal_chat(
     request: ChatRequest,
     db: Session = Depends(get_db),
-    current_user: Dict[str, Any] = Depends(get_current_user_sync)
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """
     Stream chat response from Paralegal AI using multi-tool research + automatic cross-examination.
     """
     from agents.legal_research_agent import get_legal_research_agent
     from agents.devils_advocate_agent import get_devils_advocate_agent
+    from services.rag_service import get_rag_service
     
     async def response_generator():
         try:
             # 1. Yield Status
             yield f"data: {json.dumps({'type': 'status', 'content': 'Analyzing query...'})}\n\n"
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(0.01)
             
-            # 2. Call Legal Research Agent (multi-tool)
-            research_agent = get_legal_research_agent()
-            yield f"data: {json.dumps({'type': 'status', 'content': 'Searching documents, Lexis & legislation...'})}\n\n"
-            
-            research_result = await research_agent.research(
-                query=request.message,
-                matter_id=request.matter_id,
-                context=", ".join(request.context_files) if request.context_files else None
-            )
-            
-            answer = research_result.get("answer", "")
-            sources = research_result.get("sources", [])
-            tools_used = research_result.get("tools_used", [])
+            mode = request.mode or "analysis"
+            tools_used = []
+            sources = []
+            if mode == "argument":
+                if request.matter_id:
+                    status_msg = "Building arguments from case files only (no Lexis, no web)..."
+                else:
+                    status_msg = "Building arguments from uploaded documents and web (no Lexis)..."
+                yield f"data: {json.dumps({'type': 'status', 'content': status_msg})}\n\n"
+                await asyncio.sleep(0.01)
+                rag = get_rag_service()
+                rag_result = await rag.query(
+                    query_text=request.message,
+                    matter_id=request.matter_id,
+                    conversation_id=request.conversation_id,
+                    k=10,
+                    context_files=request.context_files or None
+                )
+                answer = rag_result.get("answer", "")
+                raw_sources = rag_result.get("sources", []) or []
+                sources = [
+                    {"tool": "matter_documents", "result": s}
+                    for s in raw_sources
+                ]
+                tools_used = ["Matter Documents (Argument Mode)"]
+            else:
+                research_agent = get_legal_research_agent()
+                yield f"data: {json.dumps({'type': 'status', 'content': 'Searching case files, legislation and web...'})}\n\n"
+                await asyncio.sleep(0.01)
+                research_result = await research_agent.research(
+                    query=request.message,
+                    matter_id=request.matter_id,
+                    context=", ".join(request.context_files) if request.context_files else None
+                )
+                answer = research_result.get("answer", "")
+                sources = research_result.get("sources", [])
+                tools_used = research_result.get("tools_used", [])
             
             # 3. Stream the main answer
             yield f"data: {json.dumps({'type': 'status', 'content': 'Generating legal analysis...'})}\n\n"
             
             # Stream words for UX
+            # If the answer already contains suggested steps, we'll stream it as is
             words = answer.split(" ")
             for word in words:
-                await asyncio.sleep(0.015)
+                await asyncio.sleep(0.002) # Reduced from 0.01 for snappier feel
                 yield f"data: {json.dumps({'type': 'token', 'content': word + ' '})}\n\n"
             
-            # 4. Stream sources
+            # 4. Save chat message to database
+            try:
+                from models.chat import ChatMessage
+                from uuid import uuid4
+                
+                # Generate conversation_id if not provided
+                conv_id = request.conversation_id or str(uuid4())
+                
+                # Save user message
+                user_msg_id = str(uuid4())
+                user_msg = ChatMessage(
+                    id=user_msg_id,
+                    matter_id=request.matter_id or "general",
+                    conversation_id=conv_id,
+                    user_id=current_user.get("user_id"),
+                    role="user",
+                    message=request.message,
+                    created_at=datetime.utcnow()
+                )
+                db.add(user_msg)
+                
+                # Save assistant response
+                assistant_msg_id = str(uuid4())
+                assistant_msg = ChatMessage(
+                    id=assistant_msg_id,
+                    matter_id=request.matter_id or "general",
+                    conversation_id=conv_id,
+                    user_id=current_user.get("user_id"),
+                    role="assistant",
+                    message=answer,
+                    method=rag_result.get("method", "unknown") if mode == "argument" else "multi_tool_research",
+                    context_used=json.dumps([s.get("result") for s in sources]) if sources else None,
+                    confidence=rag_result.get("confidence", "medium") if mode == "argument" else "high",
+                    created_at=datetime.utcnow()
+                )
+                db.add(assistant_msg)
+                db.commit()
+                
+                # Send conversation_id in metadata
+                yield f"data: {json.dumps({'type': 'metadata', 'conversation_id': conv_id, 'message_id': assistant_msg_id})}\n\n"
+                
+                logger.info(f"Saved chat messages for conversation {conv_id}")
+            except Exception as save_err:
+                logger.error(f"Failed to save chat messages: {save_err}")
+                db.rollback()
+            
+            # 5. Stream sources
             if sources:
-                source_text = "\n\n**📚 Sources Used:**\n"
+                source_text = "\n\n---\n### 📚 Sources Used\n"
                 for src in sources:
                     tool_name = src.get("tool", "unknown")
-                    source_text += f"- *{tool_name}*: {src.get('result', '')[:100]}...\n"
+                    source_text += f"- **{tool_name.replace('_', ' ').title()}**: {src.get('result', '')[:2000]}...\n"
                 yield f"data: {json.dumps({'type': 'token', 'content': source_text})}\n\n"
             
-            if tools_used:
-                tools_text = f"\n*Tools: {', '.join(tools_used)}*\n"
-                yield f"data: {json.dumps({'type': 'token', 'content': tools_text})}\n\n"
-            
-            # 5. AUTOMATIC: Devil's Advocate Analysis
-            yield f"data: {json.dumps({'type': 'status', 'content': '🔴 Running Devil\'s Advocate cross-examination...'})}\n\n"
-            
-            devil = get_devils_advocate_agent()
-            devil_result = await devil.analyze(
-                legal_position=answer,
-                case_context=request.message,
-                document_summary=", ".join(request.context_files) if request.context_files else None
-            )
-            
-            challenge = devil_result.get("challenge", "")
-            
-            if challenge and not challenge.startswith("["):
-                yield f"data: {json.dumps({'type': 'token', 'content': '\n\n---\n\n'})}\n\n"
+            if request.enable_devil:
+                yield f"data: {json.dumps({'type': 'status', 'content': '🔴 Running Senior Partner Review (Devils Advocate)...'})}\n\n"
                 
-                # Stream the devil's advocate analysis
-                challenge_words = challenge.split(" ")
-                for word in challenge_words:
-                    await asyncio.sleep(0.01)
-                    yield f"data: {json.dumps({'type': 'token', 'content': word + ' '})}\n\n"
+                devil = get_devils_advocate_agent()
+                devil_result = await devil.analyze(
+                    legal_position=answer,
+                    case_context=request.message,
+                    document_summary=", ".join(request.context_files) if request.context_files else None
+                )
+                
+                challenge = devil_result.get("challenge", "")
+                
+                if challenge and not challenge.startswith("["):
+                    # Distinct separator for Devil's Advocate
+                    yield f"data: {json.dumps({'type': 'token', 'content': '\\n\\n---\\n\\n'})}\n\n"
+                    yield f"data: {json.dumps({'type': 'token', 'content': '# 🔴 Devils Advocate Challenge\\n\\n'})}\n\n"
+                    yield f"data: {json.dumps({'type': 'token', 'content': '*This critical review identifies vulnerabilities in the analysis above.*\\n\\n'})}\n\n"
+                    
+                    challenge_words = challenge.split(" ")
+                    for word in challenge_words:
+                        await asyncio.sleep(0.005)
+                        yield f"data: {json.dumps({'type': 'token', 'content': word + ' '})}\n\n"
             
             # Final message
             yield f"data: {json.dumps({'type': 'done', 'content': ''})}\n\n"
@@ -217,7 +291,7 @@ async def paralegal_chat(
 async def get_suggested_questions(
     matter_id: str,
     db: Session = Depends(get_db),
-    current_user: Dict[str, Any] = Depends(get_current_user_sync)
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """
     Generate context-aware suggested questions based on the matter's documents.
@@ -241,14 +315,16 @@ async def get_suggested_questions(
         context_summary = ""
         
         try:
-            # Query RAG for a general summary of the matter
-            if rag._vector_store:
-                docs = rag._vector_store.similarity_search(
+            store = rag._get_vector_store(matter_id)
+            if store:
+                docs = store.similarity_search(
                     f"Summary of legal issues in matter {matter_id}",
                     k=5,
-                    filter={"matter_id": matter_id} if hasattr(rag._vector_store, 'filter') else None
                 )
+                logger.info(f"SuggestedQs: Retrieved {len(docs)} docs from RAG for {matter_id}")
                 context_summary = "\n".join([d.page_content[:300] for d in docs])
+            else:
+                logger.warning(f"SuggestedQs: No vector store found for {matter_id}")
         except Exception as rag_err:
             logger.warning(f"RAG fetch for suggested questions failed: {rag_err}")
         
@@ -294,11 +370,38 @@ Return ONLY the JSON array, no other text."""
         try:
             # Try to extract JSON from the response
             import re
+            
+            # 1. Attempt standard JSON extraction
             json_match = re.search(r'\[.*\]', response, re.DOTALL)
             if json_match:
-                questions = json.loads(json_match.group())
+                try:
+                    questions = json.loads(json_match.group())
+                except json.JSONDecodeError:
+                    # 2. If valid JSON structure but bad content, try ast.literal_eval for single quotes
+                    try:
+                        import ast
+                        questions = ast.literal_eval(json_match.group())
+                    except:
+                        questions = None
             else:
-                # Fallback default questions
+                questions = None
+            
+            # 3. Fallback: Parse number/bullet list if JSON failed
+            if not questions or not isinstance(questions, list):
+                logger.info("JSON parsing failed for suggested questions, attempting list parsing")
+                questions = []
+                for line in response.split('\n'):
+                    line = line.strip()
+                    # Catch lines starting with "1.", "-", "*", "•"
+                    if re.match(r'^(\d+\.|-|\*|•)\s+', line):
+                        # Remove marker and quotes
+                        clean_q = re.sub(r'^(\d+\.|-|\*|•)\s+', '', line).strip().strip('"').strip("'")
+                        if len(clean_q) > 10 and "?" in clean_q:
+                            questions.append(clean_q)
+            
+            # 4. Final Fallback if still empty
+            if not questions:
+                logger.warning("Failed to parse suggested questions, using defaults")
                 questions = [
                     f"What are the key legal issues in {matter.title or 'this case'}?",
                     "What evidence do we need to strengthen our position?",
@@ -306,7 +409,8 @@ Return ONLY the JSON array, no other text."""
                     "What are the key dates and deadlines I should be aware of?",
                     "What is the likelihood of success in this case?"
                 ]
-        except json.JSONDecodeError:
+        except Exception as e:
+            logger.warning(f"Error parsing AI response: {e}")
             questions = [
                 f"What are the key legal issues in {matter.title or 'this case'}?",
                 "What evidence do we need to strengthen our position?",
@@ -314,7 +418,7 @@ Return ONLY the JSON array, no other text."""
                 "What are the key dates and deadlines I should be aware of?",
                 "What is the likelihood of success in this case?"
             ]
-        
+
         return {
             "matter_id": matter_id,
             "matter_title": matter.title,

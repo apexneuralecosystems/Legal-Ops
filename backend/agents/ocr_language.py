@@ -8,6 +8,7 @@ import os
 import asyncio
 from config import settings
 import logging
+import re
 
 # Set seed for consistent language detection if langdetect is available
 def _init_detector_factory():
@@ -110,14 +111,14 @@ class OCRLanguageAgent(BaseAgent):
         # PRIMARY METHOD: Google Vision API (fast, reliable OCR)
         try:
             from services.vision_ocr_service import get_vision_ocr_service
-            import fitz  # PyMuPDF
+            from pypdf import PdfReader
+            import io
             
             vision_service = get_vision_ocr_service()
             
-            # Open PDF with PyMuPDF to get page count
-            doc = fitz.open(stream=pdf_content, filetype="pdf")
-            actual_page_count = len(doc)
-            doc.close()
+            # Use pypdf to get page count (safe alternative to fitz)
+            reader = PdfReader(io.BytesIO(pdf_content))
+            actual_page_count = len(reader.pages)
             
             logger.info(f"Vision OCR: Processing {actual_page_count} pages for doc {doc_id}")
             
@@ -147,23 +148,39 @@ class OCRLanguageAgent(BaseAgent):
             )
             
             # Convert page results to segments
+            logger.info(f"\n🔍 PROCESSING PAGE RESULTS FOR {doc_id}")
             for page_result in page_results:
                 page_num = page_result["page"]
                 page_text = page_result.get("text", "")
                 confidence = page_result.get("confidence", 0.95)
+                error_msg = page_result.get("error")
                 
-                if page_text and not page_result.get("error"):
-                    logger.info(f"Page {page_num} extracted: {len(page_text)} chars")
-                    page_segs = await self._segment_text(doc_id, page_text, page=page_num, ocr_confidence=confidence)
-                    segments.extend(page_segs)
+                if error_msg:
+                    logger.warning(f"❌ Page {page_num}/{actual_page_count}: SKIPPED - Error: {error_msg}")
+                elif not page_text:
+                    logger.warning(f"⚠️  Page {page_num}/{actual_page_count}: SKIPPED - No text extracted")
+                elif len(page_text.strip()) < 10:
+                    logger.warning(f"⚠️  Page {page_num}/{actual_page_count}: SKIPPED - Text too short ({len(page_text)} chars)")
                 else:
-                    logger.warning(f"Page {page_num} failed or empty: {page_result.get('error', 'No text')}")
+                    logger.info(f"✓ Page {page_num}/{actual_page_count}: Processing {len(page_text)} chars (confidence: {confidence:.2%})")
+                    page_segs = await self._segment_text(doc_id, page_text, page=page_num, ocr_confidence=confidence)
+                    logger.info(f"  → Generated {len(page_segs)} segments from page {page_num}")
+                    segments.extend(page_segs)
             
-            logger.info(f"Vision OCR: Completed {len(segments)} segments from {actual_page_count} pages")
+            if not segments:
+                errors = [p.get('error') for p in page_results if p.get('error')]
+                empty_pages = [p['page'] for p in page_results if not p.get('text')]
+                logger.error(f"❌ Vision OCR returned 0 segments from {len(page_results)} page results")
+                logger.error(f"   Pages with errors: {errors}")
+                logger.error(f"   Empty pages: {empty_pages}")
+                raise RuntimeError(f"Vision OCR returned 0 segments from {len(page_results)} pages. Check page_results for errors.")
+
+            logger.info(f"\n✅ Vision OCR Complete: {len(segments)} segments from {actual_page_count} pages")
             return segments, actual_page_count
 
         except Exception as e:
-            logger.warning(f"Vision API OCR failed: {e}. Falling back to pypdf.")
+            logger.error(f"Vision API OCR failed with error: {type(e).__name__}: {e}", exc_info=True)
+            logger.warning(f"Falling back to pypdf due to: {e}")
             
             # FALLBACK 1: Try pypdf (pure python, good for text PDFs)
             try:
@@ -181,6 +198,51 @@ class OCRLanguageAgent(BaseAgent):
                 if full_segments:
                     logger.info(f"Recovered {len(full_segments)} segments using pypdf fallback.")
                     return full_segments, len(reader.pages)
+                
+                # If no text found in PDF (e.g. scanned image only), try Gemini via LLMService
+                logger.warning(f"pypdf found {len(reader.pages)} pages but 0 text segments (likely scanned/image-only PDF). Attempting Gemini Vision fallback...")
+                logger.info(f"This is NORMAL for scanned documents - Gemini can read them but pypdf cannot.")
+                
+                try:
+                    from services.llm_service import get_llm_service
+                    llm_service = get_llm_service()
+                    
+                    # This uses Gemini (or OpenRouter Vision) to read the PDF
+                    full_text = await llm_service.extract_pdf_content_from_bytes(pdf_content, f"{doc_id}.pdf")
+                    
+                    if not full_text or full_text.startswith("["): # Error indicator
+                         logger.error(f"Gemini fallback returned error/empty: {full_text[:200]}. PDF may be corrupted or unreadable.")
+                         return [], len(reader.pages)
+                    
+                    logger.info(f"Gemini OCR returned {len(full_text)} chars from scanned PDF")
+                    # The LLM prompt asks for "--- PAGE [NUMBER] ---"
+                    # We can try to split by that, or just treat as one big page if parsing fails
+                    import re
+                    page_splits = re.split(r'--- PAGE \d+ ---', full_text)
+                    
+                    llm_segments = []
+                    current_page = 1
+                    
+                    # If split didn't work effectively (just one chunk), treat as page 1
+                    if len(page_splits) < 2:
+                        page_splits = [full_text]
+                    
+                    for text_chunk in page_splits:
+                        text_chunk = text_chunk.strip()
+                        if text_chunk:
+                            page_segs = await self._segment_text(doc_id, text_chunk, page=current_page)
+                            llm_segments.extend(page_segs)
+                            current_page += 1
+                            
+                    if llm_segments:
+                        logger.info(f"Recovered {len(llm_segments)} segments using Gemini Vision fallback.")
+                        return llm_segments, len(reader.pages)
+                        
+                except Exception as llm_err:
+                     logger.error(f"Gemini OCR fallback failed: {llm_err}")
+
+                return [], len(reader.pages)
+                
             except Exception as pypdf_err:
                 logger.warning(f"pypdf fallback failed: {pypdf_err}")
                 return [], 0
@@ -299,7 +361,6 @@ class OCRLanguageAgent(BaseAgent):
                 line = line.strip()
                 if line:
                     # Improved: Don't split on abbreviations
-                    import re
                     # Protect common abbreviations
                     protected = line
                     protected = re.sub(r'\b(No|Dr|Mr|Mrs|Ms|vs|v|S|Art|Sdn|Bhd)\.', r'\1〈DOT〉', protected)
@@ -316,16 +377,43 @@ class OCRLanguageAgent(BaseAgent):
         current_lang = None
         current_text = []
         sequence = 0
+        current_section = None
         
         for sentence in sentences:
             if len(sentence.strip()) < 3:
                 continue
             
+            # Extract section reference (e.g., "Section 12.3", "Article 5")
+            # Reuse similar logic as in ocr_post_processor
+            section_match = re.match(r'^(?:Section|S\.|Article|Art\.|Rule|Regulation)\s*([0-9]+(?:\.[0-9]+)*)', sentence, re.IGNORECASE)
+            if section_match:
+                new_section = section_match.group(0)
+                # Force break if section changes
+                if current_text and new_section != current_section:
+                    # Save current before switching
+                    sequence += 1
+                    segments.append({
+                        "segment_id": f"SEG-{doc_id}-p{page}-s{sequence}",
+                        "doc_id": doc_id,
+                        "page": page,
+                        "sequence": sequence,
+                        "text": ' '.join(current_text),
+                        "lang": current_lang,
+                        "lang_confidence": lang_confidence,
+                        "ocr_confidence": ocr_confidence,
+                        "human_check_required": lang_confidence < 0.7,
+                        "section_ref": current_section
+                    })
+                    current_text = []
+                
+                current_section = new_section
+
+            
             # Detect language
             try:
                 from langdetect import detect
                 detected_lang = detect(sentence)
-                logger.info(f"DEBUG: Sentence '{sentence[:30]}...' detected as '{detected_lang}'")
+                logger.debug(f"Sentence lang={detected_lang}: '{sentence[:50]}...'")
                 # Map to our language codes
                 if detected_lang == 'ms':
                     lang = 'ms'
@@ -339,9 +427,11 @@ class OCRLanguageAgent(BaseAgent):
                 msg = str(e)
                 if "No features in text" in msg:
                     # Common expected error for numbers/symbols
-                    logger.debug(f"Language detection skip for short text: {msg}")
+                    logger.debug(f"Language detection skip for short/numeric text: {sentence[:30]}")
+                elif "langdetect" in msg.lower():
+                    logger.warning(f"langdetect library not installed - defaulting to English. Install with: pip install langdetect")
                 else:
-                    logger.warning(f"Language detection failed: {msg}")
+                    logger.warning(f"Language detection failed for '{sentence[:30]}...': {msg}")
                 lang = 'en'  # Default to English if library missing or failure
                 lang_confidence = 0.5
             
@@ -368,7 +458,8 @@ class OCRLanguageAgent(BaseAgent):
                         "lang": current_lang,
                         "lang_confidence": lang_confidence,
                         "ocr_confidence": ocr_confidence,
-                        "human_check_required": lang_confidence < 0.7
+                        "human_check_required": lang_confidence < 0.7,
+                        "section_ref": current_section
                     })
                 
                 # Start new segment
@@ -387,7 +478,8 @@ class OCRLanguageAgent(BaseAgent):
                 "lang": current_lang,
                 "lang_confidence": lang_confidence,
                 "ocr_confidence": ocr_confidence,
-                "human_check_required": lang_confidence < 0.7
+                "human_check_required": lang_confidence < 0.7,
+                "section_ref": current_section
             })
         
         return segments

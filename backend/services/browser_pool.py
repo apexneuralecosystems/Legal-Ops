@@ -91,6 +91,17 @@ class BrowserPool:
         Assumes self._lock is already held.
         """
         if self._browser is None or not self._browser.is_connected():
+            # If browser died, clear all stale references
+            if self._browser is not None and not self._browser.is_connected():
+                logger.warning("💀 Browser was connected but is now dead. Cleaning up...")
+                self._persistent_page = None
+                self._context = None
+                try:
+                    await self._browser.close()
+                except:
+                    pass
+                self._browser = None
+            
             if not self.is_playwright_available():
                 logger.warning("🚫 Playwright is not installed. Research features will be disabled.")
                 raise ImportError("Playwright not installed. Please run: pip install playwright && playwright install chromium")
@@ -174,16 +185,35 @@ class BrowserPool:
         Get the persistent page instance.
         
         Refurbishes existing page if open, or creates new one.
+        Detects crashed/dead browsers and recovers automatically.
         """
         async with self._lock:
+            # Check if the underlying browser process is still alive
+            browser_alive = (self._browser is not None and self._browser.is_connected())
+            
+            if not browser_alive and self._persistent_page:
+                logger.warning("💀 Browser process is dead! Clearing stale references...")
+                self._persistent_page = None
+                self._context = None
+                self._browser = None
+                # Don't stop playwright - it may still be fine
+            
             # Check if we have a valid persistent page
             if (self._persistent_page and 
                 not self._persistent_page.is_closed() and 
-                self._context):
+                self._context and browser_alive):
                 
-                logger.info("♻️ Reusing PERSISENT page")
-                self._last_used = datetime.now()
-                return self._persistent_page
+                # Extra health check: try a trivial operation to confirm the page is truly alive
+                try:
+                    _ = self._persistent_page.url  # This will throw if connection is dead
+                    logger.info("♻️ Reusing PERSISTENT page")
+                    self._last_used = datetime.now()
+                    return self._persistent_page
+                except Exception as e:
+                    logger.warning(f"💀 Persistent page is dead ({e}), will create new one")
+                    self._persistent_page = None
+                    self._context = None
+                    self._browser = None
                 
             logger.info("📄 Creating NEW persistent page...")
             context = await self._get_context()
@@ -200,6 +230,7 @@ class BrowserPool:
             """)
             
             self._persistent_page = page
+            self._last_used = datetime.now()
             return page
 
     async def release_page(self, page: Page):

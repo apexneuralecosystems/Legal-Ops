@@ -6,7 +6,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from config import settings
-from database import init_db, Base
+from database import init_db, Base, set_apex_client, get_async_db_url
 import logging
 import sys
 import asyncio
@@ -40,7 +40,6 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting Malaysian Legal AI Agent API...")
     try:
-        from database import init_db, set_apex_client, get_async_db_url
         await init_db()
         logger.info("Database initialized successfully (async)")
         
@@ -125,6 +124,8 @@ app.add_middleware(
     allow_credentials=not settings.CORS_ALLOW_ALL,  # Can't use credentials with wildcard
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
+    max_age=3600,
 )
 
 # Rate limiting configuration with user-awareness
@@ -178,6 +179,25 @@ async def health_check():
         "version": "1.0.0"
     }
 
+# ═══════════════════════════════════════════════════════════════
+# Global CORS Preflight Handler
+# Catch-all for OPTIONS requests to handle CORS before sync routers
+# ═══════════════════════════════════════════════════════════════
+from fastapi.responses import Response
+
+@app.options("/{rest_of_path:path}")
+async def preflight_handler(rest_of_path: str):
+    """Handle all CORS preflight OPTIONS requests globally."""
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
+            "Access-Control-Max-Age": "3600",
+        }
+    )
+
 # Root endpoint
 @app.get("/")
 async def root():
@@ -190,11 +210,13 @@ async def root():
     }
 
 # Import and include routers
-# Import and include routers
-from routers import matters, documents, research, ai_tasks, auth, admin, payments, evidence, subscription, webhooks, paralegal
+from routers import matters, documents, research, ai_tasks, auth, admin, payments, evidence, subscription, webhooks, paralegal, user_settings
 
 # Auth router (Apex SaaS Framework)
 app.include_router(auth.router, prefix="/api", tags=["Authentication"])
+
+# User Settings router (cookie management)
+app.include_router(user_settings.router, prefix="/api/user", tags=["User Settings"])
 
 # Admin router (requires superuser)
 app.include_router(admin.router, prefix="/api", tags=["Admin"])
@@ -212,6 +234,22 @@ app.include_router(research.router, prefix="/api/research", tags=["Research"])
 app.include_router(ai_tasks.router, prefix="/api/ai-tasks", tags=["AI Tasks"])
 app.include_router(evidence.router, prefix="/api/evidence", tags=["Evidence"])
 app.include_router(paralegal.router, prefix="/api/paralegal", tags=["Paralegal"])
+
+# Chat feedback router
+from routers import chat_feedback
+app.include_router(chat_feedback.router, prefix="/api/feedback", tags=["Chat Feedback"])
+
+# Case intelligence router (knowledge graph)
+from routers import case_intelligence
+app.include_router(case_intelligence.router, prefix="/api/case-intelligence", tags=["Case Intelligence"])
+
+# Case insights router (automated analysis)
+from routers import case_insights
+app.include_router(case_insights.router, prefix="/api/insights", tags=["Case Insights"])
+
+# Cross-case learning router (Phase 5)
+from routers import cross_case_learning
+app.include_router(cross_case_learning.router, tags=["Cross-Case Learning"])
 
 # Webhooks router (PayPal events)
 app.include_router(webhooks.router, prefix="/api", tags=["Webhooks"])

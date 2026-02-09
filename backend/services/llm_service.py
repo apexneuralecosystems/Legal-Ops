@@ -28,6 +28,15 @@ class LLMService:
         
         if self.provider == "openrouter":
             self._init_openrouter()
+            # Also init Gemini for fallback capabilities if key is present
+            if settings.GEMINI_API_KEY:
+                try:
+                    import google.generativeai as genai
+                    genai.configure(api_key=settings.GEMINI_API_KEY)
+                    self._gemini_model = genai.GenerativeModel(settings.GEMINI_MODEL)
+                    logger.info(f"Gemini initialized for fallback support ({settings.GEMINI_MODEL})")
+                except Exception as e:
+                    logger.warning(f"Could not init Gemini for fallback: {e}")
         else:
             self._init_gemini()
     
@@ -67,23 +76,24 @@ class LLMService:
             logger.error(f"Failed to initialize OpenRouter: {e}")
             raise
     
-    def generate_sync(self, prompt: str, max_tokens: int = 4096) -> str:
+    def generate_sync(self, prompt: str, max_tokens: int = 4096, **kwargs) -> str:
         """
         Generate text synchronously.
         
         Args:
             prompt: The prompt to send to the LLM
             max_tokens: Maximum tokens in response
+            **kwargs: Additional model parameters (e.g., temperature)
             
         Returns:
             Generated text string
         """
         if self.provider == "openrouter":
-            return self._generate_openrouter(prompt, max_tokens)
+            return self._generate_openrouter(prompt, max_tokens, **kwargs)
         else:
-            return self._generate_gemini(prompt)
+            return self._generate_gemini(prompt, **kwargs)
     
-    async def generate(self, prompt: str, max_tokens: int = 4096) -> str:
+    async def generate(self, prompt: str, max_tokens: int = 4096, **kwargs) -> str:
         """
         Generate text asynchronously with retry logic.
         Handles rate limits (429) with exponential backoff.
@@ -97,8 +107,8 @@ class LLMService:
             try:
                 # Run sync generation in executor to avoid blocking event loop
                 loop = asyncio.get_event_loop()
-                # Use lambda or partial to pass arguments
-                return await loop.run_in_executor(None, self.generate_sync, prompt, max_tokens)
+                # Use lambda to pass kwargs
+                return await loop.run_in_executor(None, lambda: self.generate_sync(prompt, max_tokens, **kwargs))
             except Exception as e:
                 error_str = str(e).lower()
                 
@@ -120,10 +130,15 @@ class LLMService:
                     # Reraise if not retryable or max retries exceeded
                     raise
     
-    def _generate_gemini(self, prompt: str) -> str:
+    def _generate_gemini(self, prompt: str, **kwargs) -> str:
         """Generate using Gemini API."""
         try:
-            response = self._gemini_model.generate_content(prompt)
+            # Map kwargs to generation_config
+            generation_config = {}
+            if "temperature" in kwargs:
+                generation_config["temperature"] = kwargs.pop("temperature")
+            
+            response = self._gemini_model.generate_content(prompt, generation_config=generation_config)
             return response.text
         except Exception as e:
             logger.error(f"Gemini generation error: {e}")
@@ -149,7 +164,7 @@ class LLMService:
                 else:
                     raise e
 
-    def _generate_openrouter(self, prompt: str, max_tokens: int = 4096) -> str:
+    def _generate_openrouter(self, prompt: str, max_tokens: int = 4096, **kwargs) -> str:
         """Generate using OpenRouter API."""
         import time
         start_time = time.time()
@@ -164,6 +179,7 @@ class LLMService:
                     {"role": "user", "content": prompt}
                 ],
                 max_tokens=max_tokens,
+                **kwargs,  # Pass temperature etc.
                 extra_headers={
                     "HTTP-Referer": settings.FRONTEND_URL or "https://legalops.apexneural.cloud",
                     "X-Title": "Legal-Ops AI"

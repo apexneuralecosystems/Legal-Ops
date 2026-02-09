@@ -1,4 +1,0 @@
-This is a test document for the Legal Ops Intake Workflow.
-It contains sample text to verify that the text extraction and processing pipeline is working correctly.
-Date: 2026-01-07
-Case Ref: TEST-001

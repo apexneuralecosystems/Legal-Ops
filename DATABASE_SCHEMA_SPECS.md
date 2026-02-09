@@ -1,8 +1,8 @@
 # Legal Ops AI — Database Schema Specifications
 ## Complete Table Definitions
 
-**Version**: 2.0  
-**Date**: 20 January 2026
+**Version**: 2.1  
+**Date**: 29 January 2026
 
 ---
 
@@ -16,8 +16,103 @@
 6. [Invoice Tables](#6-invoice-tables)
 7. [Ledger Tables](#7-ledger-tables)
 8. [Audit & Payment Tables](#8-audit--payment-tables)
+9. [OCR & Document Processing Tables](#9-ocr--document-processing-tables)
 
 ---
+
+## 9. OCR & Document Processing Tables
+
+### ocr_documents
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | VARCHAR(36) | PK | UUID v4 |
+| matter_id | VARCHAR | FK→matters | |
+| filename | VARCHAR(512) | NOT NULL | |
+| file_path | VARCHAR(1024) | | S3/local path |
+| file_hash | VARCHAR(64) | UNIQUE, NOT NULL | SHA-256 |
+| file_size_bytes | INTEGER | | |
+| mime_type | VARCHAR(100) | DEFAULT 'application/pdf' | |
+| total_pages | INTEGER | | |
+| ocr_status | VARCHAR(20) | NOT NULL, DEFAULT 'pending' | pending/processing/completed/failed |
+| ocr_started_at | TIMESTAMP | | |
+| ocr_completed_at | TIMESTAMP | | |
+| ocr_engine | VARCHAR(50) | DEFAULT 'google_vision' | |
+| extracted_metadata | JSON | DEFAULT {} | |
+| primary_language | VARCHAR(10) | | |
+| created_at | TIMESTAMP | DEFAULT NOW() | |
+| created_by | VARCHAR(36) | | |
+
+**Indexes**: `file_hash`
+
+### ocr_pages
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | VARCHAR(36) | PK | UUID v4 |
+| document_id | VARCHAR(36) | FK→ocr_documents, NOT NULL | |
+| page_number | INTEGER | NOT NULL | |
+| raw_text | TEXT | NOT NULL | |
+| cleaned_text | TEXT | | |
+| bounding_boxes | JSON | | |
+| blocks_json | JSON | | |
+| ocr_confidence | FLOAT | | |
+| word_count | INTEGER | | |
+| char_count | INTEGER | | |
+| is_header_page | BOOLEAN | DEFAULT FALSE | |
+| is_blank | BOOLEAN | DEFAULT FALSE | |
+| has_tables | BOOLEAN | DEFAULT FALSE | |
+| has_signatures | BOOLEAN | DEFAULT FALSE | |
+| detected_headers | JSON | DEFAULT [] | |
+| detected_footers | JSON | DEFAULT [] | |
+| created_at | TIMESTAMP | DEFAULT NOW() | |
+
+**Indexes**: `document_id`
+
+### ocr_chunks
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | VARCHAR(36) | PK | UUID v4 |
+| document_id | VARCHAR(36) | FK→ocr_documents, NOT NULL | |
+| chunk_sequence | INTEGER | NOT NULL | |
+| chunk_id_str | VARCHAR(100) | | |
+| chunk_text | TEXT | NOT NULL | |
+| token_count | INTEGER | NOT NULL | |
+| source_page_start | INTEGER | NOT NULL | |
+| source_page_end | INTEGER | NOT NULL | |
+| source_char_start | INTEGER | | |
+| source_char_end | INTEGER | | |
+| language | VARCHAR(10) | DEFAULT 'en' | |
+| chunk_type | VARCHAR(50) | | |
+| section_ref | VARCHAR(100) | | |
+| is_embeddable | BOOLEAN | DEFAULT TRUE | |
+| embedding_model | VARCHAR(100) | | |
+| embedded_at | TIMESTAMP | | |
+| created_at | TIMESTAMP | DEFAULT NOW() | |
+
+**Indexes**: `document_id`, `is_embeddable`
+
+### ocr_processing_log
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | VARCHAR(36) | PK | UUID v4 |
+| document_id | VARCHAR(36) | FK→ocr_documents | |
+| page_number | INTEGER | | |
+| step_name | VARCHAR(100) | NOT NULL | |
+| status | VARCHAR(20) | NOT NULL | |
+| duration_ms | INTEGER | | |
+| input_summary | TEXT | | |
+| output_summary | TEXT | | |
+| error_message | TEXT | | |
+| created_at | TIMESTAMP | DEFAULT NOW() | |
+
+**Indexes**: `document_id`
+
+---
+
+**End of Schema Specifications**
 
 ## 1. Core Multi-Tenant Tables
 

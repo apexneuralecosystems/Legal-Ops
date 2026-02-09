@@ -1,7 +1,137 @@
 # ============================================
-# OS & System Files
+# Core OS & Editor Files
 # ============================================
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+*.sublime-*
+.project
+.classpath
+.settings/
+
+# ============================================
+# Secrets & Environment
+# ============================================
+.env
+.env.*
+!.env.example
+!.env*.example
+*.pem
+*.key
+*.crt
+*.p12
+secrets/
+credentials/
+lexis_session.json
+
+# ============================================
+# Python / Backend
+# ============================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+venv/
+.venv/
+env/
+backend/venv/
+backend/.venv/
+
+# Testing & Coverage
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.pytest_cache/
+coverage.xml
+
+# Logs & Databases
+*.log
+*.sqlite3
+*.db
+backend/logs/
+backend/uploads/
+backend/tessdata/
+backend/celerybeat-schedule
+backend/celerybeat.pid
+
+# Temporary Scripts & Artifacts
+backend/debug_*.py
+backend/test_*.py
+backend/check_*.py
+backend/inject_*.py
+backend/verify_*.py
+backend/perf_*.py
+backend/*_output.txt
+backend/ocr_report*.txt
+backend/upload_result*.txt
+
+# ============================================
+# Node.js / Frontend
+# ============================================
+node_modules/
+frontend/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm/
+
+# Next.js
+.next/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/dist/
+next-env.d.ts
+*.tsbuildinfo
+
+# ============================================
+# Docker
+# ============================================
+.dockerignore
+docker-compose.override.yml
+
+# ============================================
+# Brain / Artifacts
+# ============================================
+.gemini/
+.agent/
+brain/
+artifacts/
+tmp/
+*.tmp
+debug_captures/
+
 .DS_Store?
 ._*
 .Spotlight-V100
@@ -27,12 +157,7 @@ Thumbs.db
 # ============================================
 # Environment Variables & Secrets
 # ============================================
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-.env.*
+
 !.env.example
 !.env.production.example
 *.pem
@@ -264,3 +389,28 @@ site/
 *.rej
 .cache/
 .parcel-cache/
+
+# ============================================
+# Audit & Cleanup Additions
+# ============================================
+*_output.txt
+*_output_final.txt
+backend/ocr_report*.txt
+backend/upload_result*.txt
+backend/debug_*.py
+backend/prove_lexis_only.py
+
+# ============================================
+# Production Build Artifacts
+# ============================================
+.env.local
+.env.*.local
+.next/
+node_modules/
+*.log
+.DS_Store
+backend/__pycache__/
+**/__pycache__/
+*.pyc
+.vscode/
+.idea/

@@ -1,8 +1,19 @@
 import axios, { AxiosInstance, AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 
 // API Configuration
-// Configured to use Next.js Proxy (see next.config.js)
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8091'
+// For authenticated requests, we need to call the backend directly from the browser
+// so that Authorization headers from localStorage can be included.
+// CORS is handled by the backend's CORSMiddleware.
+
+// PUBLIC URL: Used by the browser (client-side)
+const PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8091'
+
+// INTERNAL URL: Used by Next.js server (SSR) to talk to backend container
+// If INTERNAL_API_URL is not set, fall back to PUBLIC_API_URL
+const INTERNAL_API_URL = process.env.INTERNAL_API_URL || PUBLIC_API_URL
+
+// Determine which URL to use based on environment (Server vs Client)
+const API_URL = typeof window === 'undefined' ? INTERNAL_API_URL : PUBLIC_API_URL
 
 // Token storage keys
 const ACCESS_TOKEN_KEY = 'access_token'
@@ -274,6 +285,16 @@ export const api = {
         }
     },
 
+    getMattersStats: async () => {
+        try {
+            const response = await apiClient.get('/matters/stats')
+            return response.data
+        } catch (error) {
+            console.error('Error fetching matters stats:', error)
+            throw error
+        }
+    },
+
     getMatter: async (matterId: string) => {
         try {
             const response = await apiClient.get(`/matters/${matterId}`)
@@ -403,6 +424,36 @@ export const api = {
         }
     },
 
+    // Evidence & Hearing Workflow
+    buildEvidencePacket: async (matterId: string, documents: any[] = []) => {
+        try {
+            const response = await apiClient.post('/evidence/build', {
+                matter_id: matterId,
+                documents
+            }, {
+                timeout: 300000, // 5 minutes for evidence processing
+            })
+            return response.data
+        } catch (error) {
+            console.error('Error building evidence packet:', error)
+            throw error
+        }
+    },
+
+    prepareHearing: async (matterId: string) => {
+        try {
+            const response = await apiClient.post('/evidence/hearing', {
+                matter_id: matterId
+            }, {
+                timeout: 300000, // 5 minutes for hearing prep
+            })
+            return response.data
+        } catch (error) {
+            console.error('Error preparing hearing:', error)
+            throw error
+        }
+    },
+
     // Research Workflow
     searchCases: async (query: string, filters?: any) => {
         try {
@@ -414,6 +465,42 @@ export const api = {
         } catch (error) {
             console.error('Error searching cases:', error)
             throw error
+        }
+    },
+
+    // Get cached judgment data for inspection
+    getJudgmentCache: async () => {
+        try {
+            const response = await apiClient.get('/research/judgment-cache', { timeout: 10000 })
+            return response.data
+        } catch (error) {
+            console.error('Error fetching judgment cache:', error)
+            throw error
+        }
+    },
+
+    // Clear Redis search result cache
+    clearSearchCache: async () => {
+        try {
+            const response = await apiClient.delete('/research/search-cache', { timeout: 10000 })
+            return response.data
+        } catch (error) {
+            console.error('Error clearing search cache:', error)
+            throw error
+        }
+    },
+
+    // Poll background judgment fetch status
+    getJudgmentFetchStatus: async (query: string) => {
+        try {
+            const response = await apiClient.get('/research/judgment-fetch-status', {
+                params: { query },
+                timeout: 5000,
+            })
+            return response.data
+        } catch (error) {
+            // Silently fail — polling errors shouldn't bother the user
+            return null
         }
     },
 
@@ -445,28 +532,6 @@ export const api = {
         }
     },
 
-    buildEvidencePacket: async (matterId: string, documents: any[]) => {
-        try {
-            const response = await apiClient.post(`/matters/${matterId}/build-evidence-packet`, {
-                documents,
-            })
-            return response.data
-        } catch (error) {
-            console.error('Error building evidence packet:', error)
-            throw error
-        }
-    },
-
-    prepareHearing: async (matterId: string) => {
-        try {
-            const response = await apiClient.post(`/matters/${matterId}/prepare-hearing`)
-            return response.data
-        } catch (error) {
-            console.error('Error preparing hearing:', error)
-            throw error
-        }
-    },
-
     getHearingBundle: async (matterId: string) => {
         try {
             const response = await apiClient.get(`/matters/${matterId}/hearing-bundle`)
@@ -483,6 +548,72 @@ export const api = {
             return response.data
         } catch (error) {
             console.error('Error analyzing case strength:', error)
+            throw error
+        }
+    },
+
+    // ==========================================
+    // User Settings - Lexis Cookie Management
+    // ==========================================
+
+    /**
+     * Get current Lexis cookie authentication status
+     * @returns Status object with auth method and expiry
+     */
+    getLexisCookieStatus: async () => {
+        try {
+            const response = await apiClient.get('/user/lexis-cookies/status')
+            return response.data
+        } catch (error) {
+            console.error('Error fetching cookie status:', error)
+            throw error
+        }
+    },
+
+    /**
+     * Validate Lexis cookies before saving
+     * @param cookies - Array of cookie objects from browser export
+     * @returns Validation result with valid boolean and message
+     */
+    validateLexisCookies: async (cookies: any[]) => {
+        try {
+            const response = await apiClient.post('/user/lexis-cookies/validate', {
+                cookies
+            })
+            return response.data
+        } catch (error) {
+            console.error('Error validating cookies:', error)
+            throw error
+        }
+    },
+
+    /**
+     * Save validated cookies to user profile (encrypted)
+     * @param cookies - Array of validated cookie objects
+     * @returns Success response with expiry timestamp
+     */
+    saveLexisCookies: async (cookies: any[]) => {
+        try {
+            const response = await apiClient.post('/user/lexis-cookies/save', {
+                cookies
+            })
+            return response.data
+        } catch (error) {
+            console.error('Error saving cookies:', error)
+            throw error
+        }
+    },
+
+    /**
+     * Clear saved cookies and revert to UM Library auth
+     * @returns Success confirmation
+     */
+    clearLexisCookies: async () => {
+        try {
+            const response = await apiClient.delete('/user/lexis-cookies')
+            return response.data
+        } catch (error) {
+            console.error('Error clearing cookies:', error)
             throw error
         }
     },
@@ -631,7 +762,7 @@ export const subscriptionApi = {
             console.error('Error canceling subscription:', error)
             throw error
         }
-    }
+    },
 }
 
 export default api

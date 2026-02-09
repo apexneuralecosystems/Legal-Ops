@@ -80,6 +80,7 @@ class TextChunk:
     source_page_end: int
     chunk_type: str = "paragraph"
     section_ref: Optional[str] = None
+    language: str = "en"
     is_embeddable: bool = True
 
 
@@ -352,7 +353,8 @@ class OCRPostProcessor:
     def chunk_text(
         self,
         text: str,
-        page_number: int = 1
+        page_number: int = 1,
+        language: str = "en"
     ) -> List[TextChunk]:
         """
         Create token-controlled chunks from text.
@@ -360,6 +362,7 @@ class OCRPostProcessor:
         Args:
             text: Cleaned text to chunk
             page_number: Source page number for traceability
+            language: Language of the text
         
         Returns:
             List of TextChunk objects
@@ -373,6 +376,7 @@ class OCRPostProcessor:
         chunks = []
         current_sentences = []
         current_tokens = 0
+        current_section = None
         
         for para in paragraphs:
             para = para.strip()
@@ -384,6 +388,28 @@ class OCRPostProcessor:
                 len(para) < 100 and
                 (para.isupper() or re.match(r'^(?:GROUND|ISSUE|SECTION|PART)\s+\d+', para, re.IGNORECASE))
             )
+            
+            # Extract section reference (e.g., "Section 12.3", "Article 5")
+            section_match = re.match(r'^(?:Section|S\.|Article|Art\.|Rule|Regulation)\s*([0-9]+(?:\.[0-9]+)*)', para, re.IGNORECASE)
+            
+            # If section changed, force a chunk break
+            if section_match:
+                new_section = section_match.group(0)
+                if current_sentences and new_section != current_section:
+                    chunk_text = ' '.join(current_sentences)
+                    chunks.append(TextChunk(
+                        text=chunk_text,
+                        token_count=current_tokens,
+                        source_page_start=page_number,
+                        source_page_end=page_number,
+                        chunk_type="paragraph",
+                        section_ref=current_section,
+                        language=language
+                    ))
+                    current_sentences = []
+                    current_tokens = 0
+                
+                current_section = new_section
             
             # Split paragraph into sentences
             sentences = self.split_sentences_legal(para)
@@ -401,7 +427,9 @@ class OCRPostProcessor:
                             token_count=current_tokens,
                             source_page_start=page_number,
                             source_page_end=page_number,
-                            chunk_type="paragraph"
+                            chunk_type="paragraph",
+                            section_ref=current_section,
+                            language=language
                         ))
                         current_sentences = []
                         current_tokens = 0
@@ -414,7 +442,9 @@ class OCRPostProcessor:
                             token_count=self.count_tokens(clause),
                             source_page_start=page_number,
                             source_page_end=page_number,
-                            chunk_type="clause"
+                            chunk_type="clause",
+                            section_ref=current_section,
+                            language=language
                         ))
                     continue
                 
@@ -426,7 +456,9 @@ class OCRPostProcessor:
                         token_count=current_tokens,
                         source_page_start=page_number,
                         source_page_end=page_number,
-                        chunk_type="heading" if is_heading else "paragraph"
+                        chunk_type="heading" if is_heading else "paragraph",
+                        section_ref=current_section,
+                        language=language
                     ))
                     
                     # Keep last few sentences for overlap
@@ -454,7 +486,9 @@ class OCRPostProcessor:
                 token_count=current_tokens,
                 source_page_start=page_number,
                 source_page_end=page_number,
-                chunk_type="paragraph"
+                chunk_type="paragraph",
+                section_ref=current_section,
+                language=language
             ))
         
         return chunks
@@ -496,7 +530,7 @@ class OCRPostProcessor:
             cleaned = self.remove_noise(cleaned)
             
             # Create chunks from this page
-            page_chunks = self.chunk_text(cleaned, page_num)
+            page_chunks = self.chunk_text(cleaned, page_num, language="en")  # Defaulting to 'en', can implement language detection later
             
             processed_pages.append({
                 'page_number': page_num,
@@ -528,6 +562,8 @@ class OCRPostProcessor:
                     'source_page_start': c.source_page_start,
                     'source_page_end': c.source_page_end,
                     'chunk_type': c.chunk_type,
+                    'section_ref': c.section_ref,
+                    'language': c.language,
                     'is_embeddable': c.is_embeddable,
                 }
                 for i, c in enumerate(all_chunks)

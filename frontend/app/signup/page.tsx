@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
 import Link from 'next/link'
@@ -32,7 +32,7 @@ export default function SignupPage() {
     }
 
     return (
-        <div className="min-h-screen bg-[#050505] text-white font-sans selection:bg-[#D4A853] selection:text-black flex items-center justify-center relative overflow-hidden">
+        <div className="min-h-screen bg-[#050505] text-white font-sans selection:bg-[#D4A853] selection:text-white flex items-center justify-center relative overflow-hidden">
 
             {/* Cinematic Background */}
             <div className="absolute inset-0 z-0">
@@ -65,7 +65,7 @@ export default function SignupPage() {
                 </div>
 
                 {/* Glass Container */}
-                <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl">
+                <div className="bg-slate-900/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl">
                     {error && (
                         <div className="mb-6 p-4 bg-red-500/10 text-red-400 rounded-lg text-sm border border-red-500/20 flex items-center gap-2">
                             <div className="w-1 h-4 bg-red-500 rounded-full"></div>
@@ -143,7 +143,7 @@ export default function SignupPage() {
                     </Link>
                 </p>
 
-                <div className="mt-12 text-center text-[10px] text-gray-600 uppercase tracking-[0.2em]">
+                <div className="mt-12 text-center text-[10px] text-slate-400 uppercase tracking-[0.2em]">
                     Secured by ApexNeural
                 </div>
             </div>
