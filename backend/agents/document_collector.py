@@ -95,9 +95,19 @@ class DocumentCollectorAgent(BaseAgent):
         """Process a single file and create document record."""
         
         filename = file_data.get("filename", "unknown")
-        content = file_data.get("content", b"")
+        content = file_data.get("content")
+        file_path = file_data.get("file_path")
         mime_type = file_data.get("mime_type", "application/octet-stream")
         
+        # If content is missing but path is provided, read it
+        if content is None and file_path and os.path.exists(file_path):
+            async with aiofiles.open(file_path, "rb") as f:
+                content = await f.read()
+        
+        # Default to empty bytes if still None
+        if content is None:
+            content = b""
+            
         # Calculate file hash for deduplication
         file_hash = hashlib.sha256(content).hexdigest()
         

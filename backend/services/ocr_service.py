@@ -43,22 +43,20 @@ class OCRService:
     
     def _auto_detect_engine(self) -> str:
         """Auto-detect the best available OCR engine."""
-        # Try Tesseract first (best quality)
+        if settings.GOOGLE_VISION_API_KEY:
+            return "google_vision"
+        
         tesseract_path = self._find_tesseract()
         if tesseract_path:
             self._tesseract_path = tesseract_path
             return "tesseract"
         
-        # Try PyMuPDF (good for PDFs with embedded text)
-        try:
-            import fitz  # PyMuPDF
-            return "pymupdf"
-        except ImportError:
-            logger.debug("PyMuPDF not available")
-        
-        # Try Google Cloud Vision (cloud fallback)
-        if settings.GOOGLE_VISION_API_KEY:
-            return "google_vision"
+        # PyMuPDF disabled due to environment issues
+        # try:
+        #     import fitz
+        #     return "pymupdf"
+        # except ImportError:
+        #     logger.debug("PyMuPDF not available")
         
         # No OCR available
         logger.warning("No OCR engine available - text extraction will fail")
@@ -150,7 +148,7 @@ class OCRService:
     
     def _try_fallback(self, file_path: str, exclude: str) -> str:
         """Try alternative OCR engines as fallback."""
-        fallback_order = ["tesseract", "pymupdf", "google_vision"]
+        fallback_order = ["google_vision", "tesseract", "pymupdf"]
         
         for engine in fallback_order:
             if engine == exclude:
@@ -214,21 +212,8 @@ class OCRService:
 
         # Handle PDFs by converting to images first
         if file_path.lower().endswith('.pdf'):
+            # Use pdf2image (Poppler) instead of PyMuPDF
             try:
-                import fitz # PyMuPDF
-                doc = fitz.open(file_path)
-                text_parts = []
-                for i in range(len(doc)):
-                    page = doc.load_page(i)
-                    pix = page.get_pixmap(matrix=fitz.Matrix(2, 2)) # Higher resolution for OCR
-                    image_data = pix.tobytes("png")
-                    image = Image.open(io.BytesIO(image_data))
-                    text = pytesseract.image_to_string(image, lang=langs, config=config)
-                    text_parts.append(f"--- Page {i+1} ---\n{text}")
-                doc.close()
-                return "\n\n".join(text_parts)
-            except ImportError:
-                logger.warning("PyMuPDF not available, trying pdf2image fallback (needs Poppler)")
                 from pdf2image import convert_from_path
                 images = convert_from_path(file_path)
                 text_parts = []
@@ -236,6 +221,12 @@ class OCRService:
                     text = pytesseract.image_to_string(image, lang=langs, config=config)
                     text_parts.append(f"--- Page {i+1} ---\n{text}")
                 return "\n\n".join(text_parts)
+            except ImportError:
+                logger.error("pdf2image/Poppler not installed. Cannot OCR PDF.")
+                return ""
+            except Exception as e:
+                 logger.error(f"pdf2image failed: {e}")
+                 return ""
         else:
             image = Image.open(file_path)
             return pytesseract.image_to_string(image, lang=langs, config=config)
@@ -243,25 +234,25 @@ class OCRService:
     def _ocr_pymupdf(self, file_path: str) -> str:
         """
         Use PyMuPDF for text extraction.
-        Note: This extracts embedded text, not true OCR.
-        Works great for PDFs with selectable text.
+        DISABLED due to environment issues.
         """
-        import fitz
-        
-        doc = fitz.open(file_path)
-        text_parts = []
-        
-        for page_num, page in enumerate(doc):
-            text = page.get_text()
-            if text.strip():
-                text_parts.append(f"--- Page {page_num + 1} ---\n{text}")
-        
-        doc.close()
-        
-        if not text_parts:
-            raise ValueError("No text found in PDF - may need OCR")
-        
-        return "\n\n".join(text_parts)
+        raise NotImplementedError("PyMuPDF (fitz) is currently disabled due to library conflicts. Use Tesseract or Google Vision.")
+        # import fitz
+        # 
+        # doc = fitz.open(file_path)
+        # text_parts = []
+        # 
+        # for page_num, page in enumerate(doc):
+        #     text = page.get_text()
+        #     if text.strip():
+        #         text_parts.append(f"--- Page {page_num + 1} ---\n{text}")
+        # 
+        # doc.close()
+        # 
+        # if not text_parts:
+        #     raise ValueError("No text found in PDF - may need OCR")
+        # 
+        # return "\n\n".join(text_parts)
     
     def _ocr_google_vision(self, file_path: str) -> str:
         """Use Google Cloud Vision API for OCR."""

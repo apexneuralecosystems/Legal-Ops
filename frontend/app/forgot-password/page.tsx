@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -39,15 +39,15 @@ export default function ForgotPasswordPage() {
 
     if (success) {
         return (
-            <div className="min-h-screen bg-white flex items-center justify-center p-4">
+            <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center p-4">
                 <div className="w-full max-w-md">
-                    <div className="bg-white border-2 border-black rounded-2xl p-8 text-center">
+                    <div className="glass-card p-8 text-center">
                         <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
                             <CheckCircle className="w-8 h-8 text-green-600" />
                         </div>
-                        <h1 className="text-2xl font-bold text-black mb-4">Check Your Email</h1>
-                        <p className="text-gray-600 mb-6">
-                            If an account exists for <span className="text-black font-medium">{email}</span>,
+                        <h1 className="text-2xl font-bold text-white mb-4">Check Your Email</h1>
+                        <p className="text-slate-400 mb-6">
+                            If an account exists for <span className="text-white font-medium">{email}</span>,
                             we've sent a password reset link.
                         </p>
                         <p className="text-gray-400 text-sm mb-8">
@@ -55,7 +55,7 @@ export default function ForgotPasswordPage() {
                         </p>
                         <Link
                             href="/login"
-                            className="inline-flex items-center gap-2 text-black hover:text-gray-600 font-medium transition-colors"
+                            className="inline-flex items-center gap-2 text-white hover:text-slate-400 font-medium transition-colors"
                         >
                             <ArrowLeft className="w-4 h-4" />
                             Back to Login
@@ -67,12 +67,12 @@ export default function ForgotPasswordPage() {
     }
 
     return (
-        <div className="min-h-screen bg-white flex items-center justify-center p-4">
+        <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center p-4">
             <div className="w-full max-w-md">
-                <div className="bg-white border-2 border-black rounded-2xl p-8">
+                <div className="glass-card p-8">
                     <Link
                         href="/login"
-                        className="inline-flex items-center gap-2 text-gray-500 hover:text-black transition-colors mb-6"
+                        className="inline-flex items-center gap-2 text-gray-500 hover:text-white transition-colors mb-6"
                     >
                         <ArrowLeft className="w-4 h-4" />
                         Back to Login
@@ -82,7 +82,7 @@ export default function ForgotPasswordPage() {
                         <div className="inline-flex items-center justify-center w-16 h-16 bg-black rounded-2xl mb-4">
                             <Scale className="w-8 h-8 text-white" />
                         </div>
-                        <h1 className="text-2xl font-bold text-black mb-2">Forgot Password?</h1>
+                        <h1 className="text-2xl font-bold text-white mb-2">Forgot Password?</h1>
                         <p className="text-gray-500">
                             Enter your email and we'll send you a reset link
                         </p>
@@ -96,7 +96,7 @@ export default function ForgotPasswordPage() {
 
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div>
-                            <label className="block text-sm font-medium text-black mb-2">
+                            <label className="block text-sm font-medium text-white mb-2">
                                 Email Address
                             </label>
                             <div className="relative">
@@ -105,7 +105,7 @@ export default function ForgotPasswordPage() {
                                     type="email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                                    className="w-full pl-10 pr-4 py-3 bg-black/60 border border-[#D4A853]/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
                                     placeholder="you@example.com"
                                     required
                                 />
@@ -115,7 +115,7 @@ export default function ForgotPasswordPage() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full py-3 px-4 bg-black hover:bg-gray-900 text-white font-medium rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            className="w-full bg-[#D4A853] hover:bg-[#E8C775] text-black font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-[0_0_20px_rgba(212,168,83,0.1)] hover:shadow-[0_0_30px_rgba(212,168,83,0.3)] disabled:opacity-70 disabled:cursor-not-allowed uppercase tracking-widest text-xs"
                         >
                             {loading ? (
                                 <>

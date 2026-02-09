@@ -51,10 +51,10 @@ PORT=8091
 HOST=0.0.0.0
 
 # Database
-DATABASE_URL=postgresql://postgres:Rahul%40123@127.0.0.1:5432/law_agent_db
+DATABASE_URL=postgresql://postgres:password@127.0.0.1:5432/law_agent_db
 
 # Gemini API (for LLM and Translation)
-GEMINI_API_KEY=AIzaSyAjhw0TWciHBnbUDLFNkB1tBRF37Bw4Xsg
+GEMINI_API_KEY=your_gemini_key_here
 GEMINI_MODEL=gemini-2.0-flash-exp
 TRANSLATION_SERVICE=gemini
 

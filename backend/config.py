@@ -5,6 +5,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
 import os
 import platform
+import certifi
+
+# SSL Fix for Windows/PostgreSQL conflicts
+os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
+os.environ["SSL_CERT_FILE"] = certifi.where()
 
 
 class Settings(BaseSettings):
@@ -27,13 +32,15 @@ class Settings(BaseSettings):
     
     # OpenRouter API (Alternative LLM provider)
     OPENROUTER_API_KEY: str = ""
-    OPENROUTER_MODEL: str = "openai/gpt-4o-mini"
+    OPENROUTER_MODEL: str = "openai/gpt-4o"
     
     # OpenAI API (For embeddings in RAG service)
     OPENAI_API_KEY: str = ""
     
     # Firecrawl API (For web scraping in RAG service - optional)
     FIRECRAWL_API_KEY: str = ""
+    EXA_API_KEY: str = ""
+    WEBSEARCH_API_KEY: str = ""
     
     # LLM Provider Selection: "gemini" or "openrouter"
     LLM_PROVIDER: str = "openrouter"
@@ -62,6 +69,10 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    
+    # Fernet Encryption Key (for cookie storage)
+    # Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    FERNET_KEY: str = ""
     
     # JWT Configuration (for Apex Auth)
     JWT_SECRET_KEY: str = ""
@@ -96,10 +107,10 @@ class Settings(BaseSettings):
         return f"{self.FRONTEND_URL.rstrip('/')}/reset-password"
     
     # OCR Configuration
-    OCR_ENGINE: str = "auto"  # auto, tesseract, pymupdf, or google_vision
-    TESSERACT_CMD: str = r"C:\Program Files\Tesseract-OCR\tesseract.exe"  # Updated to confirmed path
-    OCR_LANGUAGES: str = "eng+msa"  # English + Malay
-    GOOGLE_VISION_API_KEY: str = "AIzaSyAR7DF8h0yGVKKxJP45jBZXr9J3ncu4uec"  # Google Vision OCR API key
+    OCR_ENGINE: str = "google_vision"
+    TESSERACT_CMD: str = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+    OCR_LANGUAGES: str = "eng+msa"
+    GOOGLE_VISION_API_KEY: str = ""
     
     # Legal Database
     CASELAW_DB_TYPE: str = "lexis"

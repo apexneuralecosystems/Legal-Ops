@@ -31,10 +31,10 @@ export function ProtectedRoute({ children, fallback }: ProtectedRouteProps) {
     // Show loading while checking auth
     if (isChecking) {
         return fallback || (
-            <div className="min-h-screen flex items-center justify-center bg-slate-900">
+            <div className="min-h-screen flex items-center justify-center bg-[var(--bg-primary)]">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
-                    <p className="mt-4 text-slate-400">Loading...</p>
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[var(--accent-gold)] mx-auto"></div>
+                    <p className="mt-4 text-gray-500 font-bold uppercase tracking-widest text-xs">Verifying Credentials...</p>
                 </div>
             </div>
         )

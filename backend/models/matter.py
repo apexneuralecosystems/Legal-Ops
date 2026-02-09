@@ -66,6 +66,7 @@ class Matter(Base):
     documents = relationship("Document", back_populates="matter", cascade="all, delete-orphan")
     pleadings = relationship("Pleading", back_populates="matter", cascade="all, delete-orphan")
     audit_logs = relationship("AuditLog", back_populates="matter", cascade="all, delete-orphan")
+    entities = relationship("CaseEntity", back_populates="matter", cascade="all, delete-orphan")
     
     @property
     def matter_id(self):

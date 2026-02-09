@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
 import Link from 'next/link'
@@ -25,20 +25,32 @@ const content = {
         },
         paralegal: {
             title: "Your Digital Associate",
-            subtitle: "Capabilities",
-            description: "Delegation without supervision. Your AI handles the groundwork.",
+            subtitle: "What We Do For You",
+            description: "Let your AI handle the heavy lifting while you focus on winning cases.",
             cards: [
                 {
-                    title: "BOD Summarization",
-                    desc: "Upload complex Bundles of Documents. Get chronological timelines instantly."
+                    title: "Document Summaries",
+                    desc: "Upload any legal documents - we'll read everything and give you a clear summary with key dates and facts organized for you."
                 },
                 {
-                    title: "Case Law Research",
-                    desc: "Deep search across MLJ/CLJ. Find precedents with pin-point accuracy."
+                    title: "Case Law Search",
+                    desc: "Tell us what you're looking for. We'll search through thousands of Malaysian court cases and show you the most relevant ones."
                 },
                 {
-                    title: "Bilingual Drafting",
-                    desc: "From Writ to Submission. Auto-draft in flawless BM and English."
+                    title: "Draft Documents",
+                    desc: "Need a legal document? Just tell us what you need - we'll write it in English or Bahasa Malaysia, perfectly formatted."
+                },
+                {
+                    title: "Evidence Organization",
+                    desc: "Upload all your case files. We'll organize everything into a proper hearing bundle with page numbers and an index."
+                },
+                {
+                    title: "Case Strategy",
+                    desc: "Get insights on your case strengths and weaknesses. We analyze similar past cases to help you build winning arguments."
+                },
+                {
+                    title: "24/7 Legal Chat",
+                    desc: "Ask any legal question anytime. Your AI assistant remembers your cases and gives you instant, helpful answers."
                 }
             ]
         }
@@ -61,20 +73,32 @@ const content = {
         },
         paralegal: {
             title: "Sekutu Digital Anda",
-            subtitle: "Keupayaan",
-            description: "Delegasi tanpa pengawasan. AI anda menguruskan kerja asas.",
+            subtitle: "Apa Yang Kami Tawarkan",
+            description: "Biarkan AI anda menguruskan kerja berat sementara anda fokus memenangi kes.",
             cards: [
                 {
-                    title: "Ringkasan BOD",
-                    desc: "Muat naik Ikatan Dokumen kompleks. Dapatkan garis masa kronologi serta-merta."
+                    title: "Ringkasan Dokumen",
+                    desc: "Muat naik sebarang dokumen undang-undang - kami akan baca semuanya dan berikan ringkasan jelas dengan tarikh dan fakta penting yang tersusun."
                 },
                 {
-                    title: "Penyelidikan Kes",
-                    desc: "Carian mendalam merentasi MLJ/CLJ. Cari preseden dengan ketepatan tinggi."
+                    title: "Carian Kes Mahkamah",
+                    desc: "Beritahu kami apa yang anda cari. Kami akan mencari beribu-ribu kes mahkamah Malaysia dan tunjukkan yang paling relevan."
                 },
                 {
-                    title: "Draf Dwibahasa",
-                    desc: "Dari Writ ke Hujahan. Draf auto dalam BM dan Inggeris yang sempurna."
+                    title: "Draf Dokumen",
+                    desc: "Perlukan dokumen undang-undang? Beritahu sahaja keperluan anda - kami akan tulis dalam Inggeris atau BM dengan format sempurna."
+                },
+                {
+                    title: "Susun Bukti",
+                    desc: "Muat naik semua fail kes anda. Kami akan susun semuanya menjadi ikatan perbicaraan yang lengkap dengan nombor halaman dan indeks."
+                },
+                {
+                    title: "Strategi Kes",
+                    desc: "Dapatkan pandangan mengenai kekuatan dan kelemahan kes anda. Kami menganalisis kes lepas yang serupa untuk membantu anda membina hujah yang mantap."
+                },
+                {
+                    title: "Chat Legal 24/7",
+                    desc: "Tanya sebarang soalan undang-undang pada bila-bila masa. Pembantu AI anda mengingati kes anda dan memberikan jawapan segera."
                 }
             ]
         }
@@ -86,7 +110,7 @@ export default function MalaysiaLandingPage() {
     const t = content[lang]
 
     return (
-        <div className="min-h-screen bg-[#050505] text-white font-sans selection:bg-[#D4A853] selection:text-black">
+        <div className="min-h-screen bg-[#050505] text-white font-sans selection:bg-[#D4A853] selection:text-white">
 
             {/* Transparent Header */}
             <header className="fixed w-full z-50 top-0 left-0 border-b border-white/10 bg-black/50 backdrop-blur-md transition-all duration-300">
@@ -96,7 +120,7 @@ export default function MalaysiaLandingPage() {
                             <Scale className="w-4 h-4" />
                         </div>
                         <span className="text-xl font-serif font-black tracking-widest uppercase">LegalOps</span>
-                        <span className="text-[10px] font-bold border border-[#D4A853] text-[#D4A853] px-1.5 py-0.5 rounded-sm">MY</span>
+                        <span className="text-[10px] font-bold border border-[#D4A853] text-[#D4A853] px-1.5 py-0.5 rounded-xl">MY</span>
                     </Link>
 
                     <div className="flex items-center gap-6 text-xs font-bold tracking-widest uppercase">
@@ -116,7 +140,7 @@ export default function MalaysiaLandingPage() {
                             <Link href="/login" className="hover:text-[#D4A853] transition-colors">{t.nav.signIn}</Link>
                             <Link
                                 href="/signup"
-                                className="bg-white text-black hover:bg-[#D4A853] px-6 py-2.5 rounded-full transition-all"
+                                className="bg-slate-900 text-white hover:bg-[#D4A853] px-6 py-2.5 rounded-full transition-all"
                             >
                                 {t.nav.getStarted}
                             </Link>
@@ -157,11 +181,11 @@ export default function MalaysiaLandingPage() {
                     </p>
 
                     {/* Features List - "Incorporate Paralegal Agent Features" in Hero */}
-                    <div className="flex flex-wrap justify-center gap-4 animate-fade-in-up delay-400 mt-8">
-                        {['Bilingual Drafting', 'Case Law Research', 'BOD Summarization'].map((feature, i) => (
-                            <div key={i} className="flex items-center gap-2 px-6 py-2 rounded-full border border-[#D4A853]/30 bg-black/40 backdrop-blur-sm shadow-[0_0_10px_rgba(212,168,83,0.1)] hover:bg-[#D4A853]/10 transition-colors cursor-default">
-                                <CheckCircle2 className="w-4 h-4 text-[#D4A853]" />
-                                <span className="text-xs font-bold uppercase tracking-widest text-gray-200">{feature}</span>
+                    <div className="flex flex-wrap justify-center gap-3 animate-fade-in-up delay-400 mt-8 max-w-3xl mx-auto">
+                        {['Document Summaries', 'Case Law Search', 'Draft Documents', 'Evidence Bundle', 'Case Strategy', 'AI Legal Chat'].map((feature, i) => (
+                            <div key={i} className="flex items-center gap-2 px-5 py-2 rounded-full border border-[#D4A853]/30 bg-black/40 backdrop-blur-sm shadow-[0_0_10px_rgba(212,168,83,0.1)] hover:bg-[#D4A853]/10 transition-colors cursor-default">
+                                <CheckCircle2 className="w-3 h-3 text-[#D4A853]" />
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-200">{feature}</span>
                             </div>
                         ))}
                     </div>
@@ -169,7 +193,7 @@ export default function MalaysiaLandingPage() {
                     <div className="pt-8 flex flex-col items-center gap-6 animate-fade-in-up delay-500">
                         <Link
                             href="/signup"
-                            className="bg-[#D4A853] text-white px-10 py-5 rounded-full font-bold text-sm tracking-[0.2em] uppercase hover:bg-white hover:text-black hover:scale-105 transition-all duration-300 shadow-[0_0_40px_rgba(212,168,83,0.3)]"
+                            className="bg-[#D4A853] text-white px-10 py-5 rounded-full font-bold text-sm tracking-[0.2em] uppercase hover:bg-slate-900 hover:text-white hover:scale-105 transition-all duration-300 shadow-[0_0_40px_rgba(212,168,83,0.3)]"
                         >
                             {t.hero.cta}
                         </Link>
@@ -216,7 +240,7 @@ export default function MalaysiaLandingPage() {
 
             <footer className="bg-[#050505] text-white py-12 border-t border-white/5">
                 <div className="max-w-7xl mx-auto px-6 text-center">
-                    <span className="text-[10px] text-gray-600 uppercase tracking-widest">Designed in Kuala Lumpur</span>
+                    <span className="text-[10px] text-slate-400 uppercase tracking-widest">Designed in Kuala Lumpur</span>
                 </div>
             </footer>
 

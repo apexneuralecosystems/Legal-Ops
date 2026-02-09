@@ -28,8 +28,20 @@ class VisionOCRService:
     
     def __init__(self, api_key: str = None):
         self.api_key = api_key or settings.GOOGLE_VISION_API_KEY
+        self.language_hints = self._build_language_hints()
         if not self.api_key:
             logger.warning("GOOGLE_VISION_API_KEY not set. Vision OCR will fail.")
+
+    def _build_language_hints(self) -> List[str]:
+        raw = settings.OCR_LANGUAGES or ""
+        parts = [p.strip() for p in raw.replace(",", "+").split("+") if p.strip()]
+        mapping = {"eng": "en", "msa": "ms"}
+        hints = []
+        for p in parts:
+            hints.append(mapping.get(p, p))
+        if not hints:
+            hints = ["en"]
+        return hints
     
     async def extract_text_from_image(self, image_bytes: bytes) -> Tuple[str, float]:
         """
@@ -62,7 +74,7 @@ class VisionOCRService:
                         }
                     ],
                     "imageContext": {
-                        "languageHints": ["en", "ms"]  # English + Malay for legal docs
+                        "languageHints": self.language_hints
                     }
                 }
             ]
@@ -80,8 +92,10 @@ class VisionOCRService:
             ) as response:
                 if response.status != 200:
                     error_text = await response.text()
-                    logger.error(f"Vision API error {response.status}: {error_text}")
-                    raise RuntimeError(f"Vision API error: {error_text}")
+                    logger.error(f"Vision API HTTP {response.status}: {error_text}")
+                    logger.error(f"Request URL: {url}")
+                    logger.error(f"API Key Present: {bool(self.api_key)}, Length: {len(self.api_key) if self.api_key else 0}")
+                    raise RuntimeError(f"Vision API HTTP {response.status}: {error_text[:500]}")
                 
                 result = await response.json()
         
@@ -95,7 +109,9 @@ class VisionOCRService:
         # Check for errors
         if "error" in first_response:
             error = first_response["error"]
-            raise RuntimeError(f"Vision API error: {error.get('message', 'Unknown error')}")
+            logger.error(f"Vision API returned error in response: {error}")
+            logger.error(f"Full error details: code={error.get('code')}, message={error.get('message')}, status={error.get('status')}")
+            raise RuntimeError(f"Vision API error (code {error.get('code', 'unknown')}): {error.get('message', 'Unknown error')}")
         
         # Get full text annotation (best result)
         full_text = first_response.get("fullTextAnnotation", {})
@@ -147,22 +163,49 @@ class VisionOCRService:
         page_images = []
         total_pages = 0
         
-        # Option 1: Try PyMuPDF (fitz)
-        try:
-            import fitz
-            doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-            total_pages = len(doc)
-            logger.info(f"Vision OCR: Using PyMuPDF for {total_pages} pages")
+        # Option 1: Try PyMuPDF (fitz) - DISABLED due to persistent environment issues (fitz vs pymupdf)
+        # try:
+        #     import fitz
+        #     # CRITICAL FIX: Check if this is actually PyMuPDF (has 'open') or the wrong 'fitz' package
+        #     if not hasattr(fitz, "open"):
+        #         logger.warning("Detected incorrectly installed 'fitz' package (missing 'open'). Triggering fallback.")
+        #         raise ImportError("Authentication error: 'fitz' package is not PyMuPDF")
+        #         
+        #     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        #     total_pages = len(doc)
+        #     logger.info(f"Vision OCR: Using PyMuPDF for {total_pages} pages")
+        #     
+        #     for i in range(total_pages):
+        #         page = doc.load_page(i)
+        #         # Use 300 DPI (4.17x scale) for better OCR accuracy on legal documents
+        #         # PDF default is 72 DPI, so 300/72 ≈ 4.17
+        #         pix = page.get_pixmap(matrix=fitz.Matrix(4.17, 4.17))
+        #         page_images.append(pix.tobytes("png"))
+        #     doc.close()
+        # except ImportError:
+        pass # Skip fitz
             
-            for i in range(total_pages):
-                page = doc.load_page(i)
-                # Use 300 DPI (4.17x scale) for better OCR accuracy on legal documents
-                # PDF default is 72 DPI, so 300/72 ≈ 4.17
-                pix = page.get_pixmap(matrix=fitz.Matrix(4.17, 4.17))
-                page_images.append(pix.tobytes("png"))
-            doc.close()
-        except ImportError:
-            logger.info("PyMuPDF not available, trying pdf2image")
+        if not page_images:
+            # Option 2: Try DIRECT Google Vision PDF Upload (Preferred over local rendering)
+            # This is much faster and more reliable than converting to images locally
+            try:
+                logger.info("Attempting DIRECT PDF submission to Google Vision (Priority Mode).")
+                # Use pypdf to count pages if we haven't already
+                if total_pages == 0:
+                    from pypdf import PdfReader
+                    import io
+                    reader = PdfReader(io.BytesIO(pdf_bytes))
+                    total_pages = len(reader.pages)
+                    
+                # We need to await this
+                results = await self.extract_text_from_pdf_direct(pdf_bytes, total_pages)
+                if results:
+                    return results, total_pages
+                logger.warning("Direct Vision API returned no results, falling back to local OCR")
+            except Exception as e:
+                 logger.warning(f"Direct Vision API failed ({e}), falling back to local OCR")
+
+            logger.info("PyMuPDF disabled/failed and Direct Vision skipped/failed, trying pdf2image")
             
             # Option 2: Try pdf2image (requires Poppler)
             try:
@@ -207,8 +250,7 @@ class VisionOCRService:
                 except ImportError:
                     raise ImportError("No PDF processing library available. Install one of: PyMuPDF, pdf2image+Poppler, or PyPDF2")
         
-        if not page_images:
-            return [], 0
+        # Old Direct PDF block removed (moved to top priority)
         
         logger.info(f"Vision OCR: Processing {total_pages} pages with max {max_concurrent} concurrent requests")
         
@@ -228,7 +270,9 @@ class VisionOCRService:
                         try:
                             await progress_callback(page_num + 1, total_pages)
                         except Exception as e:
-                            logger.debug(f"Progress callback error: {e}")
+                            logger.debug(f"Progress callback error (non-fatal): {e}")
+                    
+                    logger.debug(f"Vision OCR: Page {page_num + 1} completed - {len(text)} chars, confidence {confidence:.2f}")
                     
                     return {
                         "page": page_num + 1,
@@ -236,7 +280,7 @@ class VisionOCRService:
                         "confidence": confidence
                     }
                 except Exception as e:
-                    logger.error(f"Vision OCR: Page {page_num + 1} failed: {e}")
+                    logger.error(f"Vision OCR: Page {page_num + 1} failed: {type(e).__name__}: {e}", exc_info=True)
                     return {
                         "page": page_num + 1,
                         "text": "",
@@ -289,6 +333,135 @@ class VisionOCRService:
                 "error": str(e)
             }
 
+    async def extract_text_from_pdf_direct(self, pdf_bytes: bytes, total_pages: int) -> List[dict]:
+        """
+        Directly send PDF to Google Vision API (files:annotate).
+        This bypasses local image conversion issues.
+        Limitations: Max 5 pages per request, max 10MB per request.
+        """
+        if not self.api_key:
+             return []
+
+        # Split PDF into chunks of 5 pages using pypdf
+        import io
+        from pypdf import PdfReader, PdfWriter
+        
+        logger.info("Vision OCR: Using DIRECT PDF mode (files:annotate)")
+        
+        chunks = []
+        try:
+            reader = PdfReader(io.BytesIO(pdf_bytes))
+            current_writer = PdfWriter()
+            current_page_count = 0
+            start_page = 0
+            
+            for i, page in enumerate(reader.pages):
+                current_writer.add_page(page)
+                current_page_count += 1
+                
+                if current_page_count == 5 or i == len(reader.pages) - 1:
+                    # Finalize chunk
+                    out_buffer = io.BytesIO()
+                    current_writer.write(out_buffer)
+                    chunks.append({
+                        "bytes": out_buffer.getvalue(),
+                        "start": start_page,
+                        "pages": current_page_count
+                    })
+                    # Reset
+                    current_writer = PdfWriter()
+                    start_page = i + 1
+                    current_page_count = 0
+                    
+        except Exception as e:
+            logger.error(f"Direct OCR split failed: {e}")
+            return []
+
+        # Process chunks
+        all_results = []
+        url = f"https://vision.googleapis.com/v1/files:annotate?key={self.api_key}"
+        
+        for chunk in chunks:
+            chunk_b64 = base64.b64encode(chunk["bytes"]).decode('utf-8')
+            
+            payload = {
+                "requests": [
+                    {
+                        "inputConfig": {
+                            "content": chunk_b64,
+                            "mimeType": "application/pdf"
+                        },
+                        "features": [{"type": "DOCUMENT_TEXT_DETECTION"}],
+                        "pages": [i+1 for i in range(chunk["pages"])] # 1-based index relative to chunk
+                    }
+                ]
+            }
+            
+            try:
+                logger.info(f"Using Vision API URL: {url}")
+                logger.info(f"Payload keys: {list(payload.keys())}")
+                logger.info(f"Payload requests count: {len(payload['requests'])}")
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(url, json=payload, headers={"Content-Type": "application/json"}) as response:
+                        if response.status != 200:
+                            logger.error(f"Direct Vision API failed: {await response.text()}")
+                            continue
+                        
+                        data = await response.json()
+                        # DEBUG: Log keys to debug structure
+                        logger.info(f"DEBUG: Vision API Response Keys: {list(data.keys())}")
+                        if "responses" in data and len(data["responses"]) > 0:
+                             logger.info(f"DEBUG: Top-level responses count: {len(data['responses'])}")
+                             if "responses" in data["responses"][0]:
+                                  logger.info(f"DEBUG: Nested responses found! Count: {len(data['responses'][0]['responses'])}")
+                             else:
+                                  logger.info("DEBUG: NO nested responses found in first element.")
+                                  # Only log full dump if structure looks wrong to avoid massive logs
+                                  logger.info(f"DEBUG: First element keys: {list(data['responses'][0].keys())}")
+
+                        # The API returns a list of AnnotateFileResponse objects (one per request)
+                        # Each AnnotateFileResponse contains a list of 'responses' (one per page)
+                        file_responses = data.get("responses", [])
+                        
+                        for file_resp in file_responses:
+                            # Check for top-level error in file response
+                            if "error" in file_resp:
+                                logger.error(f"Vision API file error: {file_resp['error']}")
+                                continue
+                                
+                            page_responses = file_resp.get("responses", [])
+                            
+                            for i, page_resp in enumerate(page_responses):
+                                # Map back to global page number
+                                # inner loop index 'i' maps to the page index in the chunk
+                                global_page = chunk["start"] + i + 1
+                                
+                                full_text = page_resp.get("fullTextAnnotation", {}).get("text", "")
+                                
+                                # Calculate confidence (simplified)
+                                conf = 0.95 
+                                
+                                if full_text:
+                                    all_results.append({
+                                        "page": global_page,
+                                        "text": full_text,
+                                        "confidence": conf
+                                    })
+                                else:
+                                     # Log empty pages for debug
+                                     error = page_resp.get("error", {})
+                                     if error:
+                                         logger.warning(f"Vision API page {global_page} error: {error}")
+            except Exception as e:
+                logger.error(f"Chunk processing failed: {e}")
+        
+        results = sorted(all_results, key=lambda x: x["page"])
+        
+        if not results and total_pages > 0:
+            raise RuntimeError("Vision API returned no text for any page (Direct Mode)")
+            
+        return results
+
 
 # Global instance
 _vision_ocr_service = None
@@ -302,5 +475,7 @@ def get_vision_ocr_service() -> VisionOCRService:
     return _vision_ocr_service
 
 
-# Convenience alias
+
+
+
 vision_ocr_service = get_vision_ocr_service()
