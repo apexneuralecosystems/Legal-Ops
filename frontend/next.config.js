@@ -1,8 +1,5 @@
 /** @type {import('next').NextConfig} */
 
-// Get backend URL from environment variable, fallback to internal container URL for SSR
-const BACKEND_URL = process.env.BACKEND_URL || process.env.INTERNAL_API_URL || 'http://localhost:8091';
-
 const nextConfig = {
     output: 'standalone', // Enable for Docker deployment
     reactStrictMode: true,
@@ -22,6 +19,14 @@ const nextConfig = {
         return config;
     },
     async rewrites() {
+        // Evaluate BACKEND_URL at runtime (not build time)
+        // Ensure it points to the 'backend' service in Docker network
+        const BACKEND_URL = process.env.BACKEND_URL ||
+            process.env.INTERNAL_API_URL ||
+            'http://backend:8091';
+
+        console.log(`[Next.js Runtime] Proxying /api to: ${BACKEND_URL}`);
+
         return [
             {
                 source: '/api/:path*',

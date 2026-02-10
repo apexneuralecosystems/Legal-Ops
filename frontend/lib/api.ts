@@ -6,11 +6,14 @@ import axios, { AxiosInstance, AxiosError, AxiosResponse, InternalAxiosRequestCo
 // CORS is handled by the backend's CORSMiddleware.
 
 // PUBLIC URL: Used by the browser (client-side)
-const PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8091'
+// Fallback to the production URL if not set
+const PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://legalops-api.apexneural.cloud'
 
 // INTERNAL URL: Used by Next.js server (SSR) to talk to backend container
-// If INTERNAL_API_URL is not set, fall back to PUBLIC_API_URL
-const INTERNAL_API_URL = process.env.INTERNAL_API_URL || PUBLIC_API_URL
+// In Docker, this should be http://backend:8091
+const INTERNAL_API_URL = process.env.INTERNAL_API_URL ||
+    process.env.BACKEND_URL ||
+    'http://backend:8091'
 
 // Determine which URL to use based on environment (Server vs Client)
 const API_URL = typeof window === 'undefined' ? INTERNAL_API_URL : PUBLIC_API_URL
