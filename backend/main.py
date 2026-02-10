@@ -184,24 +184,7 @@ async def health_check():
 async def version_debug():
     return {"version": settings.VERSION, "deploy_id": "2026-02-10-00-40", "status": "verified"}
 
-# ═══════════════════════════════════════════════════════════════
-# Global CORS Preflight Handler
-# Catch-all for OPTIONS requests to handle CORS before sync routers
-# ═══════════════════════════════════════════════════════════════
-from fastapi.responses import Response
-
-@app.options("/{rest_of_path:path}")
-async def preflight_handler(rest_of_path: str):
-    """Handle all CORS preflight OPTIONS requests globally."""
-    return Response(
-        status_code=200,
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
-            "Access-Control-Max-Age": "3600",
-        }
-    )
+# CORS is handled by CORSMiddleware above - no manual preflight handler needed
 
 # Root endpoint
 @app.get("/")
