@@ -60,6 +60,9 @@ EXPOSE ${PORT:-8091}
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://127.0.0.1:${PORT:-8091}/health || exit 1
 
+# Make startup script executable
+RUN chmod +x /app/scripts/start.sh
+
 # Run with startup script (migrations + server)
 CMD ["/app/scripts/start.sh"]
 
