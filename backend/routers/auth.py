@@ -81,10 +81,6 @@ class UserResponse(BaseModel):
 
 
 # Endpoints
-@router.options("/signup")
-async def signup_options():
-    """Handle CORS preflight for signup endpoint."""
-    return {"status": "ok"}
 
 
 @router.post("/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
@@ -136,10 +132,6 @@ async def signup(request: SignupRequest, db: AsyncSession = Depends(get_db)):
         )
 
 
-@router.options("/login")
-async def login_options():
-    """Handle CORS preflight for login endpoint."""
-    return {"status": "ok"}
 
 
 @router.post("/login", response_model=TokenResponse)
