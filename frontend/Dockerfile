@@ -3,25 +3,24 @@
 # ============================================
 # Multi-stage build for Next.js production - Optimized for Disk Space
 
-# Stage 1: Dependencies
-FROM node:20-alpine AS deps
-# Install dependencies in one layer and clean cache immediately
+# Stage 1: Build the application
+FROM node:20-alpine AS builder
+
+# Install system dependencies in one layer
 RUN apk add --no-cache libc6-compat && \
     rm -rf /var/cache/apk/*
 
 WORKDIR /app
+
+# Copy dependency files first for caching
 COPY package.json package-lock.json* ./
-# Use --omit=dev and clean cache in the same layer
+
+# Install ALL dependencies (including devDeps needed for build)
+# and clean cache in the SAME layer to minimize disk usage
 RUN npm ci --prefer-offline --no-audit && \
     npm cache clean --force
 
-# Stage 2: Builder
-FROM node:20-alpine AS builder
-
-WORKDIR /app
-
-# Copy dependencies from deps stage
-COPY --from=deps /app/node_modules ./node_modules
+# Copy source code
 COPY . .
 
 # Build arguments
@@ -33,9 +32,10 @@ ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-https://legalops.apexneural.cloud
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
-# Build the app and clean up source after build to save intermediate space
+# Build the app and clean up everything NOT needed for production immediately
+# This drastically reduces the size of the builder stage
 RUN npm run build && \
-    rm -rf src/ components/ pages/ app/ node_modules/.cache
+    rm -rf src/ components/ pages/ app/ node_modules/.cache node_modules/.cache/terser-webpack-plugin
 
 # Stage 3: Production runtime
 FROM node:20-alpine AS runner
