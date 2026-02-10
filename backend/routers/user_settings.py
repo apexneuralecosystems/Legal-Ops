@@ -1,7 +1,7 @@
 """
 User settings and preferences API - Lexis Cookie Management
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List, Optional
@@ -29,7 +29,7 @@ class LexisCookieResponse(BaseModel):
 
 @router.post("/lexis-cookies/validate")
 async def validate_lexis_cookies(
-    cookies: List[dict],
+    cookies: List[dict] = Body(...),
     current_user: dict = Depends(get_current_user)
 ):
     """
@@ -75,7 +75,7 @@ async def validate_lexis_cookies(
 
 @router.post("/lexis-cookies/save", response_model=LexisCookieResponse)
 async def save_lexis_cookies(
-    cookies: List[dict],
+    cookies: List[dict] = Body(...),
     db: Session = Depends(get_sync_db),
     current_user: dict = Depends(get_current_user)
 ):
