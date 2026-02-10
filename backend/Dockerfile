@@ -20,51 +20,49 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy and install Python dependencies
+# Install dependencies into a virtualenv
 COPY requirements.txt .
 RUN python -m venv /opt/venv
+# Make sure we use the venv's pip
 ENV PATH="/opt/venv/bin:$PATH"
 RUN pip install --upgrade pip && \
     pip install -r requirements.txt
 
 # Stage 2: Runtime
-FROM python:3.12-slim
-
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/app \
-    PATH="/opt/venv/bin:$PATH"
+# Use official Playwright image which includes all browsers and dependencies
+# This avoids the "libllvm19" and "missing executable" errors
+FROM mcr.microsoft.com/playwright/python:v1.49.1-jammy
 
 WORKDIR /app
 
-# Install runtime dependencies only
+# Copy virtualenv from builder
+COPY --from=builder /opt/venv /opt/venv
+
+# Set environment variables
+ENV PATH="/opt/venv/bin:$PATH" \
+    PYTHONPATH="/app" \
+    PORT=8000 \
+    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
+# Install runtime system dependencies (Postgres, OCR)
+# Note: Playwright image is Ubuntu-based (jammy), so we use apt-get
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq-dev \
     tesseract-ocr \
     tesseract-ocr-eng \
     tesseract-ocr-msa \
     poppler-utils \
     libmagic1 \
     curl \
-    libpq5 \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy Python dependencies from builder
-COPY --from=builder /opt/venv /opt/venv
+# Download Spacy model (safe to run here as venv is copied)
+RUN python -m spacy download en_core_web_sm || true
 
 # Copy application code
 COPY . .
 
-# Install dos2unix to fix line endings in scripts
-RUN apt-get update && apt-get install -y dos2unix && \
-    dos2unix scripts/start.sh && \
-    chmod +x scripts/start.sh && \
-    rm -rf /var/lib/apt/lists/*
 
-# Install Playwright Browsers (Chromium only to save space)
-RUN pip install playwright && \
-    playwright install --with-deps chromium && \
-    (python -m spacy download en_core_web_sm || true)
 
 # Create necessary directories
 RUN mkdir -p /app/uploads /app/logs && \
