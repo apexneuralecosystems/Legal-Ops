@@ -209,7 +209,7 @@ async def root():
     """Root endpoint with API information."""
     return {
         "message": "Malaysian Legal AI Agent API",
-        "version": "1.0.0",
+        "version": settings.VERSION,
         "docs": "/docs",
         "health": "/health"
     }

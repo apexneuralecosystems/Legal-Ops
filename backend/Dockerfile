@@ -55,28 +55,29 @@ COPY --from=builder /opt/venv /opt/venv
 # Copy application code
 COPY . .
 
+# Install dos2unix to fix line endings in scripts
+RUN apt-get update && apt-get install -y dos2unix && \
+    dos2unix scripts/start.sh && \
+    chmod +x scripts/start.sh && \
+    rm -rf /var/lib/apt/lists/*
+
 # Create necessary directories
 RUN mkdir -p /app/uploads /app/logs && \
-    chmod -R 755 /app && \
-    chmod +x /app/main.py 2>/dev/null || true
+    chmod -R 755 /app
 
 # Expose port
 EXPOSE ${PORT:-8091}
 
-# Health check
+# Health check (use 127.0.0.1 for stability)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:${PORT:-8091}/health || exit 1
+    CMD curl -f http://127.0.0.1:${PORT:-8091}/health || exit 1
 
 # Non-root user for security
 RUN useradd -m -u 1000 appuser && \
     chown -R appuser:appuser /app && \
     chown -R appuser:appuser /opt/venv
 
-# Copy startup script
-COPY scripts/start.sh /app/start.sh
-RUN chmod +x /app/start.sh
-
 USER appuser
 
 # Run with startup script (migrations + server)
-CMD ["/app/start.sh"]
+CMD ["/app/scripts/start.sh"]

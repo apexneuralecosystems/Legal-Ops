@@ -80,7 +80,7 @@ async def init_db():
     """
     async with engine.begin() as conn:
         # Import all models to register them with Base
-        from models import matter, document, segment, pleading, research, audit
+        from models import matter, document, segment, pleading, research, audit, ocr_models, chat, case_intelligence, case_insights, cross_case_learning
         try:
             from models import auth, usage
         except ImportError:

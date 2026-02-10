@@ -16,9 +16,13 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import settings
 from database import Base
 from apex.models import User, Subscription, PaymentOrder
+# Import models through the package to ensure all are registered with Base
+import models
 from models import (
     Matter, Document, Pleading, Segment, ResearchCase, 
-    AuditLog, UserUsage, OCRDocument, OCRPage, OCRChunk, OCRProcessingLog
+    AuditLog, UserUsage, OCRDocument, OCRPage, OCRChunk, OCRProcessingLog,
+    ChatMessage, CaseLearning, CaseEntity, CaseRelationship,
+    CaseInsight, CaseMetric, CasePattern, CaseOutcome, CaseSimilarity
 )
 
 # this is the Alembic Config object, which provides

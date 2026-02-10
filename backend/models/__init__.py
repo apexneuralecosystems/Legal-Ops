@@ -1,19 +1,19 @@
 """
 SQLAlchemy models package.
 """
-from .matter import Matter
-from .document import Document
-from .segment import Segment
-from .pleading import Pleading
-from .research import ResearchCase
-from .audit import AuditLog
-from .auth import User
-from .usage import UserUsage
-from .ocr_models import OCRDocument, OCRPage, OCRChunk, OCRProcessingLog
-from .chat import ChatMessage, CaseLearning
-from .case_intelligence import CaseEntity, CaseRelationship
-from .case_insights import CaseInsight, CaseMetric
-from .cross_case_learning import CasePattern, CaseOutcome, CaseSimilarity
+from models.matter import Matter
+from models.document import Document
+from models.segment import Segment
+from models.pleading import Pleading
+from models.research import ResearchCase
+from models.audit import AuditLog
+from models.auth import User
+from models.usage import UserUsage
+from models.ocr_models import OCRDocument, OCRPage, OCRChunk, OCRProcessingLog
+from models.chat import ChatMessage, CaseLearning
+from models.case_intelligence import CaseEntity, CaseRelationship
+from models.case_insights import CaseInsight, CaseMetric
+from models.cross_case_learning import CasePattern, CaseOutcome, CaseSimilarity
 
 __all__ = [
     "Matter",
