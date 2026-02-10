@@ -1,8 +1,9 @@
 """
 FastAPI main application entry point with Apex SaaS Framework integration.
+Production-hardened for Dokploy deployment.
 """
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from config import settings
@@ -11,6 +12,8 @@ import logging
 import sys
 import asyncio
 import os
+import uuid
+import time
 import certifi
 
 # Force use of valid certifi bundle, overriding any system-wide PostgreSQL/Conda paths
@@ -21,7 +24,7 @@ os.environ["SSL_CERT_FILE"] = certifi.where()
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
-# Configure logging
+# Configure structured logging
 logging.basicConfig(
     level=getattr(logging, settings.LOG_LEVEL),
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -32,6 +35,9 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
+
+# Application readiness flag — set True when startup is fully complete
+_app_ready = False
 
 
 @asynccontextmanager
@@ -95,38 +101,70 @@ async def lifespan(app: FastAPI):
         logger.error(f"Failed to initialize database: {e}")
         raise
     
+    global _app_ready
+    _app_ready = True
+    logger.info("✓ Application is READY — accepting traffic")
+    
     yield  # Application runs here
     
-    # Shutdown (cleanup browser pool and other resources)
+    # Shutdown — graceful cleanup
+    _app_ready = False
     logger.info("Shutting down Malaysian Legal AI Agent API...")
+    
+    # 1. Cleanup browser pool
     try:
         from services.browser_pool import cleanup_browser_pool
         await cleanup_browser_pool()
         logger.info("✓ Browser pool cleaned up")
     except Exception as e:
         logger.warning(f"Browser pool cleanup failed: {e}")
+    
+    # 2. Close async DB engine
+    try:
+        from database import engine as async_engine
+        await async_engine.dispose()
+        logger.info("✓ Async DB engine disposed")
+    except Exception as e:
+        logger.warning(f"Async DB engine cleanup failed: {e}")
+    
+    # 3. Close sync DB engine
+    try:
+        from database import sync_engine
+        sync_engine.dispose()
+        logger.info("✓ Sync DB engine disposed")
+    except Exception as e:
+        logger.warning(f"Sync DB engine cleanup failed: {e}")
+    
+    logger.info("Shutdown complete.")
 
 
+
+# Determine if docs should be accessible (only in DEBUG mode)
+_docs_url = "/docs" if settings.LOG_LEVEL == "DEBUG" else None
+_redoc_url = "/redoc" if settings.LOG_LEVEL == "DEBUG" else None
 
 # Create FastAPI app with lifespan
 app = FastAPI(
     title="Legal-Ops Backend Agent",
     description="Backend agent for legal research and drafting",
     version=settings.VERSION,
-    lifespan=lifespan
+    lifespan=lifespan,
+    docs_url=_docs_url,
+    redoc_url=_redoc_url,
 )
 
-# DEBUG: Log headers for OPTIONS requests to debug CORS 405
-from fastapi import Request
+# Request ID middleware — adds X-Request-ID to every response for tracing
 @app.middleware("http")
-async def log_options_headers(request: Request, call_next):
-    if request.method == "OPTIONS":
-        logger.info(f"OPTIONS Request to {request.url} from {request.client.host}")
-        logger.info(f"Headers: {dict(request.headers)}")
+async def add_request_id(request: Request, call_next):
+    request_id = request.headers.get("X-Request-ID", str(uuid.uuid4())[:8])
+    start = time.time()
     response = await call_next(request)
+    response.headers["X-Request-ID"] = request_id
+    duration_ms = round((time.time() - start) * 1000)
+    if request.url.path not in ("/health", "/healthz", "/readyz"):
+        logger.info(f"[{request_id}] {request.method} {request.url.path} → {response.status_code} ({duration_ms}ms)")
     return response
 
-# Configure CORS - environment-aware
 # Configure CORS - environment-aware
 cors_origins = ["*"] if settings.CORS_ALLOW_ALL else settings.cors_origins_list
 
@@ -141,67 +179,93 @@ app.add_middleware(
     allow_credentials=True, # Always allow credentials for specific origins/regex
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["*"],
+    expose_headers=["X-Request-ID"],
     max_age=3600,
 )
 
-# Rate limiting configuration with user-awareness
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
+# Rate limiting — shared limiter instance
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+from rate_limit import limiter
 
-def get_rate_limit_key(request):
-    """Get rate limit key - prefer user ID over IP for authenticated requests."""
-    auth_header = request.headers.get("Authorization", "")
-    if auth_header.startswith("Bearer "):
-        token = auth_header[7:]
-        try:
-            from jose import jwt
-            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-            user_id = payload.get("sub")
-            if user_id:
-                return f"user:{user_id}"
-        except Exception:
-            pass
-    return get_remote_address(request)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-limiter = Limiter(key_func=get_rate_limit_key)
-# app.state.limiter = limiter
-# app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-
-# Global exception handler
+# Global exception handler — standardized error response
 @app.exception_handler(Exception)
-async def global_exception_handler(request, exc):
-    # Silence tracebacks for known optional dependency issues
+async def global_exception_handler(request: Request, exc):
+    request_id = request.headers.get("X-Request-ID", "unknown")
     if isinstance(exc, (ImportError, ModuleNotFoundError)):
-        logger.warning(f"🚫 Dependency missing: {exc}")
+        logger.warning(f"[{request_id}] Dependency missing: {exc}")
     else:
-        logger.error(f"Global exception: {exc}", exc_info=True)
+        logger.error(f"[{request_id}] Unhandled exception: {exc}", exc_info=True)
     return JSONResponse(
         status_code=500,
         content={
-            "status": "error",
-            "message": "Internal server error",
-            "detail": str(exc) if settings.LOG_LEVEL == "DEBUG" else None
+            "error": {
+                "code": "INTERNAL_SERVER_ERROR",
+                "message": "Internal server error",
+                "detail": str(exc) if settings.LOG_LEVEL == "DEBUG" else None,
+                "request_id": request_id,
+            }
         }
     )
 
-# Health check endpoint
+# ── Health / Liveness / Readiness ──────────────────────────────────────
 @app.get("/health")
+@app.get("/healthz")
 async def health_check():
-    """Health check endpoint."""
+    """Liveness probe — returns 200 if process is alive."""
     return {
         "status": "healthy",
         "service": "Legal-Ops Backend Agent",
         "version": settings.VERSION,
-        "deploy_id": "2026-02-10-00-40"
     }
+
+@app.get("/readyz")
+async def readiness_check():
+    """Readiness probe — checks DB and Redis connectivity."""
+    checks = {}
+    ready = True
+    
+    # Check database
+    try:
+        from database import sync_engine
+        from sqlalchemy import text
+        with sync_engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        checks["database"] = "ok"
+    except Exception as e:
+        checks["database"] = f"error: {str(e)[:100]}"
+        ready = False
+    
+    # Check Redis
+    try:
+        import redis as redis_lib
+        r = redis_lib.from_url(settings.REDIS_URL, socket_connect_timeout=2)
+        r.ping()
+        checks["redis"] = "ok"
+    except Exception as e:
+        checks["redis"] = f"error: {str(e)[:100]}"
+        ready = False
+    
+    # Check app readiness flag
+    checks["app_ready"] = _app_ready
+    if not _app_ready:
+        ready = False
+    
+    status_code = 200 if ready else 503
+    return JSONResponse(
+        status_code=status_code,
+        content={"ready": ready, "checks": checks, "version": settings.VERSION}
+    )
 
 @app.get("/version-debug")
 async def version_debug():
-    return {"version": settings.VERSION, "deploy_id": "2026-02-10-00-40", "status": "verified"}
-
-# CORS is handled by CORSMiddleware above - no manual preflight handler needed
+    """Version debug — only available when LOG_LEVEL is DEBUG."""
+    if settings.LOG_LEVEL != "DEBUG":
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"version": settings.VERSION, "status": "verified"}
 
 # Root endpoint
 @app.get("/")
@@ -211,7 +275,8 @@ async def root():
         "message": "Malaysian Legal AI Agent API",
         "version": settings.VERSION,
         "docs": "/docs",
-        "health": "/health"
+        "health": "/health",
+        "readyz": "/readyz",
     }
 
 # Import and include routers

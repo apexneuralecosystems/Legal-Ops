@@ -2,33 +2,15 @@
 Evidence workflow endpoints - Build evidence packets and hearing bundles.
 """
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any, Union
 from database import get_sync_db as get_db
 from orchestrator import OrchestrationController
 from pydantic import BaseModel
 from utils.sync_usage_tracker import SyncUsageTracker
-from config import settings
-from jose import JWTError, jwt
+from dependencies import get_current_user_sync
 
 router = APIRouter()
-security = HTTPBearer()
-
-
-def get_current_user_sync(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-) -> Dict[str, Any]:
-    """Sync auth dependency for evidence endpoints."""
-    token = credentials.credentials
-    try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        user_id = payload.get("sub")
-        if user_id is None:
-            raise HTTPException(status_code=401, detail="Invalid credentials")
-        return {"user_id": user_id, "email": payload.get("email")}
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
 
 class EvidenceRequest(BaseModel):
     matter_id: Union[int, str]

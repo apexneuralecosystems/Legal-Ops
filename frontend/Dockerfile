@@ -1,29 +1,27 @@
 # ============================================
 # Legal-Ops Frontend Dockerfile
 # ============================================
-# Multi-stage build for Next.js production - Optimized for Disk Space
+# Multi-stage build for Next.js + Nginx — Dokploy-ready
+# Traefik routes external traffic; Nginx reverse-proxies to Next.js inside container
 
 # Stage 1: Build the application
 FROM node:20-alpine AS builder
 
-# Install system dependencies in one layer
-RUN apk add --no-cache libc6-compat && \
-    rm -rf /var/cache/apk/*
+RUN apk add --no-cache libc6-compat
 
 WORKDIR /app
 
 # Copy dependency files first for caching
 COPY package.json package-lock.json* ./
 
-# Install ALL dependencies (including devDeps needed for build)
-# and clean cache in the SAME layer to minimize disk usage
+# Install ALL dependencies (devDeps needed for build) and clean cache
 RUN npm ci --prefer-offline --no-audit && \
     npm cache clean --force
 
 # Copy source code
 COPY . .
 
-# Build arguments
+# Build arguments (baked into client JS at build time)
 ARG NEXT_PUBLIC_API_URL
 ARG NEXT_PUBLIC_APP_URL
 
@@ -32,16 +30,15 @@ ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-https://legalops.apexneural.cloud
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
-# Build the app and clean up everything NOT needed for production immediately
-# This drastically reduces the size of the builder stage
+# Build and clean up build artifacts not needed for runtime
 RUN npm run build && \
-    rm -rf src/ components/ pages/ app/ node_modules/.cache node_modules/.cache/terser-webpack-plugin
+    rm -rf src/ components/ pages/ app/ node_modules/.cache
 
-# Stage 3: Production runtime
+# Stage 2: Production runtime
 FROM node:20-alpine AS runner
 
-# Install nginx and cleanup in one layer
-RUN apk add --no-cache nginx dos2unix && \
+# Install nginx, tini (PID 1 signal handler), cleanup
+RUN apk add --no-cache nginx dos2unix tini && \
     rm -rf /var/cache/apk/*
 
 WORKDIR /app
@@ -73,13 +70,16 @@ RUN dos2unix /app/docker-entrypoint.sh && \
 
 USER nextjs
 
+# PORT is the externally-visible port (Nginx). Dokploy maps host→container on this.
 ENV PORT=8006
 EXPOSE 8006
 
-# Health check
+# Health check targets Nginx (the externally facing process)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD wget -q --spider http://localhost:8006/health || exit 1
 
-# Use entrypoint script to start both Next.js and Nginx
-ENTRYPOINT ["/app/docker-entrypoint.sh"]
+# tini as PID 1 for signal forwarding to entrypoint (cleans up child processes)
+STOPSIGNAL SIGTERM
+ENTRYPOINT ["tini", "--"]
+CMD ["/app/docker-entrypoint.sh"]
 

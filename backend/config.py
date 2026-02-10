@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     DB_PORT: int = 5432
     DB_NAME: str = "law_agent_db"
     DB_USER: str = "postgres"
-    DB_PASSWORD: str = "password"
+    DB_PASSWORD: str = ""  # MUST be set via env / Dokploy secrets
     
     # Google Gemini API
     GEMINI_API_KEY: str = ""
@@ -67,7 +67,12 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379/0"  # Set via env for production
     
     # Backend Server Configuration
-    BACKEND_PORT: int = 8091  # Set via env: BACKEND_PORT=8091
+    BACKEND_PORT: int = 8091  # Set via env: BACKEND_PORT=8091 (or PORT)
+    
+    @property
+    def effective_port(self) -> int:
+        """Single source of truth for the server port."""
+        return int(os.getenv("PORT", str(self.BACKEND_PORT)))
     
     # Security
     SECRET_KEY: str
@@ -112,7 +117,7 @@ class Settings(BaseSettings):
     
     # OCR Configuration
     OCR_ENGINE: str = "google_vision"
-    TESSERACT_CMD: str = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+    TESSERACT_CMD: str = "/usr/bin/tesseract" if platform.system() != "Windows" else r"C:\Program Files\Tesseract-OCR\tesseract.exe"
     OCR_LANGUAGES: str = "eng+msa"
     GOOGLE_VISION_API_KEY: str = ""
     
@@ -158,10 +163,23 @@ class Settings(BaseSettings):
         """Create necessary directories if they don't exist."""
         os.makedirs(self.UPLOAD_DIR, exist_ok=True)
         os.makedirs(os.path.dirname(self.LOG_FILE), exist_ok=True)
+    
+    def validate_required_env(self):
+        """Fail fast if critical env vars are missing or insecure."""
+        errors = []
+        if not self.SECRET_KEY or self.SECRET_KEY in ("change_this_in_production", "your_secret_key_here"):
+            errors.append("SECRET_KEY is missing or insecure — generate with: python -c \"import secrets; print(secrets.token_hex(32))\"")
+        if not self.DATABASE_URL:
+            errors.append("DATABASE_URL is required")
+        if errors:
+            for e in errors:
+                logging.critical(f"CONFIG ERROR: {e}")
+            raise RuntimeError(f"Configuration errors: {'; '.join(errors)}")
 
 
 # Global settings instance
 settings = Settings()
 settings.ensure_directories()
+settings.validate_required_env()
 
 

@@ -2,7 +2,6 @@
 Documents API router - Endpoints for document management.
 """
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any, Optional
@@ -10,29 +9,13 @@ from database import get_sync_db as get_db
 from models import Document, Matter
 from models.segment import Segment
 from config import settings
-from jose import JWTError, jwt
+from dependencies import get_current_user_sync
 import os
 import aiofiles
 import logging
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-security = HTTPBearer()
-
-# Sync auth dependency
-def get_current_user_sync(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-) -> Dict[str, Any]:
-    """Validate JWT token and return user info."""
-    token = credentials.credentials
-    try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        user_id = payload.get("sub")
-        if user_id is None:
-            raise HTTPException(status_code=401, detail="Invalid credentials", headers={"WWW-Authenticate": "Bearer"})
-        return {"user_id": user_id, "email": payload.get("email")}
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid credentials", headers={"WWW-Authenticate": "Bearer"})
 
 # Allowed file extensions for upload (security whitelist)
 ALLOWED_EXTENSIONS = {

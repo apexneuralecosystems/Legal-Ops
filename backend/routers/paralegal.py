@@ -1,12 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, Form
 from fastapi.responses import StreamingResponse
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from database import get_sync_db as get_db
 from models import Matter
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
-from jose import JWTError, jwt
 import logging
 import json
 import asyncio
@@ -14,26 +12,10 @@ import os
 import aiofiles
 from datetime import datetime
 from config import settings
-from dependencies import get_current_user
+from dependencies import get_current_user, get_current_user_sync
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-security = HTTPBearer()
-
-# Sync version of auth dependency
-def get_current_user_sync(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-) -> Dict[str, Any]:
-    """Validate JWT token and return user info."""
-    token = credentials.credentials
-    try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        user_id = payload.get("sub")
-        if user_id is None:
-            raise HTTPException(status_code=401, detail="Invalid credentials", headers={"WWW-Authenticate": "Bearer"})
-        return {"user_id": user_id, "email": payload.get("email")}
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid credentials", headers={"WWW-Authenticate": "Bearer"})
 
 class ChatRequest(BaseModel):
     message: str

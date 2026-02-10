@@ -19,21 +19,17 @@ const nextConfig = {
         return config;
     },
     async rewrites() {
-        // Log environment keys to help debug Dokploy networking
-        const envKeys = Object.keys(process.env).filter(k => k.includes('URL') || k.includes('API') || k.includes('BACKEND'));
-        console.log(`[Next.js Runtime] Available URL Env Vars: ${envKeys.join(', ')}`);
-
         // Evaluate BACKEND_URL at runtime (not build time)
-        // 1. Try explicit BACKEND_URL
-        // 2. Try INTERNAL_API_URL
-        // 3. Try PUBLIC_API_URL (last resort, slower but works)
-        // 4. Hard fallback to Docker default
         const BACKEND_URL = process.env.BACKEND_URL ||
             process.env.INTERNAL_API_URL ||
             process.env.NEXT_PUBLIC_API_URL ||
             'http://backend:8091';
 
-        console.log(`[Next.js Runtime] STARTING PROXY: /api -> ${BACKEND_URL}`);
+        if (process.env.NODE_ENV !== 'production') {
+            const envKeys = Object.keys(process.env).filter(k => k.includes('URL') || k.includes('API') || k.includes('BACKEND'));
+            console.log(`[Next.js Runtime] URL Env Vars: ${envKeys.join(', ')}`);
+            console.log(`[Next.js Runtime] PROXY: /api -> ${BACKEND_URL}`);
+        }
 
         return [
             {
@@ -44,6 +40,36 @@ const nextConfig = {
     },
     async headers() {
         return [
+            {
+                // Security headers for all routes
+                source: '/:path*',
+                headers: [
+                    {
+                        key: 'X-Content-Type-Options',
+                        value: 'nosniff',
+                    },
+                    {
+                        key: 'X-Frame-Options',
+                        value: 'SAMEORIGIN',
+                    },
+                    {
+                        key: 'X-XSS-Protection',
+                        value: '1; mode=block',
+                    },
+                    {
+                        key: 'Referrer-Policy',
+                        value: 'strict-origin-when-cross-origin',
+                    },
+                    {
+                        key: 'Permissions-Policy',
+                        value: 'camera=(), microphone=(), geolocation=()',
+                    },
+                    {
+                        key: 'Strict-Transport-Security',
+                        value: 'max-age=31536000; includeSubDomains',
+                    },
+                ],
+            },
             {
                 source: '/api/:path*',
                 headers: [

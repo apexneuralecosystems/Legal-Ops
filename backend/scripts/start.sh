@@ -33,12 +33,17 @@ alembic upgrade head
 echo "✅ Migrations complete"
 
 # Start application
-echo "Starting Gunicorn Server on port ${PORT:-8091}..."
+# Single source of truth for port
+PORT="${PORT:-8091}"
+WORKERS="${GUNICORN_WORKERS:-4}"
+
+echo "Starting Gunicorn on port ${PORT} with ${WORKERS} workers..."
 exec gunicorn main:app \
-    --workers 4 \
+    --workers "${WORKERS}" \
     --worker-class uvicorn.workers.UvicornWorker \
-    --bind 0.0.0.0:${PORT:-8091} \
+    --bind "0.0.0.0:${PORT}" \
     --timeout 300 \
+    --graceful-timeout 30 \
     --max-requests 1000 \
     --max-requests-jitter 50 \
     --access-logfile - \

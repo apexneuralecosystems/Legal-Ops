@@ -2,7 +2,6 @@
 Matters API router - Endpoints for matter management and workflows.
 """
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, validator
@@ -13,7 +12,7 @@ from models.pleading import Pleading
 from models.segment import Segment
 from orchestrator import OrchestrationController
 from config import settings
-from jose import JWTError, jwt
+from dependencies import get_current_user_sync
 from utils.sync_usage_tracker import SyncUsageTracker
 import json
 import logging
@@ -23,44 +22,8 @@ import uuid
 
 router = APIRouter()
 controller = OrchestrationController()
-security = HTTPBearer()
 
 logger = logging.getLogger(__name__)
-
-# Sync version of auth dependency for backward compatibility
-def get_current_user_sync(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-) -> Dict[str, Any]:
-    """
-    Sync version of get_current_user for existing sync endpoints.
-    """
-    token = credentials.credentials
-    
-    try:
-        payload = jwt.decode(
-            token,
-            settings.SECRET_KEY,
-            algorithms=[settings.ALGORITHM]
-        )
-        user_id = payload.get("sub")
-        email = payload.get("email")
-        
-        if user_id is None:
-            raise HTTPException(
-                status_code=401,
-                detail="Invalid authentication credentials",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        
-        return {"user_id": user_id, "email": email}
-        
-    except JWTError as e:
-        print(f"AUTH DEBUG: JWT Decode Failed. Token: {token[:10]}... Error: {e}")
-        raise HTTPException(
-            status_code=401,
-            detail=f"Invalid authentication credentials: {str(e)}",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
 
 
 # Pydantic schemas
@@ -115,7 +78,6 @@ async def start_intake_workflow(
     db: Session = Depends(get_db),
     current_user: Dict[str, Any] = Depends(get_current_user_sync)
 ):
-    print(f"DEBUG: Received intake request. Files: {len(files) if files else 0}, Connector: {connector_type}")
     """
     Start the intake workflow to process uploaded documents.
     
@@ -145,7 +107,6 @@ async def start_intake_workflow(
             if isinstance(e, HTTPException):
                 raise e
             # Otherwise log and continue (fail open for billing errors during demo)
-            print(f"Usage tracking error: {e}")
             logger.error(f"Usage tracking failed: {e}", exc_info=True)
             # Proceed without blocking if usage check fails (fail open)
         

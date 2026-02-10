@@ -4,7 +4,7 @@ Provides signup, login, token management, and password reset endpoints.
 
 Version: Uses apex-saas-framework 0.3.24 (local module)
 """
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, EmailStr
 from typing import Optional
@@ -27,6 +27,9 @@ from apex import Client as ApexClient
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
+# Rate limiter — shared instance
+from rate_limit import limiter
+
 # Log apex module status
 logger.info("Apex SaaS Framework loaded (local module v0.3.24)")
 
@@ -37,6 +40,17 @@ class SignupRequest(BaseModel):
     password: str
     full_name: Optional[str] = None
     username: Optional[str] = None
+    
+    @classmethod
+    def __get_validators__(cls):
+        yield from super().__get_validators__()
+    
+    def model_post_init(self, __context) -> None:
+        """Validate password strength."""
+        if len(self.password) < 8:
+            raise ValueError("Password must be at least 8 characters long")
+        if self.password.isdigit() or self.password.isalpha():
+            raise ValueError("Password must contain both letters and numbers")
 
 
 class LoginRequest(BaseModel):
@@ -84,7 +98,8 @@ class UserResponse(BaseModel):
 
 
 @router.post("/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def signup(request: SignupRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def signup(request: SignupRequest, raw_request: Request, db: AsyncSession = Depends(get_db)):
     """
     Create a new user account.
     
@@ -135,9 +150,11 @@ async def signup(request: SignupRequest, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("10/minute")
+async def login(request: LoginRequest, raw_request: Request, db: AsyncSession = Depends(get_db)):
     """
     Authenticate user and get JWT tokens.
+    Rate limited: 10 attempts per minute per IP (via slowapi in main.py).
     
     - **email**: User's email address
     - **password**: User's password
@@ -189,7 +206,8 @@ async def refresh(request: RefreshRequest, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/forgot-password", response_model=MessageResponse)
-async def forgot_password(request: ForgotPasswordRequest, background_tasks: BackgroundTasks):
+@limiter.limit("5/minute")
+async def forgot_password(request: ForgotPasswordRequest, raw_request: Request, background_tasks: BackgroundTasks):
     """
     Request password reset. Sends email with reset link.
     """
@@ -221,8 +239,8 @@ async def forgot_password(request: ForgotPasswordRequest, background_tasks: Back
                 )
                 logger.info(f"Password reset email queued for {request.email}")
             else:
-                # No email client - log token for development
-                logger.warning(f"No email client - reset token for {request.email}: {result['reset_token'][:20]}...")
+                # No email client — do NOT log the actual token in production
+                logger.warning(f"No email client configured — password reset requested for {request.email}")
         
         return MessageResponse(
             message="If the email exists, a password reset link will be sent."
@@ -260,16 +278,17 @@ async def reset_password(request: ResetPasswordRequest):
 
 
 @router.post("/verify")
-async def verify_token(token: str):
+async def verify_token_endpoint(request: RefreshRequest):
     """
     Verify a JWT token.
+    Accepts token in request body (refresh_token field).
     """
     try:
         apex_client = get_apex_client()
         if not apex_client:
             raise ValueError("Apex client not initialized")
         
-        payload = await apex_verify_token(token=token, client=apex_client)
+        payload = await apex_verify_token(token=request.refresh_token, client=apex_client)
         
         return {
             "valid": True,

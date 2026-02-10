@@ -50,6 +50,13 @@ async def get_current_user(
         if user_id is None:
             raise credentials_exception
         
+        # Enforce is_active flag
+        if not payload.get("is_active", True):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Account is deactivated",
+            )
+        
         return {
             "user_id": user_id,
             "email": payload.get("email"),
@@ -84,15 +91,20 @@ async def get_current_superuser(
 
 
 # Synchronous version for routers that don't use async
+# Uses a cached ThreadPoolExecutor to avoid per-request overhead
+import concurrent.futures
+import asyncio
+
+_sync_auth_pool = concurrent.futures.ThreadPoolExecutor(max_workers=4, thread_name_prefix="sync-auth")
+
+
 def get_current_user_sync(
     credentials: HTTPAuthorizationCredentials = Depends(oauth2_scheme),
 ) -> Dict[str, Any]:
     """
     Synchronous dependency to get current user from JWT token.
-    For use in non-async endpoints.
+    For use in non-async endpoints. Uses a shared thread pool.
     """
-    import asyncio
-    
     async def _verify():
         from apex.auth import verify_token as apex_verify_token
         
@@ -105,26 +117,28 @@ def get_current_user_sync(
         try:
             payload = await apex_verify_token(token=token, client=apex_client)
             user_id = payload.get("user_id") or payload.get("sub")
+            if not user_id:
+                return None
+            if not payload.get("is_active", True):
+                return None
             return {
                 "user_id": user_id,
                 "email": payload.get("email"),
                 "is_active": payload.get("is_active", True),
                 "is_superuser": payload.get("is_superuser", False),
             }
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Sync token verification failed: {e}")
             return None
     
-    # Try to get existing event loop or create new one
+    # We're likely in a running event loop (FastAPI), so run in a separate thread
     try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # We're in an async context, use run_coroutine_threadsafe or nest
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor() as pool:
-                result = pool.submit(asyncio.run, _verify()).result()
-        else:
-            result = loop.run_until_complete(_verify())
+        loop = asyncio.get_running_loop()
+        # Already inside async loop — use thread pool
+        future = _sync_auth_pool.submit(asyncio.run, _verify())
+        result = future.result(timeout=10)
     except RuntimeError:
+        # No running loop — just run directly
         result = asyncio.run(_verify())
     
     if not result:

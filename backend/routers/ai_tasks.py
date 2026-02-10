@@ -2,35 +2,13 @@
 AI Tasks API router - Endpoints for real-time AI task status.
 """
 from fastapi import APIRouter, Depends, Request
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from database import get_sync_db as get_db
 from models import Matter
 from typing import List, Dict, Any
 from datetime import datetime, timedelta
 import logging
-from jose import JWTError, jwt
-from config import settings
-
-# Auth dependency (duplicated for now to avoid circular imports, usually similar to other routers)
-security = HTTPBearer()
-
-def get_current_user_sync(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-) -> Dict[str, Any]:
-    token = credentials.credentials
-    try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        user_id = payload.get("sub")
-        return {"user_id": user_id, "email": payload.get("email")}
-    except Exception as e:
-        logger.error(f"Auth error in ai_tasks: {e}")
-        # Return empty/safe default or raise Proper HTTP 401
-        from fastapi import HTTPException
-        raise HTTPException(status_code=401, detail="Invalid authentication credentials") 
-
-# Better to reuse from another module or redefine properly
-
+from dependencies import get_current_user_sync
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
