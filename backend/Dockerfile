@@ -61,6 +61,11 @@ RUN apt-get update && apt-get install -y dos2unix && \
     chmod +x scripts/start.sh && \
     rm -rf /var/lib/apt/lists/*
 
+# Install Playwright Browsers (Chromium only to save space)
+RUN pip install playwright && \
+    playwright install --with-deps chromium && \
+    (python -m spacy download en_core_web_sm || true)
+
 # Create necessary directories
 RUN mkdir -p /app/uploads /app/logs && \
     chmod -R 755 /app
