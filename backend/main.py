@@ -116,6 +116,16 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# DEBUG: Log headers for OPTIONS requests to debug CORS 405
+from fastapi import Request
+@app.middleware("http")
+async def log_options_headers(request: Request, call_next):
+    if request.method == "OPTIONS":
+        logger.info(f"OPTIONS Request to {request.url} from {request.client.host}")
+        logger.info(f"Headers: {dict(request.headers)}")
+    response = await call_next(request)
+    return response
+
 # Configure CORS - environment-aware
 # Configure CORS - environment-aware
 cors_origins = ["*"] if settings.CORS_ALLOW_ALL else settings.cors_origins_list
