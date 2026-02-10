@@ -7,9 +7,12 @@ import os
 import platform
 import certifi
 
-# SSL Fix for Windows/PostgreSQL conflicts
+# SSL and Playwright environment fixes
 os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
 os.environ["SSL_CERT_FILE"] = certifi.where()
+
+# CRITICAL: Force Playwright to use the pre-installed browsers in Dokploy
+os.environ["PLAYWRIGHT_BROWSERS_PATH"] = "/app/pw-browsers"
 
 
 class Settings(BaseSettings):
@@ -17,7 +20,7 @@ class Settings(BaseSettings):
     
     # Base directory (backend folder)
     BASE_DIR: str = os.path.dirname(os.path.abspath(__file__))
-    VERSION: str = "1.0.1"  # Bump to force Docker rebuild
+    VERSION: str = "1.1.0"  # Bump to force clean rebuild and new config
     
     # Database
     DATABASE_URL: str
