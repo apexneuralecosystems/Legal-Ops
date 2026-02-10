@@ -5,11 +5,13 @@
 
 # Stage 1: Dependencies
 FROM node:20-alpine AS deps
-RUN apk add --no-cache libc6-compat
+# Install dependencies in one layer and clean cache immediately
+RUN apk add --no-cache libc6-compat && \
+    rm -rf /var/cache/apk/*
 
 WORKDIR /app
 COPY package.json package-lock.json* ./
-# Use --omit=dev to keep node_modules tiny
+# Use --omit=dev and clean cache in the same layer
 RUN npm ci --prefer-offline --no-audit && \
     npm cache clean --force
 
@@ -18,7 +20,7 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy dependencies
+# Copy dependencies from deps stage
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
@@ -33,7 +35,7 @@ ENV NODE_ENV=production
 
 # Build the app and clean up source after build to save intermediate space
 RUN npm run build && \
-    rm -rf src/ components/ pages/ app/
+    rm -rf src/ components/ pages/ app/ node_modules/.cache
 
 # Stage 3: Production runtime
 FROM node:20-alpine AS runner
