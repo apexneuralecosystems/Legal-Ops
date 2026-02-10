@@ -270,8 +270,12 @@ async def paralegal_chat(
                     # Distinct separator for Devil's Advocate
                     sep = "\n\n---\n\n"
                     yield f"data: {json.dumps({'type': 'token', 'content': sep})}\n\n"
-                    yield f"data: {json.dumps({'type': 'token', 'content': '# 🔴 Devils Advocate Challenge\\n\\n'})}\n\n"
-                    yield f"data: {json.dumps({'type': 'token', 'content': '*This critical review identifies vulnerabilities in the analysis above.*\\n\\n'})}\n\n"
+                    
+                    header = "# 🔴 Devils Advocate Challenge\n\n"
+                    yield f"data: {json.dumps({'type': 'token', 'content': header})}\n\n"
+                    
+                    subtext = "*This critical review identifies vulnerabilities in the analysis above.*\n\n"
+                    yield f"data: {json.dumps({'type': 'token', 'content': subtext})}\n\n"
                     
                     challenge_words = challenge.split(" ")
                     for word in challenge_words:
