@@ -15,6 +15,11 @@ const INTERNAL_API_URL = process.env.INTERNAL_API_URL ||
     process.env.BACKEND_URL ||
     'http://backend:8091'
 
+if (typeof window === 'undefined') {
+    console.log(`[Next.js SSR] Internal API URL: ${INTERNAL_API_URL}`);
+    console.log(`[Next.js SSR] Public API URL: ${PUBLIC_API_URL}`);
+}
+
 // Determine which URL to use based on environment (Server vs Client)
 const API_URL = typeof window === 'undefined' ? INTERNAL_API_URL : PUBLIC_API_URL
 
