@@ -94,6 +94,9 @@ services:
       PAYPAL_CLIENT_SECRET: ${PAYPAL_CLIENT_SECRET:-}
       PAYPAL_MODE: ${PAYPAL_MODE:-sandbox}
 
+      # Playwright
+      PLAYWRIGHT_BROWSERS_PATH: /app/pw-browsers
+
       # SendGrid (optional)
       SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
       FROM_EMAIL: ${FROM_EMAIL:-noreply@example.com}

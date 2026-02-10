@@ -10,7 +10,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH="/app" \
     PORT=8000 \
-    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
+    PLAYWRIGHT_BROWSERS_PATH=/app/pw-browsers \
     PIP_NO_CACHE_DIR=1
 
 WORKDIR /app
@@ -35,6 +35,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && pip install --upgrade pip --no-cache-dir \
     && pip install -r requirements.txt --no-cache-dir \
     && python -m spacy download en_core_web_sm || true \
+    && playwright install --with-deps chromium \
     && apt-get purge -y --auto-remove build-essential gcc \
     && rm -rf /var/lib/apt/lists/* \
     && rm -rf /root/.cache
@@ -43,12 +44,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY . .
 
 # Create necessary directories and set permissions
-# Playwright image already has 'pwuser' (UID 1000)
-RUN mkdir -p /app/uploads /app/logs && \
-    chown -R pwuser:pwuser /app
+# Match the user reported in the error log (appuser)
+RUN groupadd -g 1001 appuser && \
+    useradd -r -u 1001 -g appuser -m appuser && \
+    mkdir -p /app/uploads /app/logs /app/pw-browsers && \
+    chown -R appuser:appuser /app
 
-# Switch to the existing non-root user
-USER pwuser
+# Switch to non-root user
+USER appuser
 
 # Expose port
 EXPOSE ${PORT:-8091}
