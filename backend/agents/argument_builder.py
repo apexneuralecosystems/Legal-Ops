@@ -335,12 +335,29 @@ Generate a JSON object with EXHAUSTIVE DETAIL for each section. Your goal is 150
         try:
             json_response = await self.llm.generate(json_prompt, max_tokens=16000)
             
-            # Extract JSON from response
+            # Extract JSON from response — handle ```json``` code blocks
             import json
             import re
-            match = re.search(r'\{.*\}', json_response, re.DOTALL)
-            if match:
-                data = json.loads(match.group(0))
+            
+            # Strip markdown code fences if present (```json ... ``` or ``` ... ```)
+            cleaned = json_response.strip()
+            fence_match = re.search(r'```(?:json)?\s*\n?(\{.*?\})\s*```', cleaned, re.DOTALL)
+            if fence_match:
+                json_str = fence_match.group(1)
+            else:
+                # Fallback: find outermost { ... }
+                brace_match = re.search(r'\{.*\}', cleaned, re.DOTALL)
+                json_str = brace_match.group(0) if brace_match else None
+            
+            if json_str:
+                try:
+                    data = json.loads(json_str)
+                except json.JSONDecodeError as jde:
+                    # Try fixing common LLM JSON issues: trailing commas, single quotes
+                    logger.warning(f"JSON decode error: {jde}, attempting repair...")
+                    # Remove trailing commas before } or ]
+                    repaired = re.sub(r',\s*([}\]])', r'\1', json_str)
+                    data = json.loads(repaired)
                 
                 # ⭐ PHASE 3: Self-Reflect / Verification Step
                 # Verify generated analysis against source text (Headnotes/Facts)

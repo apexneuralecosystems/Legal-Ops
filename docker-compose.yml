@@ -102,6 +102,14 @@ services:
       # Playwright
       PLAYWRIGHT_BROWSERS_PATH: /app/pw-browsers
 
+      # Lexis Advance (Robot Research)
+      LEXIS_USERNAME: ${LEXIS_USERNAME:-}
+      LEXIS_PASSWORD: ${LEXIS_PASSWORD:-}
+      LEXIS_HEADLESS: ${LEXIS_HEADLESS:-true}
+
+      # Google Vision OCR (optional)
+      GOOGLE_VISION_API_KEY: ${GOOGLE_VISION_API_KEY:-}
+
       # SendGrid (optional)
       SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
       FROM_EMAIL: ${FROM_EMAIL:-noreply@example.com}

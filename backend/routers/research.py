@@ -286,6 +286,7 @@ async def get_judgment_cache(
 async def _background_citation_fetch(cases: list, user_id: str = None, fetch_id: str = None):
     """
     Background task: Fetch judgments by citation using the pooled browser page.
+    Uses the already-authenticated browser from the search (via cookies or UM Library login).
     Updates _fetch_status so frontend can poll for progress.
     """
     from services.lexis_scraper import LexisScraper
