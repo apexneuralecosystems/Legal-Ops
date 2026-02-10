@@ -1,7 +1,7 @@
 """
 User settings and preferences API - Lexis Cookie Management
 """
-from fastapi import APIRouter, Depends, HTTPException, Body
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List, Optional
@@ -29,13 +29,20 @@ class LexisCookieResponse(BaseModel):
 
 @router.post("/lexis-cookies/validate")
 async def validate_lexis_cookies(
-    cookies: List[dict] = Body(...),
+    request: Request,
     current_user: dict = Depends(get_current_user)
 ):
     """
     Validate Lexis cookies without saving.
     Frontend calls this before showing "Save" option.
     """
+    try:
+        cookies = await request.json()
+        if not isinstance(cookies, list):
+            raise ValueError("Payload must be a list of cookies")
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f"Invalid JSON payload: {str(e)}")
+
     logger.info(f"🔍 Validating {len(cookies)} cookies for user {current_user.get('user_id')}")
     
     try:
@@ -75,13 +82,19 @@ async def validate_lexis_cookies(
 
 @router.post("/lexis-cookies/save", response_model=LexisCookieResponse)
 async def save_lexis_cookies(
-    cookies: List[dict] = Body(...),
+    request: Request,
     db: Session = Depends(get_sync_db),
     current_user: dict = Depends(get_current_user)
 ):
     """
     Save validated Lexis cookies to user profile (encrypted).
     """
+    try:
+        cookies = await request.json()
+        if not isinstance(cookies, list):
+            raise ValueError("Payload must be a list of cookies")
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f"Invalid JSON payload: {str(e)}")
     try:
         # First validate
         scraper = LexisScraper(use_pool=False)
