@@ -24,12 +24,16 @@ const nextConfig = {
         console.log(`[Next.js Runtime] Available URL Env Vars: ${envKeys.join(', ')}`);
 
         // Evaluate BACKEND_URL at runtime (not build time)
-        // In Dokploy, 'backend' is often prefixed by the project name
+        // 1. Try explicit BACKEND_URL
+        // 2. Try INTERNAL_API_URL
+        // 3. Try PUBLIC_API_URL (last resort, slower but works)
+        // 4. Hard fallback to Docker default
         const BACKEND_URL = process.env.BACKEND_URL ||
             process.env.INTERNAL_API_URL ||
+            process.env.NEXT_PUBLIC_API_URL ||
             'http://backend:8091';
 
-        console.log(`[Next.js Runtime] Proxying /api to: ${BACKEND_URL}`);
+        console.log(`[Next.js Runtime] STARTING PROXY: /api -> ${BACKEND_URL}`);
 
         return [
             {
