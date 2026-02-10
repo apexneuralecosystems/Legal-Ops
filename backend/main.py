@@ -117,11 +117,18 @@ app = FastAPI(
 )
 
 # Configure CORS - environment-aware
+# Configure CORS - environment-aware
 cors_origins = ["*"] if settings.CORS_ALLOW_ALL else settings.cors_origins_list
+
+# Allow all subdomains of the production domain via regex
+# This catches www.legalops... vs legalops... vs other variations
+allow_origin_regex = r"https://.*\.apexneural\.cloud" if not settings.CORS_ALLOW_ALL else None
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
-    allow_credentials=not settings.CORS_ALLOW_ALL,  # Can't use credentials with wildcard
+    allow_origin_regex=allow_origin_regex,
+    allow_credentials=True, # Always allow credentials for specific origins/regex
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
