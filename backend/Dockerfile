@@ -25,12 +25,12 @@ COPY requirements.txt .
 RUN python -m venv /opt/venv
 # Make sure we use the venv's pip
 ENV PATH="/opt/venv/bin:$PATH"
-RUN pip install --upgrade pip && \
-    pip install -r requirements.txt
+# Use --no-cache-dir to save space
+RUN pip install --upgrade pip --no-cache-dir && \
+    pip install -r requirements.txt --no-cache-dir
 
 # Stage 2: Runtime
 # Use official Playwright image which includes all browsers and dependencies
-# This avoids the "libllvm19" and "missing executable" errors
 FROM mcr.microsoft.com/playwright/python:v1.49.1-jammy
 
 WORKDIR /app
@@ -46,6 +46,7 @@ ENV PATH="/opt/venv/bin:$PATH" \
 
 # Install runtime system dependencies (Postgres, OCR)
 # Note: Playwright image is Ubuntu-based (jammy), so we use apt-get
+# Clean up apt lists in the same layer to save space
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     tesseract-ocr \
@@ -61,8 +62,6 @@ RUN python -m spacy download en_core_web_sm || true
 
 # Copy application code
 COPY . .
-
-
 
 # Create necessary directories
 RUN mkdir -p /app/uploads /app/logs && \
