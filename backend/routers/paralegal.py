@@ -268,7 +268,8 @@ async def paralegal_chat(
                 
                 if challenge and not challenge.startswith("["):
                     # Distinct separator for Devil's Advocate
-                    yield f"data: {json.dumps({'type': 'token', 'content': '\\n\\n---\\n\\n'})}\n\n"
+                    sep = "\n\n---\n\n"
+                    yield f"data: {json.dumps({'type': 'token', 'content': sep})}\n\n"
                     yield f"data: {json.dumps({'type': 'token', 'content': '# 🔴 Devils Advocate Challenge\\n\\n'})}\n\n"
                     yield f"data: {json.dumps({'type': 'token', 'content': '*This critical review identifies vulnerabilities in the analysis above.*\\n\\n'})}\n\n"
                     
