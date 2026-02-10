@@ -348,9 +348,10 @@ dumps/
 *.pickle
 *.pt
 *.pth
-models/
+# models/  # REMOVED: This was blocking backend/models/ Python package from git!
 checkpoints/
 trained_models/
+ml_models/
 
 # ============================================
 # Local Artifacts & Tools
