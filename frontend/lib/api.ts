@@ -585,9 +585,7 @@ export const api = {
      */
     validateLexisCookies: async (cookies: any[]) => {
         try {
-            const response = await apiClient.post('/user/lexis-cookies/validate', {
-                cookies
-            })
+            const response = await apiClient.post('/user/lexis-cookies/validate', cookies)
             return response.data
         } catch (error) {
             console.error('Error validating cookies:', error)
@@ -602,9 +600,7 @@ export const api = {
      */
     saveLexisCookies: async (cookies: any[]) => {
         try {
-            const response = await apiClient.post('/user/lexis-cookies/save', {
-                cookies
-            })
+            const response = await apiClient.post('/user/lexis-cookies/save', cookies)
             return response.data
         } catch (error) {
             console.error('Error saving cookies:', error)

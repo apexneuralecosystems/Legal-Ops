@@ -16,8 +16,8 @@ router = APIRouter(tags=["user_settings"])
 logger = logging.getLogger(__name__)
 
 
-class LexisCookieRequest(BaseModel):
-    cookies: List[dict]  # Raw cookies from browser export
+# No wrapper needed for direct list input
+# type LexisCookieRequest = List[dict]
 
 
 class LexisCookieResponse(BaseModel):
@@ -29,14 +29,14 @@ class LexisCookieResponse(BaseModel):
 
 @router.post("/lexis-cookies/validate")
 async def validate_lexis_cookies(
-    request: LexisCookieRequest,
+    cookies: List[dict],
     current_user: dict = Depends(get_current_user)
 ):
     """
     Validate Lexis cookies without saving.
     Frontend calls this before showing "Save" option.
     """
-    logger.info(f"🔍 Validating {len(request.cookies)} cookies for user {current_user.get('user_id')}")
+    logger.info(f"🔍 Validating {len(cookies)} cookies for user {current_user.get('user_id')}")
     
     try:
         scraper = LexisScraper(use_pool=False)  # Use dedicated instance for validation
@@ -44,7 +44,7 @@ async def validate_lexis_cookies(
         
         try:
             logger.info("Injecting cookies into browser context...")
-            await scraper.inject_cookies(request.cookies)
+            await scraper.inject_cookies(cookies)
             
             logger.info("Navigating to Lexis Advance...")
             await scraper._page.goto("https://advance.lexis.com/search", timeout=30000, wait_until="domcontentloaded")
@@ -75,7 +75,7 @@ async def validate_lexis_cookies(
 
 @router.post("/lexis-cookies/save", response_model=LexisCookieResponse)
 async def save_lexis_cookies(
-    request: LexisCookieRequest,
+    cookies: List[dict],
     db: Session = Depends(get_sync_db),
     current_user: dict = Depends(get_current_user)
 ):
@@ -88,7 +88,7 @@ async def save_lexis_cookies(
         await scraper.start_robot()
         
         try:
-            await scraper.inject_cookies(request.cookies)
+            await scraper.inject_cookies(cookies)
             await scraper._page.goto("https://advance.lexis.com/search", timeout=20000)
             valid = await scraper.check_is_logged_in()
         finally:
@@ -106,7 +106,7 @@ async def save_lexis_cookies(
             db.add(creds)
         
         expiry = datetime.utcnow() + timedelta(hours=23)  # Conservative 23h expiry
-        creds.set_cookies(request.cookies, expiry)
+        creds.set_cookies(cookies, expiry)
         db.commit()
         
         logger.info(f"✅ Saved Lexis cookies for user {user_id}")
