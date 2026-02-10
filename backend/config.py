@@ -141,9 +141,15 @@ class Settings(BaseSettings):
     @property
     def cors_origins_list(self) -> List[str]:
         """Parse CORS origins - handles both JSON array and comma-separated string."""
-        if isinstance(self.CORS_ORIGINS, list):
-            return self.CORS_ORIGINS
-        return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
+        origins = self.CORS_ORIGINS
+        if isinstance(origins, str):
+            origins = [origin.strip() for origin in origins.split(",")]
+            
+        # Always ensure production frontend is allowed
+        if self.FRONTEND_URL and self.FRONTEND_URL not in origins:
+            origins.append(self.FRONTEND_URL)
+            
+        return origins
     
     def ensure_directories(self):
         """Create necessary directories if they don't exist."""
