@@ -99,7 +99,7 @@ class UserResponse(BaseModel):
 
 @router.post("/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("5/minute")
-async def signup(request: SignupRequest, raw_request: Request, db: AsyncSession = Depends(get_db)):
+async def signup(signup_request: SignupRequest, request: Request, db: AsyncSession = Depends(get_db)):
     """
     Create a new user account.
     
@@ -113,12 +113,12 @@ async def signup(request: SignupRequest, raw_request: Request, db: AsyncSession 
         first_name = ""
         last_name = ""
         
-        if request.full_name:
-            name_parts = request.full_name.split(' ', 1)
+        if signup_request.full_name:
+            name_parts = signup_request.full_name.split(' ', 1)
             first_name = name_parts[0]
             last_name = name_parts[1] if len(name_parts) > 1 else ""
-        elif request.username:
-            first_name = request.username
+        elif signup_request.username:
+            first_name = signup_request.username
         
         # Get Apex client
         apex_client = get_apex_client()
@@ -126,8 +126,8 @@ async def signup(request: SignupRequest, raw_request: Request, db: AsyncSession 
             raise ValueError("Apex client not initialized")
         
         user = await apex_signup(
-            email=request.email,
-            password=request.password,
+            email=signup_request.email,
+            password=signup_request.password,
             first_name=first_name,
             last_name=last_name,
             client=apex_client
@@ -136,8 +136,8 @@ async def signup(request: SignupRequest, raw_request: Request, db: AsyncSession 
         return UserResponse(
             id=str(user["id"]),
             email=user["email"],
-            full_name=user.get("full_name") or request.full_name or request.username,
-            username=request.username,
+            full_name=user.get("full_name") or signup_request.full_name or signup_request.username,
+            username=signup_request.username,
             is_active=user.get("is_active", True)
         )
     except ValueError as e:
@@ -151,7 +151,7 @@ async def signup(request: SignupRequest, raw_request: Request, db: AsyncSession 
 
 @router.post("/login", response_model=TokenResponse)
 @limiter.limit("10/minute")
-async def login(request: LoginRequest, raw_request: Request, db: AsyncSession = Depends(get_db)):
+async def login(login_request: LoginRequest, request: Request, db: AsyncSession = Depends(get_db)):
     """
     Authenticate user and get JWT tokens.
     Rate limited: 10 attempts per minute per IP (via slowapi in main.py).
@@ -167,8 +167,8 @@ async def login(request: LoginRequest, raw_request: Request, db: AsyncSession = 
             raise ValueError("Apex client not initialized")
         
         tokens = await apex_login(
-            email=request.email,
-            password=request.password,
+            email=login_request.email,
+            password=login_request.password,
             client=apex_client
         )
         
@@ -207,7 +207,7 @@ async def refresh(request: RefreshRequest, db: AsyncSession = Depends(get_db)):
 
 @router.post("/forgot-password", response_model=MessageResponse)
 @limiter.limit("5/minute")
-async def forgot_password(request: ForgotPasswordRequest, raw_request: Request, background_tasks: BackgroundTasks):
+async def forgot_password(forgot_request: ForgotPasswordRequest, request: Request, background_tasks: BackgroundTasks):
     """
     Request password reset. Sends email with reset link.
     """
@@ -217,7 +217,7 @@ async def forgot_password(request: ForgotPasswordRequest, raw_request: Request, 
             raise ValueError("Apex client not initialized")
         
         result = await apex_forgot_password(
-            email=request.email,
+            email=forgot_request.email,
             client=apex_client
         )
         
@@ -233,14 +233,14 @@ async def forgot_password(request: ForgotPasswordRequest, raw_request: Request, 
                 # Send email in background
                 background_tasks.add_task(
                     email_client.send_password_reset_email,
-                    to_email=request.email,
+                    to_email=forgot_request.email,
                     reset_token=result["reset_token"],
                     reset_url_base=reset_url
                 )
-                logger.info(f"Password reset email queued for {request.email}")
+                logger.info(f"Password reset email queued for {forgot_request.email}")
             else:
                 # No email client — do NOT log the actual token in production
-                logger.warning(f"No email client configured — password reset requested for {request.email}")
+                logger.warning(f"No email client configured — password reset requested for {forgot_request.email}")
         
         return MessageResponse(
             message="If the email exists, a password reset link will be sent."
