@@ -172,6 +172,10 @@ async def cors_and_request_id_middleware(request: Request, call_next):
             # Get the origin from request headers
             origin = request.headers.get("origin", "*")
             
+            requested_headers = request.headers.get("access-control-request-headers")
+            if not requested_headers:
+                requested_headers = "Content-Type, Authorization, X-Request-ID"
+
             # Return proper CORS response for OPTIONS preflight
             cors_response = JSONResponse(
                 status_code=200,
@@ -179,7 +183,7 @@ async def cors_and_request_id_middleware(request: Request, call_next):
                 headers={
                     "Access-Control-Allow-Origin": origin,
                     "Access-Control-Allow-Methods": "POST, GET, PUT, DELETE, PATCH, OPTIONS",
-                    "Access-Control-Allow-Headers": "*",  # Allow all headers including authorization
+                    "Access-Control-Allow-Headers": requested_headers,
                     "Access-Control-Max-Age": "3600",
                     "Access-Control-Allow-Credentials": "true",
                     "X-Request-ID": request_id,
@@ -217,13 +221,16 @@ async def cors_and_request_id_middleware(request: Request, call_next):
         logger.error(f"[CORS-DEBUG] [{request_id}] Error in middleware: {str(e)}", exc_info=True)
         # Return error response with CORS headers if it's an API endpoint
         if request.url.path.startswith("/api") and request.method == "OPTIONS":
+            requested_headers = request.headers.get("access-control-request-headers")
+            if not requested_headers:
+                requested_headers = "Content-Type, Authorization, X-Request-ID"
             return JSONResponse(
                 status_code=500,
                 content={"error": "Internal server error"},
                 headers={
                     "Access-Control-Allow-Origin": request.headers.get("origin", "*"),
                     "Access-Control-Allow-Methods": "POST, GET, PUT, DELETE, PATCH, OPTIONS",
-                    "Access-Control-Allow-Headers": "*",  # Allow all headers including authorization
+                    "Access-Control-Allow-Headers": requested_headers,
                     "Access-Control-Allow-Credentials": "true",
                     "X-Request-ID": request_id,
                 }
@@ -259,7 +266,7 @@ app.add_middleware(
     allow_origin_regex=allow_origin_regex,
     allow_credentials=True, # Always allow credentials for specific origins/regex
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["*"],  # Allow all headers including authorization
+    allow_headers=["Authorization", "Content-Type", "X-Request-ID", "X-Requested-With"],
     expose_headers=["X-Request-ID"],
     max_age=3600,
 )
