@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -148,6 +148,7 @@ function ResetPasswordForm() {
                                     placeholder="••••••••"
                                     required
                                     minLength={8}
+                                    autoComplete="new-password"
                                 />
                                 <button
                                     type="button"
@@ -172,6 +173,7 @@ function ResetPasswordForm() {
                                     className="w-full pl-10 pr-4 py-3 bg-slate-900/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                                     placeholder="••••••••"
                                     required
+                                    autoComplete="new-password"
                                 />
                             </div>
                         </div>

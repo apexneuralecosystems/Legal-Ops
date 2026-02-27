@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useState } from 'react'
 import Link from 'next/link'
@@ -80,6 +80,7 @@ export default function LoginPage() {
                                 <input
                                     type="email"
                                     required
+                                    autoComplete="email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     className="w-full pl-10 pr-4 py-3 bg-black/60 border border-[#D4A853]/20 rounded-lg focus:outline-none focus:border-[#D4A853] focus:ring-1 focus:ring-[#D4A853] text-slate-200 placeholder-gray-500 transition-all font-light"
@@ -103,9 +104,10 @@ export default function LoginPage() {
                                 <input
                                     type="password"
                                     required
+                                    autoComplete="current-password"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-3 bg-black/60 border border-[#D4A853]/20 rounded-lg focus:outline-none focus:border-[#D4A853] focus:ring-1 focus:ring-[#D4A853] text-slate-200 placeholder-gray-500 transition-all font-light"
+                                    className="w-full pl-10 pr-4 py-3 bg-black/60 border border-[#D4A853]/20 rounded-lg focus:outline-none focus:border-[#D4A853] text-slate-200 placeholder-gray-500 transition-all font-light focus:outline-none focus:ring-1 focus:ring-[#D4A853]"
                                     placeholder="••••••••"
                                 />
                             </div>

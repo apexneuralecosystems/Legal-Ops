@@ -173,8 +173,18 @@ async def cors_and_request_id_middleware(request: Request, call_next):
             origin = request.headers.get("origin", "*")
             
             requested_headers = request.headers.get("access-control-request-headers")
-            if not requested_headers:
-                requested_headers = "Content-Type, Authorization, X-Request-ID"
+            if requested_headers:
+                header_list = [h.strip() for h in requested_headers.split(",") if h.strip()]
+            else:
+                header_list = ["Content-Type", "Authorization", "X-Request-ID"]
+            
+            lowered = {h.lower() for h in header_list}
+            if "authorization" not in lowered:
+                header_list.append("Authorization")
+            if "content-type" not in lowered:
+                header_list.append("Content-Type")
+            
+            allow_headers_value = ", ".join(header_list)
 
             # Return proper CORS response for OPTIONS preflight
             cors_response = JSONResponse(
@@ -183,7 +193,7 @@ async def cors_and_request_id_middleware(request: Request, call_next):
                 headers={
                     "Access-Control-Allow-Origin": origin,
                     "Access-Control-Allow-Methods": "POST, GET, PUT, DELETE, PATCH, OPTIONS",
-                    "Access-Control-Allow-Headers": requested_headers,
+                    "Access-Control-Allow-Headers": allow_headers_value,
                     "Access-Control-Max-Age": "3600",
                     "Access-Control-Allow-Credentials": "true",
                     "X-Request-ID": request_id,
@@ -222,15 +232,23 @@ async def cors_and_request_id_middleware(request: Request, call_next):
         # Return error response with CORS headers if it's an API endpoint
         if request.url.path.startswith("/api") and request.method == "OPTIONS":
             requested_headers = request.headers.get("access-control-request-headers")
-            if not requested_headers:
-                requested_headers = "Content-Type, Authorization, X-Request-ID"
+            if requested_headers:
+                header_list = [h.strip() for h in requested_headers.split(",") if h.strip()]
+            else:
+                header_list = ["Content-Type", "Authorization", "X-Request-ID"]
+            lowered = {h.lower() for h in header_list}
+            if "authorization" not in lowered:
+                header_list.append("Authorization")
+            if "content-type" not in lowered:
+                header_list.append("Content-Type")
+            allow_headers_value = ", ".join(header_list)
             return JSONResponse(
                 status_code=500,
                 content={"error": "Internal server error"},
                 headers={
                     "Access-Control-Allow-Origin": request.headers.get("origin", "*"),
                     "Access-Control-Allow-Methods": "POST, GET, PUT, DELETE, PATCH, OPTIONS",
-                    "Access-Control-Allow-Headers": requested_headers,
+                    "Access-Control-Allow-Headers": allow_headers_value,
                     "Access-Control-Allow-Credentials": "true",
                     "X-Request-ID": request_id,
                 }
@@ -266,7 +284,7 @@ app.add_middleware(
     allow_origin_regex=allow_origin_regex,
     allow_credentials=True, # Always allow credentials for specific origins/regex
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "X-Request-ID", "X-Requested-With"],
+    allow_headers=["Authorization", "authorization", "Content-Type", "X-Request-ID", "X-Requested-With"],
     expose_headers=["X-Request-ID"],
     max_age=3600,
 )
