@@ -14,6 +14,12 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
+@router.options("/tasks")
+async def options_ai_tasks():
+    """Handle OPTIONS requests for AI tasks endpoint."""
+    from fastapi.responses import JSONResponse
+    return JSONResponse(status_code=200, content={"message": "OK"})
+
 
 @router.get("/tasks", response_model=Dict[str, Any])
 def get_ai_tasks(

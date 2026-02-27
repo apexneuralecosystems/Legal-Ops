@@ -161,12 +161,12 @@ async def cors_and_request_id_middleware(request: Request, call_next):
     start_time = time.time()
     
     try:
-        # Log auth requests for debugging
-        if request.url.path.startswith("/api/auth"):
+        # Log API requests for debugging
+        if request.url.path.startswith("/api"):
             logger.info(f"[CORS-DEBUG] [{request_id}] {request.method} {request.url.path} from {request.headers.get('origin', 'no-origin')}")
         
-        # Handle OPTIONS requests explicitly for auth endpoints
-        if request.method == "OPTIONS" and request.url.path.startswith("/api/auth"):
+        # Handle OPTIONS requests explicitly for all API endpoints
+        if request.method == "OPTIONS" and request.url.path.startswith("/api"):
             logger.info(f"[CORS-DEBUG] [{request_id}] Handling OPTIONS request for {request.url.path}")
             
             # Get the origin from request headers
@@ -178,7 +178,7 @@ async def cors_and_request_id_middleware(request: Request, call_next):
                 content={"message": "OK"},
                 headers={
                     "Access-Control-Allow-Origin": origin,
-                    "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+                    "Access-Control-Allow-Methods": "POST, GET, PUT, DELETE, PATCH, OPTIONS",
                     "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Request-ID",
                     "Access-Control-Max-Age": "3600",
                     "Access-Control-Allow-Credentials": "true",
@@ -198,16 +198,16 @@ async def cors_and_request_id_middleware(request: Request, call_next):
         # Add request ID to response
         response.headers["X-Request-ID"] = request_id
         
-        # Add CORS headers for auth endpoints
-        if request.url.path.startswith("/api/auth"):
+        # Add CORS headers for all API endpoints
+        if request.url.path.startswith("/api"):
             origin = request.headers.get("origin")
             if origin:
                 response.headers["Access-Control-Allow-Origin"] = origin
                 response.headers["Access-Control-Allow-Credentials"] = "true"
                 logger.info(f"[CORS-DEBUG] [{request_id}] Added CORS headers for origin: {origin}")
         
-        # Log response for auth endpoints
-        if request.url.path.startswith("/api/auth"):
+        # Log response for all API endpoints
+        if request.url.path.startswith("/api"):
             duration_ms = round((time.time() - start_time) * 1000)
             logger.info(f"[CORS-DEBUG] [{request_id}] {request.method} {request.url.path} → {response.status_code} ({duration_ms}ms)")
         
@@ -215,14 +215,14 @@ async def cors_and_request_id_middleware(request: Request, call_next):
         
     except Exception as e:
         logger.error(f"[CORS-DEBUG] [{request_id}] Error in middleware: {str(e)}", exc_info=True)
-        # Return error response with CORS headers if it's an auth endpoint
-        if request.url.path.startswith("/api/auth") and request.method == "OPTIONS":
+        # Return error response with CORS headers if it's an API endpoint
+        if request.url.path.startswith("/api") and request.method == "OPTIONS":
             return JSONResponse(
                 status_code=500,
                 content={"error": "Internal server error"},
                 headers={
                     "Access-Control-Allow-Origin": request.headers.get("origin", "*"),
-                    "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+                    "Access-Control-Allow-Methods": "POST, GET, PUT, DELETE, PATCH, OPTIONS",
                     "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Request-ID",
                     "Access-Control-Allow-Credentials": "true",
                     "X-Request-ID": request_id,

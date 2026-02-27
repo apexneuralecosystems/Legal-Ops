@@ -26,6 +26,27 @@ controller = OrchestrationController()
 logger = logging.getLogger(__name__)
 
 
+@router.options("/")
+async def options_matters_root():
+    """Handle OPTIONS requests for matters root endpoint."""
+    from fastapi.responses import JSONResponse
+    return JSONResponse(status_code=200, content={"message": "OK"})
+
+
+@router.options("/stats")
+async def options_matters_stats():
+    """Handle OPTIONS requests for matters stats endpoint."""
+    from fastapi.responses import JSONResponse
+    return JSONResponse(status_code=200, content={"message": "OK"})
+
+
+@router.options("/{matter_id}")
+async def options_matter_detail():
+    """Handle OPTIONS requests for matter detail endpoints."""
+    from fastapi.responses import JSONResponse
+    return JSONResponse(status_code=200, content={"message": "OK"})
+
+
 # Pydantic schemas
 class MatterResponse(BaseModel):
     matter_id: str
