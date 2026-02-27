@@ -232,8 +232,8 @@ export const authApi = {
 
     verifyToken: async (token: string): Promise<boolean> => {
         try {
-            await apiClient.post('/auth/verify', null, {
-                params: { token }
+            await apiClient.post('/auth/verify', {
+                refresh_token: token
             })
             return true
         } catch (error) {

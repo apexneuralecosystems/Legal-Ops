@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/authStore'
-import { tokenManager } from '@/lib/api'
+import { authApi, tokenManager } from '@/lib/api'
 
 interface ProtectedRouteProps {
     children: React.ReactNode
@@ -12,21 +12,35 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children, fallback }: ProtectedRouteProps) {
     const router = useRouter()
-    const { isAuthenticated, checkAuth } = useAuthStore()
+    const { isAuthenticated, checkAuth, logout } = useAuthStore()
     const [isChecking, setIsChecking] = useState(true)
 
     useEffect(() => {
-        // Check if user has valid token
-        const hasToken = tokenManager.isAuthenticated()
+        let isMounted = true
+        const validate = async () => {
+            const token = tokenManager.getAccessToken()
 
-        if (!hasToken) {
-            router.push('/login')
-            return
+            if (!token) {
+                router.push('/login')
+                return
+            }
+
+            const isValid = await authApi.verifyToken(token)
+            if (!isValid) {
+                logout()
+                router.push('/login')
+                return
+            }
+
+            checkAuth()
+            if (isMounted) setIsChecking(false)
         }
 
-        checkAuth()
-        setIsChecking(false)
-    }, [router, checkAuth])
+        validate()
+        return () => {
+            isMounted = false
+        }
+    }, [router, checkAuth, logout])
 
     // Show loading while checking auth
     if (isChecking) {
