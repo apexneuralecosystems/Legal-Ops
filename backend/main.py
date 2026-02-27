@@ -166,25 +166,11 @@ async def cors_and_request_id_middleware(request: Request, call_next):
             logger.info(f"[CORS-DEBUG] [{request_id}] {request.method} {request.url.path} from {request.headers.get('origin', 'no-origin')}")
         
         # Handle OPTIONS requests explicitly for all API endpoints
-        if request.method == "OPTIONS" and request.url.path.startswith("/api"):
+        if request.method == "OPTIONS":
             logger.info(f"[CORS-DEBUG] [{request_id}] Handling OPTIONS request for {request.url.path}")
             
-            # Get the origin from request headers
-            origin = request.headers.get("origin", "*")
-            
-            requested_headers = request.headers.get("access-control-request-headers")
-            if requested_headers:
-                header_list = [h.strip() for h in requested_headers.split(",") if h.strip()]
-            else:
-                header_list = ["Content-Type", "Authorization", "X-Request-ID"]
-            
-            lowered = {h.lower() for h in header_list}
-            if "authorization" not in lowered:
-                header_list.append("Authorization")
-            if "content-type" not in lowered:
-                header_list.append("Content-Type")
-            
-            allow_headers_value = ", ".join(header_list)
+            origin = settings.FRONTEND_URL or "https://legalops.apexneural.cloud"
+            allow_headers_value = "Content-Type, Authorization, Accept, X-Requested-With"
 
             # Return proper CORS response for OPTIONS preflight
             cors_response = JSONResponse(
@@ -192,7 +178,7 @@ async def cors_and_request_id_middleware(request: Request, call_next):
                 content={"message": "OK"},
                 headers={
                     "Access-Control-Allow-Origin": origin,
-                    "Access-Control-Allow-Methods": "POST, GET, PUT, DELETE, PATCH, OPTIONS",
+                    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
                     "Access-Control-Allow-Headers": allow_headers_value,
                     "Access-Control-Max-Age": "3600",
                     "Access-Control-Allow-Credentials": "true",
@@ -213,12 +199,13 @@ async def cors_and_request_id_middleware(request: Request, call_next):
         response.headers["X-Request-ID"] = request_id
         
         # Add CORS headers for all API endpoints
+        origin = settings.FRONTEND_URL or "https://legalops.apexneural.cloud"
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, Accept, X-Requested-With"
+        response.headers["Access-Control-Allow-Credentials"] = "true"
         if request.url.path.startswith("/api"):
-            origin = request.headers.get("origin")
-            if origin:
-                response.headers["Access-Control-Allow-Origin"] = origin
-                response.headers["Access-Control-Allow-Credentials"] = "true"
-                logger.info(f"[CORS-DEBUG] [{request_id}] Added CORS headers for origin: {origin}")
+            logger.info(f"[CORS-DEBUG] [{request_id}] Added CORS headers for origin: {origin}")
         
         # Log response for all API endpoints
         if request.url.path.startswith("/api"):
@@ -230,24 +217,14 @@ async def cors_and_request_id_middleware(request: Request, call_next):
     except Exception as e:
         logger.error(f"[CORS-DEBUG] [{request_id}] Error in middleware: {str(e)}", exc_info=True)
         # Return error response with CORS headers if it's an API endpoint
-        if request.url.path.startswith("/api") and request.method == "OPTIONS":
-            requested_headers = request.headers.get("access-control-request-headers")
-            if requested_headers:
-                header_list = [h.strip() for h in requested_headers.split(",") if h.strip()]
-            else:
-                header_list = ["Content-Type", "Authorization", "X-Request-ID"]
-            lowered = {h.lower() for h in header_list}
-            if "authorization" not in lowered:
-                header_list.append("Authorization")
-            if "content-type" not in lowered:
-                header_list.append("Content-Type")
-            allow_headers_value = ", ".join(header_list)
+        if request.method == "OPTIONS":
+            allow_headers_value = "Content-Type, Authorization, Accept, X-Requested-With"
             return JSONResponse(
                 status_code=500,
                 content={"error": "Internal server error"},
                 headers={
-                    "Access-Control-Allow-Origin": request.headers.get("origin", "*"),
-                    "Access-Control-Allow-Methods": "POST, GET, PUT, DELETE, PATCH, OPTIONS",
+                    "Access-Control-Allow-Origin": settings.FRONTEND_URL or "https://legalops.apexneural.cloud",
+                    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
                     "Access-Control-Allow-Headers": allow_headers_value,
                     "Access-Control-Allow-Credentials": "true",
                     "X-Request-ID": request_id,
@@ -283,8 +260,8 @@ app.add_middleware(
     allow_origins=cors_origins,
     allow_origin_regex=allow_origin_regex,
     allow_credentials=True, # Always allow credentials for specific origins/regex
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "authorization", "Content-Type", "X-Request-ID", "X-Requested-With"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_headers=["Content-Type", "Authorization", "Accept", "X-Requested-With"],
     expose_headers=["X-Request-ID"],
     max_age=3600,
 )
