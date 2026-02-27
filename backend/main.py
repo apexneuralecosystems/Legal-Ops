@@ -153,6 +153,45 @@ app = FastAPI(
     redoc_url=_redoc_url,
 )
 
+# CORS debugging middleware — log and handle OPTIONS requests
+@app.middleware("http")
+async def cors_debug_middleware(request: Request, call_next):
+    """Debug CORS issues and handle OPTIONS requests explicitly."""
+    request_id = request.headers.get("X-Request-ID", str(uuid.uuid4())[:8])
+    
+    # Log all requests for debugging
+    if request.url.path.startswith("/api/auth"):
+        logger.info(f"[CORS-DEBUG] [{request_id}] {request.method} {request.url.path} from {request.headers.get('origin', 'no-origin')}")
+        logger.info(f"[CORS-DEBUG] Headers: {dict(request.headers)}")
+    
+    # Handle OPTIONS requests explicitly
+    if request.method == "OPTIONS" and request.url.path.startswith("/api/auth"):
+        logger.info(f"[CORS-DEBUG] [{request_id}] Handling OPTIONS request for {request.url.path}")
+        return JSONResponse(
+            status_code=200,
+            headers={
+                "Access-Control-Allow-Origin": request.headers.get("origin", "*"),
+                "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Request-ID",
+                "Access-Control-Max-Age": "3600",
+                "Access-Control-Allow-Credentials": "true",
+                "X-Request-ID": request_id,
+            }
+        )
+    
+    # Continue with normal processing
+    response = await call_next(request)
+    
+    # Add CORS headers for auth endpoints
+    if request.url.path.startswith("/api/auth"):
+        origin = request.headers.get("origin")
+        if origin:
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            logger.info(f"[CORS-DEBUG] [{request_id}] Added CORS headers for origin: {origin}")
+    
+    return response
+
 # Request ID middleware — adds X-Request-ID to every response for tracing
 @app.middleware("http")
 async def add_request_id(request: Request, call_next):
@@ -168,6 +207,21 @@ async def add_request_id(request: Request, call_next):
 # Configure CORS - environment-aware
 cors_origins = ["*"] if settings.CORS_ALLOW_ALL else settings.cors_origins_list
 
+# Enhanced CORS configuration for production
+if not settings.CORS_ALLOW_ALL:
+    # Explicitly add the production domains
+    production_origins = [
+        "https://legalops.apexneural.cloud",
+        "https://www.legalops.apexneural.cloud",
+        "https://legalops-api.apexneural.cloud",
+        "https://www.legalops-api.apexneural.cloud"
+    ]
+    
+    # Add production origins if not already present
+    for origin in production_origins:
+        if origin not in cors_origins:
+            cors_origins.append(origin)
+
 # Allow all subdomains of the production domain via regex
 # This catches www.legalops... vs legalops... vs other variations
 allow_origin_regex = r"https://.*\.apexneural\.cloud" if not settings.CORS_ALLOW_ALL else None
@@ -177,7 +231,7 @@ app.add_middleware(
     allow_origins=cors_origins,
     allow_origin_regex=allow_origin_regex,
     allow_credentials=True, # Always allow credentials for specific origins/regex
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
     expose_headers=["X-Request-ID"],
     max_age=3600,
