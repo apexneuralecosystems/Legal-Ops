@@ -259,7 +259,7 @@ app.add_middleware(
     allow_origin_regex=allow_origin_regex,
     allow_credentials=True, # Always allow credentials for specific origins/regex
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
+    allow_headers=["Content-Type", "Authorization", "X-Request-ID"],  # Explicitly allow these headers
     expose_headers=["X-Request-ID"],
     max_age=3600,
 )
