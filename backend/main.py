@@ -179,7 +179,7 @@ async def cors_and_request_id_middleware(request: Request, call_next):
                 headers={
                     "Access-Control-Allow-Origin": origin,
                     "Access-Control-Allow-Methods": "POST, GET, PUT, DELETE, PATCH, OPTIONS",
-                    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Request-ID",
+                    "Access-Control-Allow-Headers": "*",  # Allow all headers including authorization
                     "Access-Control-Max-Age": "3600",
                     "Access-Control-Allow-Credentials": "true",
                     "X-Request-ID": request_id,
@@ -223,7 +223,7 @@ async def cors_and_request_id_middleware(request: Request, call_next):
                 headers={
                     "Access-Control-Allow-Origin": request.headers.get("origin", "*"),
                     "Access-Control-Allow-Methods": "POST, GET, PUT, DELETE, PATCH, OPTIONS",
-                    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Request-ID",
+                    "Access-Control-Allow-Headers": "*",  # Allow all headers including authorization
                     "Access-Control-Allow-Credentials": "true",
                     "X-Request-ID": request_id,
                 }
@@ -259,7 +259,7 @@ app.add_middleware(
     allow_origin_regex=allow_origin_regex,
     allow_credentials=True, # Always allow credentials for specific origins/regex
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization", "X-Request-ID"],  # Explicitly allow these headers
+    allow_headers=["*"],  # Allow all headers including authorization
     expose_headers=["X-Request-ID"],
     max_age=3600,
 )
