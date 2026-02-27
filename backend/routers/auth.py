@@ -5,6 +5,7 @@ Provides signup, login, token management, and password reset endpoints.
 Version: Uses apex-saas-framework 0.3.24 (local module)
 """
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Request
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, EmailStr
 from typing import Optional

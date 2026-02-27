@@ -7,7 +7,12 @@ from slowapi.util import get_remote_address
 
 
 def get_rate_limit_key(request):
-    """Get rate limit key - prefer user ID over IP for authenticated requests."""
+    """Get rate limit key - prefer user ID over IP for authenticated requests.
+    Skip rate limiting for OPTIONS requests (CORS preflight)."""
+    # Skip rate limiting for OPTIONS requests (CORS preflight)
+    if request.method == "OPTIONS":
+        return None  # This will bypass rate limiting entirely
+    
     auth_header = request.headers.get("Authorization", "")
     if auth_header.startswith("Bearer "):
         token = auth_header[7:]
