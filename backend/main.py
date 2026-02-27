@@ -153,56 +153,83 @@ app = FastAPI(
     redoc_url=_redoc_url,
 )
 
-# CORS debugging middleware — log and handle OPTIONS requests
+# Combined CORS and Request ID middleware — handles both tracing and CORS
 @app.middleware("http")
-async def cors_debug_middleware(request: Request, call_next):
-    """Debug CORS issues and handle OPTIONS requests explicitly."""
+async def cors_and_request_id_middleware(request: Request, call_next):
+    """Combined middleware for CORS handling and request ID tracing."""
     request_id = request.headers.get("X-Request-ID", str(uuid.uuid4())[:8])
+    start_time = time.time()
     
-    # Log all requests for debugging
-    if request.url.path.startswith("/api/auth"):
-        logger.info(f"[CORS-DEBUG] [{request_id}] {request.method} {request.url.path} from {request.headers.get('origin', 'no-origin')}")
-        logger.info(f"[CORS-DEBUG] Headers: {dict(request.headers)}")
-    
-    # Handle OPTIONS requests explicitly
-    if request.method == "OPTIONS" and request.url.path.startswith("/api/auth"):
-        logger.info(f"[CORS-DEBUG] [{request_id}] Handling OPTIONS request for {request.url.path}")
-        return JSONResponse(
-            status_code=200,
-            headers={
-                "Access-Control-Allow-Origin": request.headers.get("origin", "*"),
-                "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-                "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Request-ID",
-                "Access-Control-Max-Age": "3600",
-                "Access-Control-Allow-Credentials": "true",
-                "X-Request-ID": request_id,
-            }
-        )
-    
-    # Continue with normal processing
-    response = await call_next(request)
-    
-    # Add CORS headers for auth endpoints
-    if request.url.path.startswith("/api/auth"):
-        origin = request.headers.get("origin")
-        if origin:
-            response.headers["Access-Control-Allow-Origin"] = origin
-            response.headers["Access-Control-Allow-Credentials"] = "true"
-            logger.info(f"[CORS-DEBUG] [{request_id}] Added CORS headers for origin: {origin}")
-    
-    return response
-
-# Request ID middleware — adds X-Request-ID to every response for tracing
-@app.middleware("http")
-async def add_request_id(request: Request, call_next):
-    request_id = request.headers.get("X-Request-ID", str(uuid.uuid4())[:8])
-    start = time.time()
-    response = await call_next(request)
-    response.headers["X-Request-ID"] = request_id
-    duration_ms = round((time.time() - start) * 1000)
-    if request.url.path not in ("/health", "/healthz", "/readyz"):
-        logger.info(f"[{request_id}] {request.method} {request.url.path} → {response.status_code} ({duration_ms}ms)")
-    return response
+    try:
+        # Log auth requests for debugging
+        if request.url.path.startswith("/api/auth"):
+            logger.info(f"[CORS-DEBUG] [{request_id}] {request.method} {request.url.path} from {request.headers.get('origin', 'no-origin')}")
+        
+        # Handle OPTIONS requests explicitly for auth endpoints
+        if request.method == "OPTIONS" and request.url.path.startswith("/api/auth"):
+            logger.info(f"[CORS-DEBUG] [{request_id}] Handling OPTIONS request for {request.url.path}")
+            
+            # Get the origin from request headers
+            origin = request.headers.get("origin", "*")
+            
+            # Return proper CORS response for OPTIONS preflight
+            cors_response = JSONResponse(
+                status_code=200,
+                content={"message": "OK"},
+                headers={
+                    "Access-Control-Allow-Origin": origin,
+                    "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+                    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Request-ID",
+                    "Access-Control-Max-Age": "3600",
+                    "Access-Control-Allow-Credentials": "true",
+                    "X-Request-ID": request_id,
+                }
+            )
+            
+            # Add request ID to response time logging
+            duration_ms = round((time.time() - start_time) * 1000)
+            logger.info(f"[CORS-DEBUG] [{request_id}] OPTIONS {request.url.path} → 200 ({duration_ms}ms)")
+            
+            return cors_response
+        
+        # For non-OPTIONS requests, continue with normal processing
+        response = await call_next(request)
+        
+        # Add request ID to response
+        response.headers["X-Request-ID"] = request_id
+        
+        # Add CORS headers for auth endpoints
+        if request.url.path.startswith("/api/auth"):
+            origin = request.headers.get("origin")
+            if origin:
+                response.headers["Access-Control-Allow-Origin"] = origin
+                response.headers["Access-Control-Allow-Credentials"] = "true"
+                logger.info(f"[CORS-DEBUG] [{request_id}] Added CORS headers for origin: {origin}")
+        
+        # Log response for auth endpoints
+        if request.url.path.startswith("/api/auth"):
+            duration_ms = round((time.time() - start_time) * 1000)
+            logger.info(f"[CORS-DEBUG] [{request_id}] {request.method} {request.url.path} → {response.status_code} ({duration_ms}ms)")
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"[CORS-DEBUG] [{request_id}] Error in middleware: {str(e)}", exc_info=True)
+        # Return error response with CORS headers if it's an auth endpoint
+        if request.url.path.startswith("/api/auth") and request.method == "OPTIONS":
+            return JSONResponse(
+                status_code=500,
+                content={"error": "Internal server error"},
+                headers={
+                    "Access-Control-Allow-Origin": request.headers.get("origin", "*"),
+                    "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+                    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Request-ID",
+                    "Access-Control-Allow-Credentials": "true",
+                    "X-Request-ID": request_id,
+                }
+            )
+        else:
+            raise
 
 # Configure CORS - environment-aware
 cors_origins = ["*"] if settings.CORS_ALLOW_ALL else settings.cors_origins_list

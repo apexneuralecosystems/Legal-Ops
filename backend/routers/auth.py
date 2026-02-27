@@ -97,97 +97,41 @@ class UserResponse(BaseModel):
 
 # Endpoints
 
-# CORS preflight handlers - handle OPTIONS before rate limiting
+# Simple OPTIONS handlers - main middleware handles CORS
 @router.options("/signup")
 async def options_signup(request: Request):
-    """Handle CORS preflight for signup endpoint."""
-    return JSONResponse(
-        status_code=200,
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization",
-            "Access-Control-Max-Age": "3600",
-        }
-    )
+    """Simple OPTIONS handler for signup endpoint."""
+    return JSONResponse(status_code=200, content={"message": "OK"})
 
 @router.options("/login")
 async def options_login(request: Request):
-    """Handle CORS preflight for login endpoint."""
-    return JSONResponse(
-        status_code=200,
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization",
-            "Access-Control-Max-Age": "3600",
-        }
-    )
+    """Simple OPTIONS handler for login endpoint."""
+    return JSONResponse(status_code=200, content={"message": "OK"})
 
 @router.options("/refresh")
 async def options_refresh(request: Request):
-    """Handle CORS preflight for refresh endpoint."""
-    return JSONResponse(
-        status_code=200,
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization",
-            "Access-Control-Max-Age": "3600",
-        }
-    )
+    """Simple OPTIONS handler for refresh endpoint."""
+    return JSONResponse(status_code=200, content={"message": "OK"})
 
 @router.options("/forgot-password")
 async def options_forgot_password(request: Request):
-    """Handle CORS preflight for forgot-password endpoint."""
-    return JSONResponse(
-        status_code=200,
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization",
-            "Access-Control-Max-Age": "3600",
-        }
-    )
+    """Simple OPTIONS handler for forgot-password endpoint."""
+    return JSONResponse(status_code=200, content={"message": "OK"})
 
 @router.options("/reset-password")
 async def options_reset_password(request: Request):
-    """Handle CORS preflight for reset-password endpoint."""
-    return JSONResponse(
-        status_code=200,
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization",
-            "Access-Control-Max-Age": "3600",
-        }
-    )
+    """Simple OPTIONS handler for reset-password endpoint."""
+    return JSONResponse(status_code=200, content={"message": "OK"})
 
 @router.options("/verify")
 async def options_verify(request: Request):
-    """Handle CORS preflight for verify endpoint."""
-    return JSONResponse(
-        status_code=200,
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization",
-            "Access-Control-Max-Age": "3600",
-        }
-    )
+    """Simple OPTIONS handler for verify endpoint."""
+    return JSONResponse(status_code=200, content={"message": "OK"})
 
 @router.options("/me")
 async def options_me(request: Request):
-    """Handle CORS preflight for me endpoint."""
-    return JSONResponse(
-        status_code=200,
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization",
-            "Access-Control-Max-Age": "3600",
-        }
-    )
+    """Simple OPTIONS handler for me endpoint."""
+    return JSONResponse(status_code=200, content={"message": "OK"})
 
 
 @router.post("/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
