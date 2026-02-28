@@ -4,7 +4,6 @@ Production-hardened for Dokploy deployment.
 """
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from config import settings
 from database import init_db, Base, set_apex_client, get_async_db_url
@@ -233,38 +232,9 @@ async def cors_and_request_id_middleware(request: Request, call_next):
         else:
             raise
 
-# Configure CORS - environment-aware
-cors_origins = ["*"] if settings.CORS_ALLOW_ALL else settings.cors_origins_list
-
-# Enhanced CORS configuration for production
-if not settings.CORS_ALLOW_ALL:
-    # Explicitly add the production domains
-    production_origins = [
-        "https://legalops.apexneural.cloud",
-        "https://www.legalops.apexneural.cloud",
-        "https://legalops-api.apexneural.cloud",
-        "https://www.legalops-api.apexneural.cloud"
-    ]
-    
-    # Add production origins if not already present
-    for origin in production_origins:
-        if origin not in cors_origins:
-            cors_origins.append(origin)
-
-# Allow all subdomains of the production domain via regex
-# This catches www.legalops... vs legalops... vs other variations
-allow_origin_regex = r"https://.*\.apexneural\.cloud" if not settings.CORS_ALLOW_ALL else None
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=cors_origins,
-    allow_origin_regex=allow_origin_regex,
-    allow_credentials=True, # Always allow credentials for specific origins/regex
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-    allow_headers=["Content-Type", "content-type", "Authorization", "authorization", "Accept", "X-Requested-With"],
-    expose_headers=["X-Request-ID"],
-    max_age=3600,
-)
+# Configure CORS - environment-aware (handled by custom middleware above)
+# The cors_and_request_id_middleware handles all CORS including OPTIONS preflight
+# Removing redundant CORSMiddleware to prevent conflicts
 
 # Rate limiting — shared limiter instance
 from slowapi import _rate_limit_exceeded_handler
