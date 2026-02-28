@@ -170,7 +170,7 @@ async def cors_and_request_id_middleware(request: Request, call_next):
             logger.info(f"[CORS-DEBUG] [{request_id}] Handling OPTIONS request for {request.url.path}")
             
             origin = settings.FRONTEND_URL or "https://legalops.apexneural.cloud"
-            allow_headers_value = "Content-Type, Authorization, Accept, X-Requested-With"
+            allow_headers_value = "Content-Type, content-type, Authorization, authorization, Accept, X-Requested-With"
 
             # Return proper CORS response for OPTIONS preflight
             cors_response = JSONResponse(
@@ -202,7 +202,7 @@ async def cors_and_request_id_middleware(request: Request, call_next):
         origin = settings.FRONTEND_URL or "https://legalops.apexneural.cloud"
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
-        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, Accept, X-Requested-With"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, content-type, Authorization, authorization, Accept, X-Requested-With"
         response.headers["Access-Control-Allow-Credentials"] = "true"
         if request.url.path.startswith("/api"):
             logger.info(f"[CORS-DEBUG] [{request_id}] Added CORS headers for origin: {origin}")
@@ -218,7 +218,7 @@ async def cors_and_request_id_middleware(request: Request, call_next):
         logger.error(f"[CORS-DEBUG] [{request_id}] Error in middleware: {str(e)}", exc_info=True)
         # Return error response with CORS headers if it's an API endpoint
         if request.method == "OPTIONS":
-            allow_headers_value = "Content-Type, Authorization, Accept, X-Requested-With"
+            allow_headers_value = "Content-Type, content-type, Authorization, authorization, Accept, X-Requested-With"
             return JSONResponse(
                 status_code=500,
                 content={"error": "Internal server error"},
@@ -261,7 +261,7 @@ app.add_middleware(
     allow_origin_regex=allow_origin_regex,
     allow_credentials=True, # Always allow credentials for specific origins/regex
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-    allow_headers=["Content-Type", "Authorization", "Accept", "X-Requested-With"],
+    allow_headers=["Content-Type", "content-type", "Authorization", "authorization", "Accept", "X-Requested-With"],
     expose_headers=["X-Request-ID"],
     max_age=3600,
 )

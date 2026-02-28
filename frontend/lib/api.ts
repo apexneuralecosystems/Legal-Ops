@@ -179,6 +179,14 @@ const createApiClient = (): AxiosInstance => {
     return client
 }
 
+const publicApiClient = axios.create({
+    baseURL: `${API_URL}/api`,
+    timeout: 300000,
+    headers: {
+        'Content-Type': 'application/json',
+    },
+})
+
 // Extract user-friendly error message
 const extractErrorMessage = (error: AxiosError): string => {
     if (error.response?.data) {
@@ -232,7 +240,7 @@ export const authApi = {
 
     verifyToken: async (token: string): Promise<boolean> => {
         try {
-            await apiClient.post('/auth/verify', {
+            await publicApiClient.post('/auth/verify', {
                 refresh_token: token
             })
             return true

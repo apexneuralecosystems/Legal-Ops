@@ -3,15 +3,22 @@ Write-Host "Testing CORS Authorization Header" -ForegroundColor Cyan
 $baseUrl = "https://legalops-api.apexneural.cloud"
 $origin = "https://legalops.apexneural.cloud"
 
-$endpoints = @("/api/matters/stats", "/api/matters/", "/api/ai-tasks/tasks?limit=10")
+$tests = @(
+    @{ path = "/api/matters/stats"; method = "GET" },
+    @{ path = "/api/matters/"; method = "GET" },
+    @{ path = "/api/ai-tasks/tasks?limit=10"; method = "GET" },
+    @{ path = "/api/auth/verify"; method = "POST" }
+)
 
-foreach ($endpoint in $endpoints) {
+foreach ($test in $tests) {
+    $endpoint = $test.path
+    $method = $test.method
     Write-Host "Testing: $endpoint" -ForegroundColor Green
     
     try {
         $response = Invoke-WebRequest -Uri "$baseUrl$endpoint" -Method OPTIONS -Headers @{
             "Origin" = $origin
-            "Access-Control-Request-Method" = "GET"
+            "Access-Control-Request-Method" = $method
             "Access-Control-Request-Headers" = "authorization,content-type"
         } -UseBasicParsing -TimeoutSec 10
         
